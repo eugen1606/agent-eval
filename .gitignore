@@ -46,3 +46,8 @@ vite.config.*.timestamp*
 # Data files
 data/sessions/*
 !data/sessions/.gitkeep
+
+# Environment files
+.env
+.env.local
+.env.*.local

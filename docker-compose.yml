@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-eval-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent_eval}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_eval_password}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_eval}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_eval}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

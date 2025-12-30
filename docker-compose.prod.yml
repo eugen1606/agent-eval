@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-eval-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent_eval}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_eval_password}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_eval}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_eval}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-eval-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: agent-eval-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_eval}:${POSTGRES_PASSWORD:-agent_eval_password}@postgres:5432/${POSTGRES_DB:-agent_eval}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agent-eval-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: agent-eval-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - agent-eval-network
+
+networks:
+  agent-eval-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

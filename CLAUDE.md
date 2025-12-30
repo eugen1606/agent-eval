@@ -12,6 +12,9 @@ Agent Eval is an AI flow evaluation application for testing agent AI flows. It a
 # Install dependencies
 npm install
 
+# Start database (required for backend)
+docker-compose up -d postgres
+
 # Development
 npx nx serve frontend    # Start React frontend (http://localhost:4200)
 npx nx serve backend     # Start NestJS backend (http://localhost:3000/api)
@@ -32,6 +35,9 @@ npx nx lint backend
 # Test
 npx nx test shared
 npx nx test api-client
+
+# Docker - Production deployment
+docker-compose -f docker-compose.prod.yml up --build
 ```
 
 ## Architecture
@@ -48,6 +54,16 @@ This is an Nx monorepo with the following structure:
 - `flow`: Executes AI flows against external endpoints (`POST /api/flow/execute`)
 - `evaluation`: LLM-as-judge evaluation (`POST /api/evaluate/llm-judge`)
 - `sessions`: CRUD operations for evaluation sessions (`/api/sessions`)
+- `access-tokens`: Encrypted access token storage (`/api/access-tokens`)
+- `questions`: Reusable question sets (`/api/questions`)
+- `evaluations`: Stored evaluations with flow exports (`/api/evaluations`)
+
+### Database Entities
+
+- `AccessToken`: Encrypted access tokens (AES-256-GCM)
+- `Evaluation`: Final outputs and flow exports
+- `QuestionSet`: Reusable question collections
+- `FlowConfig`: Saved flow configurations
 
 ### Key Types (libs/shared)
 
@@ -65,12 +81,35 @@ This is an Nx monorepo with the following structure:
 
 ## Environment Variables
 
-The backend supports these optional environment variables for LLM-as-judge:
-- `OPENAI_API_KEY`: For GPT-4 evaluation
-- `ANTHROPIC_API_KEY`: For Claude evaluation
+Copy `.env.example` to `.env` and configure:
 
-If neither is set, mock evaluations are returned.
+```bash
+# Database
+DATABASE_URL=postgresql://agent_eval:agent_eval_password@localhost:5432/agent_eval
+
+# Encryption key for access tokens (64 hex characters)
+ENCRYPTION_KEY=<generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+
+# LLM API Keys (optional)
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+```
+
+## Docker Deployment
+
+```bash
+# Development (database only)
+docker-compose up -d
+
+# Production (full stack)
+docker-compose -f docker-compose.prod.yml up --build
+```
 
 ## Data Storage
 
-Sessions are stored as JSON files in `data/sessions/` directory (file-based storage).
+- **Database**: PostgreSQL for access tokens, evaluations, questions, flow configs
+- **File-based sessions**: Legacy storage in `data/sessions/` directory
+
+## Git Conventions
+
+- Use short commit messages (one line, under 50 characters)
