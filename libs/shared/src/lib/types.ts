@@ -72,3 +72,71 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// Database Entity Types
+export interface StoredAccessToken {
+  id: string;
+  name: string;
+  basePath?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAccessTokenRequest {
+  name: string;
+  token: string;
+  basePath?: string;
+  description?: string;
+}
+
+export interface StoredQuestionSet {
+  id: string;
+  name: string;
+  questions: Array<{ question: string; expectedAnswer?: string }>;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateQuestionSetRequest {
+  name: string;
+  questions: Array<{ question: string; expectedAnswer?: string }>;
+  description?: string;
+}
+
+export interface StoredFlowConfig {
+  id: string;
+  name: string;
+  flowId: string;
+  basePath?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFlowConfigRequest {
+  name: string;
+  flowId: string;
+  basePath?: string;
+  description?: string;
+}
+
+export interface StoredEvaluation {
+  id: string;
+  name: string;
+  finalOutput: Record<string, unknown>;
+  flowExport?: Record<string, unknown>;
+  flowId?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEvaluationRequest {
+  name: string;
+  finalOutput: Record<string, unknown>;
+  flowExport?: Record<string, unknown>;
+  flowId?: string;
+  description?: string;
+}

@@ -1,10 +1,15 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import {
   ConfigurationForm,
   EvaluationResults,
   SessionsPanel,
   FlowExecutor,
+  AccessTokensManager,
+  QuestionSetsManager,
+  FlowConfigsManager,
+  EvaluationsManager,
 } from './components';
 import './app.css';
 
@@ -27,7 +32,51 @@ function EvaluationPage() {
   );
 }
 
+function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<'tokens' | 'questions' | 'flows' | 'evaluations'>('tokens');
+
+  return (
+    <div className="settings-page">
+      <div className="settings-tabs">
+        <button
+          className={activeTab === 'tokens' ? 'active' : ''}
+          onClick={() => setActiveTab('tokens')}
+        >
+          Access Tokens
+        </button>
+        <button
+          className={activeTab === 'questions' ? 'active' : ''}
+          onClick={() => setActiveTab('questions')}
+        >
+          Question Sets
+        </button>
+        <button
+          className={activeTab === 'flows' ? 'active' : ''}
+          onClick={() => setActiveTab('flows')}
+        >
+          Flow Configs
+        </button>
+        <button
+          className={activeTab === 'evaluations' ? 'active' : ''}
+          onClick={() => setActiveTab('evaluations')}
+        >
+          Evaluations
+        </button>
+      </div>
+
+      <div className="settings-content">
+        {activeTab === 'tokens' && <AccessTokensManager />}
+        {activeTab === 'questions' && <QuestionSetsManager />}
+        {activeTab === 'flows' && <FlowConfigsManager />}
+        {activeTab === 'evaluations' && <EvaluationsManager />}
+      </div>
+    </div>
+  );
+}
+
 export function App() {
+  const location = useLocation();
+
   return (
     <AppProvider>
       <div className="app">
@@ -35,22 +84,19 @@ export function App() {
           <h1>Agent Eval</h1>
           <p>AI Flow Evaluation Application</p>
           <nav>
-            <Link to="/">Evaluate</Link>
-            <Link to="/sessions">Sessions</Link>
+            <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
+              Evaluate
+            </Link>
+            <Link to="/settings" className={location.pathname === '/settings' ? 'active' : ''}>
+              Settings
+            </Link>
           </nav>
         </header>
 
         <main className="app-main">
           <Routes>
             <Route path="/" element={<EvaluationPage />} />
-            <Route
-              path="/sessions"
-              element={
-                <div className="sessions-page">
-                  <SessionsPanel />
-                </div>
-              }
-            />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>
