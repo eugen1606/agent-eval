@@ -11,12 +11,14 @@ export function ConfigurationForm() {
   const [questionsJson, setQuestionsJson] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [useManualToken, setUseManualToken] = useState(true);
+  const [useManualFlowConfig, setUseManualFlowConfig] = useState(true);
 
   // Stored data
   const [storedTokens, setStoredTokens] = useState<StoredAccessToken[]>([]);
   const [storedQuestionSets, setStoredQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [storedFlowConfigs, setStoredFlowConfigs] = useState<StoredFlowConfig[]>([]);
   const [selectedTokenId, setSelectedTokenId] = useState<string>('');
+  const [selectedFlowConfigId, setSelectedFlowConfigId] = useState<string>('');
   const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string>('');
 
   useEffect(() => {
@@ -41,12 +43,10 @@ export function ConfigurationForm() {
 
   const handleTokenSelect = (tokenId: string) => {
     setSelectedTokenId(tokenId);
-    const token = storedTokens.find((t) => t.id === tokenId);
-    if (token) {
+    if (tokenId) {
       setConfig({
         ...state.config,
         accessToken: tokenId, // Use token ID, backend will decrypt
-        basePath: token.basePath || state.config.basePath,
       });
     }
   };
@@ -66,12 +66,13 @@ export function ConfigurationForm() {
   };
 
   const handleFlowConfigSelect = (configId: string) => {
+    setSelectedFlowConfigId(configId);
     const flowConfig = storedFlowConfigs.find((fc) => fc.id === configId);
     if (flowConfig) {
       setConfig({
         ...state.config,
         flowId: flowConfig.flowId,
-        basePath: flowConfig.basePath || state.config.basePath,
+        basePath: flowConfig.basePath || '',
       });
     }
   };
@@ -146,51 +147,62 @@ export function ConfigurationForm() {
             <option value="">Select a stored token...</option>
             {storedTokens.map((token) => (
               <option key={token.id} value={token.id}>
-                {token.name} {token.basePath && `(${token.basePath})`}
+                {token.name}
               </option>
             ))}
           </select>
         )}
       </div>
 
-      {/* Base Path */}
+      {/* Flow Configuration Section */}
       <div className="form-group">
-        <label htmlFor="basePath">Base Path</label>
-        <input
-          id="basePath"
-          type="text"
-          value={state.config.basePath}
-          onChange={(e) => handleConfigChange('basePath', e.target.value)}
-          placeholder="https://api.example.com"
-        />
-      </div>
-
-      {/* Flow ID */}
-      <div className="form-group">
-        <label htmlFor="flowId">
-          Flow ID
-          {storedFlowConfigs.length > 0 && (
-            <select
-              className="inline-select"
-              onChange={(e) => handleFlowConfigSelect(e.target.value)}
-              value=""
+        <label>
+          Flow Configuration
+          <div className="toggle-group">
+            <button
+              type="button"
+              className={useManualFlowConfig ? 'active' : ''}
+              onClick={() => setUseManualFlowConfig(true)}
             >
-              <option value="">Load from saved...</option>
-              {storedFlowConfigs.map((fc) => (
-                <option key={fc.id} value={fc.id}>
-                  {fc.name}
-                </option>
-              ))}
-            </select>
-          )}
+              Manual
+            </button>
+            <button
+              type="button"
+              className={!useManualFlowConfig ? 'active' : ''}
+              onClick={() => setUseManualFlowConfig(false)}
+            >
+              Stored
+            </button>
+          </div>
         </label>
-        <input
-          id="flowId"
-          type="text"
-          value={state.config.flowId}
-          onChange={(e) => handleConfigChange('flowId', e.target.value)}
-          placeholder="Enter flow ID"
-        />
+        {useManualFlowConfig ? (
+          <div className="flow-config-inputs">
+            <input
+              type="text"
+              value={state.config.basePath}
+              onChange={(e) => handleConfigChange('basePath', e.target.value)}
+              placeholder="Base path (e.g., https://api.example.com)"
+            />
+            <input
+              type="text"
+              value={state.config.flowId}
+              onChange={(e) => handleConfigChange('flowId', e.target.value)}
+              placeholder="Flow ID"
+            />
+          </div>
+        ) : (
+          <select
+            value={selectedFlowConfigId}
+            onChange={(e) => handleFlowConfigSelect(e.target.value)}
+          >
+            <option value="">Select a flow configuration...</option>
+            {storedFlowConfigs.map((fc) => (
+              <option key={fc.id} value={fc.id}>
+                {fc.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Questions */}

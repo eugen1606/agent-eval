@@ -77,7 +77,6 @@ export interface ApiResponse<T> {
 export interface StoredAccessToken {
   id: string;
   name: string;
-  basePath?: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -86,7 +85,6 @@ export interface StoredAccessToken {
 export interface CreateAccessTokenRequest {
   name: string;
   token: string;
-  basePath?: string;
   description?: string;
 }
 

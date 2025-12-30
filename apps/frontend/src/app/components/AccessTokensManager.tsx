@@ -15,7 +15,6 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
   const [formData, setFormData] = useState({
     name: '',
     token: '',
-    basePath: '',
     description: '',
   });
   const [loading, setLoading] = useState(false);
@@ -39,12 +38,11 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
     const response = await apiClient.createAccessToken({
       name: formData.name,
       token: formData.token,
-      basePath: formData.basePath || undefined,
       description: formData.description || undefined,
     });
 
     if (response.success) {
-      setFormData({ name: '', token: '', basePath: '', description: '' });
+      setFormData({ name: '', token: '', description: '' });
       setShowForm(false);
       loadTokens();
     }
@@ -84,12 +82,6 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
           />
           <input
             type="text"
-            placeholder="Base path (optional)"
-            value={formData.basePath}
-            onChange={(e) => setFormData({ ...formData, basePath: e.target.value })}
-          />
-          <input
-            type="text"
             placeholder="Description (optional)"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -108,7 +100,6 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
             <div key={token.id} className="manager-item">
               <div className="item-info">
                 <strong>{token.name}</strong>
-                {token.basePath && <span className="item-meta">{token.basePath}</span>}
                 {token.description && <span className="item-desc">{token.description}</span>}
               </div>
               <div className="item-actions">

@@ -15,7 +15,7 @@ import {
   CreateEvaluationRequest,
 } from '@agent-eval/shared';
 
-const DEFAULT_API_URL = 'http://localhost:3000/api';
+const DEFAULT_API_URL = 'http://localhost:3001/api';
 
 export class AgentEvalClient {
   private apiUrl: string;

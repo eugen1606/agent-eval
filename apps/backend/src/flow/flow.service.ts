@@ -12,7 +12,7 @@ export class FlowService {
 
   async executeFlow(
     config: FlowConfig,
-    questions: QuestionInput[]
+    questions: QuestionInput[],
   ): Promise<EvaluationResult[]> {
     const results: EvaluationResult[] = [];
 
@@ -28,7 +28,10 @@ export class FlowService {
           timestamp: new Date().toISOString(),
         });
       } catch (error) {
-        this.logger.error(`Failed to execute flow for question: ${question.question}`, error);
+        this.logger.error(
+          `Failed to execute flow for question: ${question.question}`,
+          error,
+        );
         results.push({
           id: uuidv4(),
           question: question.question,
@@ -44,24 +47,48 @@ export class FlowService {
 
   private async callFlowEndpoint(
     config: FlowConfig,
-    question: string
+    question: string,
   ): Promise<string> {
-    const url = `${config.basePath}/flows/${config.flowId}/execute`;
+    const url = `${config.basePath}/api/lflow-engine/${config.flowId}/run`;
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.accessToken}`,
+        Authorization: `Bearer ${config.accessToken}`,
       },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({
+        sessionId: uuidv4(),
+        messages: [
+          {
+            name: 'User',
+            role: 'human',
+            content: [
+              {
+                type: 'text',
+                text: question,
+              },
+            ],
+          },
+        ],
+        inputVariables: {},
+        persistAllMessages: false,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`Flow API returned ${response.status}: ${response.statusText}`);
+      throw new Error(
+        `Flow API returned ${response.status}: ${response.statusText}`,
+      );
     }
 
     const data = await response.json();
-    return data.answer || data.response || JSON.stringify(data);
+
+    // Extract answer from result.messages[0].content[0].text
+    if (data.result?.messages?.[0]?.content?.[0]?.text) {
+      return data.result.messages[0].content[0].text;
+    }
+
+    return JSON.stringify(data);
   }
 }

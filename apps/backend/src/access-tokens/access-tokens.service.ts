@@ -7,14 +7,12 @@ import { EncryptionService } from '../config/encryption.service';
 export interface CreateAccessTokenDto {
   name: string;
   token: string;
-  basePath?: string;
   description?: string;
 }
 
 export interface AccessTokenResponse {
   id: string;
   name: string;
-  basePath?: string;
   description?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -36,7 +34,6 @@ export class AccessTokensService {
       name: dto.name,
       encryptedToken,
       iv,
-      basePath: dto.basePath,
       description: dto.description,
     });
 
@@ -75,7 +72,6 @@ export class AccessTokensService {
     }
 
     if (dto.name) token.name = dto.name;
-    if (dto.basePath !== undefined) token.basePath = dto.basePath;
     if (dto.description !== undefined) token.description = dto.description;
 
     const saved = await this.accessTokenRepository.save(token);
@@ -102,7 +98,6 @@ export class AccessTokensService {
     return {
       id: token.id,
       name: token.name,
-      basePath: token.basePath,
       description: token.description,
       createdAt: token.createdAt,
       updatedAt: token.updatedAt,

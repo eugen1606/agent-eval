@@ -693,6 +693,26 @@ body {
   color: white;
 }
 
+/* Flow Config Inputs */
+.flow-config-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.flow-config-inputs input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.flow-config-inputs input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
 /* Inline Select */
 .inline-select {
   margin-left: 0.5rem;

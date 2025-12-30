@@ -21,9 +21,6 @@ export class AccessToken {
   iv: string;
 
   @Column({ nullable: true })
-  basePath: string;
-
-  @Column({ nullable: true })
   description: string;
 
   @CreateDateColumn()
