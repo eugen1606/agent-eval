@@ -31,12 +31,13 @@ export function SessionsPanel() {
   const handleSaveSession = async () => {
     if (!flowName.trim()) return;
 
+    // Always create a new session (backend ignores any passed ID)
     const session: EvaluationSession = {
-      id: state.currentSession?.id || '',
+      id: '',
       flowName,
       flowConfig: state.config,
       results: state.results,
-      createdAt: state.currentSession?.createdAt || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
@@ -61,6 +62,12 @@ export function SessionsPanel() {
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Delete this session?')) return;
+    await apiClient.deleteSession(sessionId);
+    loadSessions();
   };
 
   const handleExportCurrent = (format: 'json' | 'csv') => {
@@ -151,6 +158,7 @@ export function SessionsPanel() {
                 <button onClick={() => handleLoadSession(session)}>Load</button>
                 <button onClick={() => handleExport(session.id, 'json')}>JSON</button>
                 <button onClick={() => handleExport(session.id, 'csv')}>CSV</button>
+                <button onClick={() => handleDeleteSession(session.id)} className="delete-btn">Delete</button>
               </div>
             </div>
           ))

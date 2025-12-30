@@ -8,8 +8,9 @@ export function FlowExecutor() {
   const { state, setResults, setLoading, setError } = useAppContext();
 
   const isConfigValid = () => {
+    const hasAccessToken = state.config.accessToken.trim() !== '' || !!state.config.accessTokenId;
     return (
-      state.config.accessToken.trim() !== '' &&
+      hasAccessToken &&
       state.config.basePath.trim() !== '' &&
       state.config.flowId.trim() !== '' &&
       state.questions.length > 0

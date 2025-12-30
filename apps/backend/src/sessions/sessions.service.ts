@@ -1,78 +1,59 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { EvaluationSession } from '@agent-eval/shared';
-import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
-import * as path from 'path';
+import { Session } from '../database/entities';
 
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger(SessionsService.name);
-  private readonly dataDir = path.join(process.cwd(), 'data', 'sessions');
 
-  constructor() {
-    // Ensure data directory exists
-    if (!fs.existsSync(this.dataDir)) {
-      fs.mkdirSync(this.dataDir, { recursive: true });
-    }
-  }
+  constructor(
+    @InjectRepository(Session)
+    private sessionRepository: Repository<Session>
+  ) {}
 
   async saveSession(
     flowName: string,
     session: EvaluationSession
   ): Promise<{ id: string }> {
-    const id = session.id || uuidv4();
-    const sessionData: EvaluationSession = {
-      ...session,
-      id,
+    // Always create a new session
+    const newSession = this.sessionRepository.create({
       flowName,
-      updatedAt: new Date().toISOString(),
-    };
+      flowConfig: session.flowConfig,
+      results: session.results,
+    });
 
-    const filePath = path.join(this.dataDir, `${id}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(sessionData, null, 2));
-
-    this.logger.log(`Session saved: ${id}`);
-    return { id };
+    const saved = await this.sessionRepository.save(newSession);
+    this.logger.log(`Session saved: ${saved.id}`);
+    return { id: saved.id };
   }
 
   async getSessions(): Promise<EvaluationSession[]> {
-    const files = fs.readdirSync(this.dataDir).filter((f) => f.endsWith('.json'));
-    const sessions: EvaluationSession[] = [];
+    const sessions = await this.sessionRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
 
-    for (const file of files) {
-      try {
-        const filePath = path.join(this.dataDir, file);
-        const content = fs.readFileSync(filePath, 'utf-8');
-        sessions.push(JSON.parse(content));
-      } catch (error) {
-        this.logger.warn(`Failed to read session file: ${file}`);
-      }
-    }
-
-    return sessions.sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
+    return sessions.map((s) => this.toEvaluationSession(s));
   }
 
   async getSession(id: string): Promise<EvaluationSession> {
-    const filePath = path.join(this.dataDir, `${id}.json`);
+    const session = await this.sessionRepository.findOne({ where: { id } });
 
-    if (!fs.existsSync(filePath)) {
+    if (!session) {
       throw new NotFoundException(`Session not found: ${id}`);
     }
 
-    const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content);
+    return this.toEvaluationSession(session);
   }
 
   async deleteSession(id: string): Promise<void> {
-    const filePath = path.join(this.dataDir, `${id}.json`);
+    const result = await this.sessionRepository.delete(id);
 
-    if (!fs.existsSync(filePath)) {
+    if (result.affected === 0) {
       throw new NotFoundException(`Session not found: ${id}`);
     }
 
-    fs.unlinkSync(filePath);
     this.logger.log(`Session deleted: ${id}`);
   }
 
@@ -89,10 +70,12 @@ export class SessionsService {
       'question',
       'answer',
       'expectedAnswer',
+      'executionId',
       'isCorrect',
+      'humanEvaluation',
+      'humanEvaluationDescription',
       'llmJudgeScore',
       'llmJudgeReasoning',
-      'humanEvaluation',
       'timestamp',
     ];
 
@@ -101,10 +84,12 @@ export class SessionsService {
       this.escapeCSV(result.question),
       this.escapeCSV(result.answer),
       this.escapeCSV(result.expectedAnswer || ''),
+      result.executionId || '',
       result.isCorrect?.toString() || '',
+      result.humanEvaluation || '',
+      this.escapeCSV(result.humanEvaluationDescription || ''),
       result.llmJudgeScore?.toString() || '',
       this.escapeCSV(result.llmJudgeReasoning || ''),
-      result.humanEvaluation?.toString() || '',
       result.timestamp,
     ]);
 
@@ -114,6 +99,17 @@ export class SessionsService {
     ].join('\n');
 
     return csv;
+  }
+
+  private toEvaluationSession(session: Session): EvaluationSession {
+    return {
+      id: session.id,
+      flowName: session.flowName,
+      flowConfig: session.flowConfig,
+      results: session.results,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+    };
   }
 
   private escapeCSV(value: string): string {

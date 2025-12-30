@@ -12,6 +12,7 @@ interface Props {
 export function FlowConfigsManager({ onSelect, selectable }: Props) {
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     flowId: '',
@@ -36,19 +37,46 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     if (!formData.name || !formData.flowId) return;
 
     setLoading(true);
-    const response = await apiClient.createFlowConfig({
-      name: formData.name,
-      flowId: formData.flowId,
-      basePath: formData.basePath || undefined,
-      description: formData.description || undefined,
-    });
+
+    let response;
+    if (editingId) {
+      response = await apiClient.updateFlowConfig(editingId, {
+        name: formData.name,
+        flowId: formData.flowId,
+        basePath: formData.basePath || undefined,
+        description: formData.description || undefined,
+      });
+    } else {
+      response = await apiClient.createFlowConfig({
+        name: formData.name,
+        flowId: formData.flowId,
+        basePath: formData.basePath || undefined,
+        description: formData.description || undefined,
+      });
+    }
 
     if (response.success) {
-      setFormData({ name: '', flowId: '', basePath: '', description: '' });
-      setShowForm(false);
+      resetForm();
       loadFlowConfigs();
     }
     setLoading(false);
+  };
+
+  const handleEdit = (fc: StoredFlowConfig) => {
+    setEditingId(fc.id);
+    setFormData({
+      name: fc.name,
+      flowId: fc.flowId,
+      basePath: fc.basePath || '',
+      description: fc.description || '',
+    });
+    setShowForm(true);
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', flowId: '', basePath: '', description: '' });
+    setShowForm(false);
+    setEditingId(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -61,7 +89,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Flow Configurations</h3>
-        <button onClick={() => setShowForm(!showForm)}>
+        <button onClick={() => showForm ? resetForm() : setShowForm(true)}>
           {showForm ? 'Cancel' : '+ Add Flow Config'}
         </button>
       </div>
@@ -95,7 +123,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
           <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Flow Config'}
+            {loading ? 'Saving...' : editingId ? 'Update Flow Config' : 'Save Flow Config'}
           </button>
         </form>
       )}
@@ -118,6 +146,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
                     Select
                   </button>
                 )}
+                <button onClick={() => handleEdit(fc)} className="edit-btn">
+                  Edit
+                </button>
                 <button onClick={() => handleDelete(fc.id)} className="delete-btn">
                   Delete
                 </button>

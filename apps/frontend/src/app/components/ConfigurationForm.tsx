@@ -46,7 +46,13 @@ export function ConfigurationForm() {
     if (tokenId) {
       setConfig({
         ...state.config,
-        accessToken: tokenId, // Use token ID, backend will decrypt
+        accessToken: '', // Clear manual token
+        accessTokenId: tokenId, // Backend will decrypt using this ID
+      });
+    } else {
+      setConfig({
+        ...state.config,
+        accessTokenId: undefined,
       });
     }
   };
@@ -119,7 +125,11 @@ export function ConfigurationForm() {
             <button
               type="button"
               className={useManualToken ? 'active' : ''}
-              onClick={() => setUseManualToken(true)}
+              onClick={() => {
+                setUseManualToken(true);
+                setSelectedTokenId('');
+                setConfig({ ...state.config, accessTokenId: undefined });
+              }}
             >
               Manual
             </button>

@@ -14,7 +14,7 @@ export class EncryptionService {
     if (!encryptionKey || encryptionKey.length !== 64) {
       this.logger.warn(
         'ENCRYPTION_KEY not set or invalid. Generating temporary key. ' +
-          'Set a 64-character hex key in production!'
+          'Set a 64-character hex key in production!',
       );
       this.key = crypto.randomBytes(32);
     } else {
@@ -22,7 +22,11 @@ export class EncryptionService {
     }
   }
 
-  encrypt(plaintext: string): { encrypted: string; iv: string; authTag: string } {
+  encrypt(plaintext: string): {
+    encrypted: string;
+    iv: string;
+    authTag: string;
+  } {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
 
@@ -42,7 +46,7 @@ export class EncryptionService {
     const decipher = crypto.createDecipheriv(
       this.algorithm,
       this.key,
-      Buffer.from(iv, 'hex')
+      Buffer.from(iv, 'hex'),
     );
 
     decipher.setAuthTag(Buffer.from(authTag, 'hex'));

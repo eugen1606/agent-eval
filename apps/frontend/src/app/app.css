@@ -313,9 +313,26 @@ body {
   border-color: #e74c3c;
 }
 
-.eval-btn.llm {
-  background: #667eea;
+.eval-btn.active.partial {
+  background: #f39c12;
   color: white;
+  border-color: #f39c12;
+}
+
+.result-description {
+  margin-top: 0.75rem;
+}
+
+.result-description input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.result-description input:focus {
+  outline: none;
   border-color: #667eea;
 }
 
@@ -653,6 +670,16 @@ body {
 .export-btn {
   padding: 0.4rem 0.75rem;
   background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.edit-btn {
+  padding: 0.4rem 0.75rem;
+  background: #f39c12;
   color: white;
   border: none;
   border-radius: 4px;

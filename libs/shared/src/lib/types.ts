@@ -1,6 +1,7 @@
 // Input Configuration Types
 export interface FlowConfig {
   accessToken: string;
+  accessTokenId?: string; // If set, accessToken contains a token ID to be decrypted
   basePath: string;
   flowId: string;
 }
@@ -12,15 +13,19 @@ export interface QuestionInput {
 }
 
 // Evaluation Types
+export type HumanEvaluationStatus = 'correct' | 'incorrect' | 'partial';
+
 export interface EvaluationResult {
   id: string;
   question: string;
   answer: string;
   expectedAnswer?: string;
+  executionId?: string;
   isCorrect?: boolean;
   llmJudgeScore?: number;
   llmJudgeReasoning?: string;
-  humanEvaluation?: boolean;
+  humanEvaluation?: HumanEvaluationStatus;
+  humanEvaluationDescription?: string;
   timestamp: string;
 }
 

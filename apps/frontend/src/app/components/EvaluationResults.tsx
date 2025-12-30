@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { AgentEvalClient } from '@agent-eval/api-client';
+import { HumanEvaluationStatus } from '@agent-eval/shared';
 
 const apiClient = new AgentEvalClient();
 
 export function EvaluationResults() {
   const { state, updateResult, setLoading } = useAppContext();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [evaluationName, setEvaluationName] = useState('');
+  const [evaluationDescription, setEvaluationDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleHumanEvaluation = (id: string, isCorrect: boolean) => {
-    updateResult(id, { humanEvaluation: isCorrect, isCorrect });
+  const handleHumanEvaluation = (id: string, status: HumanEvaluationStatus) => {
+    const isCorrect = status === 'correct' ? true : status === 'incorrect' ? false : undefined;
+    updateResult(id, { humanEvaluation: status, isCorrect });
   };
 
+  const handleDescriptionChange = (id: string, description: string) => {
+    updateResult(id, { humanEvaluationDescription: description });
+  };
+
+  // LLM evaluation functions kept for future implementation
   const handleLLMEvaluation = async (id: string) => {
     const result = state.results.find((r) => r.id === id);
     if (!result) return;
@@ -37,6 +48,7 @@ export function EvaluationResults() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleEvaluateAll = async () => {
     setLoading(true);
     for (const result of state.results) {
@@ -45,6 +57,29 @@ export function EvaluationResults() {
       }
     }
     setLoading(false);
+  };
+
+  const handleSaveEvaluation = async () => {
+    if (!evaluationName.trim()) return;
+
+    setSaving(true);
+    const response = await apiClient.createEvaluation({
+      name: evaluationName,
+      finalOutput: {
+        config: state.config,
+        results: state.results,
+        savedAt: new Date().toISOString(),
+      },
+      flowId: state.config.flowId || undefined,
+      description: evaluationDescription || undefined,
+    });
+
+    if (response.success) {
+      setShowSaveDialog(false);
+      setEvaluationName('');
+      setEvaluationDescription('');
+    }
+    setSaving(false);
   };
 
   if (state.results.length === 0) {
@@ -59,10 +94,29 @@ export function EvaluationResults() {
     <div className="evaluation-results">
       <div className="results-header">
         <h2>Evaluation Results</h2>
-        <button onClick={handleEvaluateAll} disabled={state.isLoading}>
-          {state.isLoading ? 'Evaluating...' : 'Evaluate All with LLM'}
-        </button>
+        <button onClick={() => setShowSaveDialog(true)}>Save as Evaluation</button>
       </div>
+
+      {showSaveDialog && (
+        <div className="save-dialog">
+          <input
+            type="text"
+            placeholder="Evaluation name"
+            value={evaluationName}
+            onChange={(e) => setEvaluationName(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Description (optional)"
+            value={evaluationDescription}
+            onChange={(e) => setEvaluationDescription(e.target.value)}
+          />
+          <button onClick={handleSaveEvaluation} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button onClick={() => setShowSaveDialog(false)}>Cancel</button>
+        </div>
+      )}
 
       <div className="results-list">
         {state.results.map((result) => (
@@ -81,38 +135,35 @@ export function EvaluationResults() {
               </div>
             )}
 
-            {result.llmJudgeScore !== undefined && (
-              <div className="result-llm-evaluation">
-                <strong>LLM Score:</strong> {result.llmJudgeScore}/100
-                {result.llmJudgeReasoning && (
-                  <div className="llm-reasoning">
-                    <em>{result.llmJudgeReasoning}</em>
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="result-actions">
               <span>Human Evaluation:</span>
               <button
-                className={`eval-btn ${result.humanEvaluation === true ? 'active correct' : ''}`}
-                onClick={() => handleHumanEvaluation(result.id, true)}
+                className={`eval-btn ${result.humanEvaluation === 'correct' ? 'active correct' : ''}`}
+                onClick={() => handleHumanEvaluation(result.id, 'correct')}
               >
                 Correct
               </button>
               <button
-                className={`eval-btn ${result.humanEvaluation === false ? 'active incorrect' : ''}`}
-                onClick={() => handleHumanEvaluation(result.id, false)}
+                className={`eval-btn ${result.humanEvaluation === 'partial' ? 'active partial' : ''}`}
+                onClick={() => handleHumanEvaluation(result.id, 'partial')}
+              >
+                Partial
+              </button>
+              <button
+                className={`eval-btn ${result.humanEvaluation === 'incorrect' ? 'active incorrect' : ''}`}
+                onClick={() => handleHumanEvaluation(result.id, 'incorrect')}
               >
                 Incorrect
               </button>
-              <button
-                className="eval-btn llm"
-                onClick={() => handleLLMEvaluation(result.id)}
-                disabled={state.isLoading}
-              >
-                LLM Judge
-              </button>
+            </div>
+
+            <div className="result-description">
+              <input
+                type="text"
+                placeholder="Add evaluation notes (optional)"
+                value={result.humanEvaluationDescription || ''}
+                onChange={(e) => handleDescriptionChange(result.id, e.target.value)}
+              />
             </div>
           </div>
         ))}

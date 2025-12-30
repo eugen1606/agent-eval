@@ -10,31 +10,31 @@ Agent Eval is an AI flow evaluation application for testing agent AI flows. It a
 
 ```bash
 # Install dependencies
-npm install
+yarn install
 
 # Start database (required for backend)
 docker-compose up -d postgres
 
 # Development
-npx nx serve frontend    # Start React frontend (http://localhost:4200)
-npx nx serve backend     # Start NestJS backend (http://localhost:3000/api)
+yarn nx serve frontend    # Start React frontend (http://localhost:4201)
+yarn nx serve backend     # Start NestJS backend (http://localhost:3001/api)
 
 # Build
-npx nx build frontend
-npx nx build backend
-npx nx build shared
-npx nx build api-client
+yarn nx build frontend
+yarn nx build backend
+yarn nx build shared
+yarn nx build api-client
 
 # Build all
-npx nx run-many -t build
+yarn nx run-many -t build
 
 # Lint
-npx nx lint frontend
-npx nx lint backend
+yarn nx lint frontend
+yarn nx lint backend
 
 # Test
-npx nx test shared
-npx nx test api-client
+yarn nx test shared
+yarn nx test api-client
 
 # Docker - Production deployment
 docker-compose -f docker-compose.prod.yml up --build

@@ -7,6 +7,7 @@ const apiClient = new AgentEvalClient();
 export function EvaluationsManager() {
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     finalOutputJson: '',
@@ -40,30 +41,60 @@ export function EvaluationsManager() {
         : undefined;
 
       setLoading(true);
-      const response = await apiClient.createEvaluation({
-        name: formData.name,
-        finalOutput,
-        flowExport,
-        flowId: formData.flowId || undefined,
-        description: formData.description || undefined,
-      });
+
+      let response;
+      if (editingId) {
+        response = await apiClient.updateEvaluation(editingId, {
+          name: formData.name,
+          finalOutput,
+          flowExport,
+          flowId: formData.flowId || undefined,
+          description: formData.description || undefined,
+        });
+      } else {
+        response = await apiClient.createEvaluation({
+          name: formData.name,
+          finalOutput,
+          flowExport,
+          flowId: formData.flowId || undefined,
+          description: formData.description || undefined,
+        });
+      }
 
       if (response.success) {
-        setFormData({
-          name: '',
-          finalOutputJson: '',
-          flowExportJson: '',
-          flowId: '',
-          description: ''
-        });
-        setShowForm(false);
-        setJsonError(null);
+        resetForm();
         loadEvaluations();
       }
     } catch {
       setJsonError('Invalid JSON format');
     }
     setLoading(false);
+  };
+
+  const handleEdit = (ev: StoredEvaluation) => {
+    setEditingId(ev.id);
+    setFormData({
+      name: ev.name,
+      finalOutputJson: JSON.stringify(ev.finalOutput, null, 2),
+      flowExportJson: ev.flowExport ? JSON.stringify(ev.flowExport, null, 2) : '',
+      flowId: ev.flowId || '',
+      description: ev.description || '',
+    });
+    setShowForm(true);
+    setJsonError(null);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      finalOutputJson: '',
+      flowExportJson: '',
+      flowId: '',
+      description: ''
+    });
+    setShowForm(false);
+    setEditingId(null);
+    setJsonError(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -87,7 +118,7 @@ export function EvaluationsManager() {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Stored Evaluations</h3>
-        <button onClick={() => setShowForm(!showForm)}>
+        <button onClick={() => showForm ? resetForm() : setShowForm(true)}>
           {showForm ? 'Cancel' : '+ Add Evaluation'}
         </button>
       </div>
@@ -140,7 +171,7 @@ export function EvaluationsManager() {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
           <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Evaluation'}
+            {loading ? 'Saving...' : editingId ? 'Update Evaluation' : 'Save Evaluation'}
           </button>
         </form>
       )}
@@ -179,6 +210,9 @@ export function EvaluationsManager() {
               <div className="item-actions">
                 <button onClick={() => handleExport(ev)} className="export-btn">
                   Export
+                </button>
+                <button onClick={() => handleEdit(ev)} className="edit-btn">
+                  Edit
                 </button>
                 <button onClick={() => handleDelete(ev.id)} className="delete-btn">
                   Delete

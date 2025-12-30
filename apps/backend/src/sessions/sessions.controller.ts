@@ -26,7 +26,7 @@ export class SessionsController {
 
   @Post()
   async saveSession(
-    @Body() request: SaveSessionRequest
+    @Body() request: SaveSessionRequest,
   ): Promise<{ id: string }> {
     return this.sessionsService.saveSession(request.flowName, request.session);
   }
@@ -39,7 +39,7 @@ export class SessionsController {
   @Get(':id/export')
   async exportSession(
     @Param('id') id: string,
-    @Query('format') format: 'json' | 'csv' = 'json'
+    @Query('format') format: 'json' | 'csv' = 'json',
   ): Promise<string> {
     return this.sessionsService.exportSession(id, format);
   }

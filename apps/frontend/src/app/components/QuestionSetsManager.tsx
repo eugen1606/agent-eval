@@ -12,6 +12,7 @@ interface Props {
 export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     questionsJson: '',
@@ -43,22 +44,48 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       }
 
       setLoading(true);
-      const response = await apiClient.createQuestionSet({
-        name: formData.name,
-        questions,
-        description: formData.description || undefined,
-      });
+
+      let response;
+      if (editingId) {
+        response = await apiClient.updateQuestionSet(editingId, {
+          name: formData.name,
+          questions,
+          description: formData.description || undefined,
+        });
+      } else {
+        response = await apiClient.createQuestionSet({
+          name: formData.name,
+          questions,
+          description: formData.description || undefined,
+        });
+      }
 
       if (response.success) {
-        setFormData({ name: '', questionsJson: '', description: '' });
-        setShowForm(false);
-        setJsonError(null);
+        resetForm();
         loadQuestionSets();
       }
     } catch {
       setJsonError('Invalid JSON format');
     }
     setLoading(false);
+  };
+
+  const handleEdit = (qs: StoredQuestionSet) => {
+    setEditingId(qs.id);
+    setFormData({
+      name: qs.name,
+      questionsJson: JSON.stringify(qs.questions, null, 2),
+      description: qs.description || '',
+    });
+    setShowForm(true);
+    setJsonError(null);
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', questionsJson: '', description: '' });
+    setShowForm(false);
+    setEditingId(null);
+    setJsonError(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -76,7 +103,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Question Sets</h3>
-        <button onClick={() => setShowForm(!showForm)}>
+        <button onClick={() => showForm ? resetForm() : setShowForm(true)}>
           {showForm ? 'Cancel' : '+ Add Question Set'}
         </button>
       </div>
@@ -110,7 +137,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
           <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Question Set'}
+            {loading ? 'Saving...' : editingId ? 'Update Question Set' : 'Save Question Set'}
           </button>
         </form>
       )}
@@ -132,6 +159,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                     Select
                   </button>
                 )}
+                <button onClick={() => handleEdit(qs)} className="edit-btn">
+                  Edit
+                </button>
                 <button onClick={() => handleDelete(qs.id)} className="delete-btn">
                   Delete
                 </button>
