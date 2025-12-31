@@ -31,9 +31,16 @@ export class FlowService {
 
     const resolvedConfig = { ...config, accessToken: resolvedToken };
 
+    // For multi-step evaluation, use a single sessionId for all questions
+    const sharedSessionId = config.multiStepEvaluation ? uuidv4() : null;
+
     for (const question of questions) {
       try {
-        const { answer, executionId } = await this.callFlowEndpoint(resolvedConfig, question.question);
+        const { answer, executionId } = await this.callFlowEndpoint(
+          resolvedConfig,
+          question.question,
+          sharedSessionId,
+        );
 
         yield {
           id: uuidv4(),
@@ -65,8 +72,13 @@ export class FlowService {
   private async callFlowEndpoint(
     config: FlowConfig,
     question: string,
+    sharedSessionId: string | null,
   ): Promise<{ answer: string; executionId?: string }> {
     const url = `${config.basePath}/api/lflow-engine/${config.flowId}/run`;
+
+    // Use shared session ID for multi-step, or generate new one for single-step
+    const sessionId = sharedSessionId || uuidv4();
+    const persistAllMessages = !!sharedSessionId; // Persist messages in multi-step mode
 
     const response = await fetch(url, {
       method: 'POST',
@@ -75,7 +87,7 @@ export class FlowService {
         Authorization: `Bearer ${config.accessToken}`,
       },
       body: JSON.stringify({
-        sessionId: uuidv4(),
+        sessionId,
         messages: [
           {
             name: 'User',
@@ -89,7 +101,7 @@ export class FlowService {
           },
         ],
         inputVariables: {},
-        persistAllMessages: false,
+        persistAllMessages,
       }),
     });
 

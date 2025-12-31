@@ -79,6 +79,21 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.left-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.left-panel .configuration-form {
+  flex: 1;
+}
+
+.left-panel .flow-executor {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
 /* Configuration Form */
 .configuration-form h2 {
   margin-top: 0;
@@ -142,6 +157,34 @@ body {
   font-size: 0.8rem;
   margin-top: 0.25rem;
   display: block;
+}
+
+.form-group.checkbox-group {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-description {
+  display: block;
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  margin-left: 26px;
 }
 
 .example-btn {
@@ -1027,7 +1070,7 @@ body {
 .dashboard-top-row {
   display: flex;
   gap: 1.5rem;
-  align-items: flex-end;
+  align-items: stretch;
 }
 
 .dashboard-stats {
@@ -1889,14 +1932,30 @@ body {
   text-align: center;
   flex: 1;
   display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+}
+
+.accuracy-section {
+  flex: 1;
+  display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+}
+
+.accuracy-section:first-child {
+  border-right: 1px solid #eee;
+  padding-right: 1.5rem;
 }
 
 .accuracy-value {
   font-size: 3rem;
   font-weight: 700;
   color: #27ae60;
+}
+
+.accuracy-value.total {
+  color: #667eea;
 }
 
 .accuracy-value.low {

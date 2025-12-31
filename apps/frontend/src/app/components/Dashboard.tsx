@@ -238,19 +238,29 @@ export function Dashboard() {
           {/* Top row: Accuracy and Summary side by side */}
           <div className="dashboard-top-row">
             <div className="dashboard-accuracy">
-              <div className="accuracy-header">Accuracy Rate</div>
-              <div className="accuracy-value">
-                {(() => {
-                  const evaluatedCount = stats.correct + stats.partial + stats.incorrect;
-                  if (evaluatedCount === 0) return 'N/A';
-                  const percentage = (stats.correct / evaluatedCount) * 100;
-                  return `${percentage.toFixed(1)}%`;
-                })()}
+              <div className="accuracy-section">
+                <div className="accuracy-header">Accuracy Rate</div>
+                <div className="accuracy-value">
+                  {(() => {
+                    const evaluatedCount = stats.correct + stats.partial + stats.incorrect;
+                    if (evaluatedCount === 0) return 'N/A';
+                    const percentage = (stats.correct / evaluatedCount) * 100;
+                    return `${percentage.toFixed(1)}%`;
+                  })()}
+                </div>
+                <div className="accuracy-details">
+                  {stats.correct} correct out of {stats.correct + stats.partial + stats.incorrect} evaluated
+                  {stats.unevaluated > 0 && ` (${stats.unevaluated} pending)`}
+                  {stats.errors > 0 && ` (${stats.errors} errors excluded)`}
+                </div>
               </div>
-              <div className="accuracy-details">
-                {stats.correct} correct out of {stats.correct + stats.partial + stats.incorrect} evaluated
-                {stats.unevaluated > 0 && ` (${stats.unevaluated} pending)`}
-                {stats.errors > 0 && ` (${stats.errors} errors excluded)`}
+              <div className="accuracy-section">
+                <div className="accuracy-header">Total Answers</div>
+                <div className="accuracy-value total">{stats.total}</div>
+                <div className="accuracy-details">
+                  {stats.correct + stats.partial + stats.incorrect} evaluated, {stats.unevaluated} pending
+                  {stats.errors > 0 && `, ${stats.errors} errors`}
+                </div>
               </div>
             </div>
 

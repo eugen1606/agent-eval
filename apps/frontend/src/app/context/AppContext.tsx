@@ -33,6 +33,7 @@ const initialState: AppState = {
     accessToken: '',
     basePath: '',
     flowId: '',
+    multiStepEvaluation: false,
   },
   questions: [],
   results: [],

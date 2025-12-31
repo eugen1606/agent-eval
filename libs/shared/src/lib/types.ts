@@ -4,6 +4,7 @@ export interface FlowConfig {
   accessTokenId?: string; // If set, accessToken contains a token ID to be decrypted
   basePath: string;
   flowId: string;
+  multiStepEvaluation?: boolean; // If true, all questions use the same sessionId
 }
 
 export interface QuestionInput {

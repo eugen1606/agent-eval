@@ -291,6 +291,23 @@ export function ConfigurationForm() {
           </span>
         )}
       </div>
+
+      {/* Multi-step Evaluation Option */}
+      <div className="form-group checkbox-group">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={state.config.multiStepEvaluation || false}
+            onChange={(e) =>
+              setConfig({ ...state.config, multiStepEvaluation: e.target.checked })
+            }
+          />
+          <span>Multi-step evaluation</span>
+        </label>
+        <span className="checkbox-description">
+          When enabled, all questions are sent in the same conversation session
+        </span>
+      </div>
     </div>
   );
 }
