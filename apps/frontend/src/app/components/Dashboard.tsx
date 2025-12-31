@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StoredEvaluation, EvaluationResult, IncorrectSeverity } from '@agent-eval/shared';
+import { StoredEvaluation, EvaluationResult, IncorrectSeverity, StoredFlowConfig } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useSearchParams } from 'react-router-dom';
 
@@ -12,6 +12,18 @@ interface EvaluationStats {
   unevaluated: number;
   errors: number;
   total: number;
+}
+
+interface FlowEvaluationData {
+  id: string;
+  name: string;
+  date: string;
+  accuracy: number;
+  total: number;
+  correct: number;
+  partial: number;
+  incorrect: number;
+  errors: number;
 }
 
 function PieChart({ stats }: { stats: EvaluationStats }) {
@@ -69,16 +81,148 @@ function PieChart({ stats }: { stats: EvaluationStats }) {
   );
 }
 
+function LineChart({ data }: { data: FlowEvaluationData[] }) {
+  if (data.length === 0) return null;
+
+  const maxAccuracy = 100;
+  const padding = 40;
+  const width = 600;
+  const height = 250;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  // Sort by date
+  const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const points = sortedData.map((d, i) => {
+    const x = padding + (i / Math.max(sortedData.length - 1, 1)) * chartWidth;
+    const y = padding + chartHeight - (d.accuracy / maxAccuracy) * chartHeight;
+    return { x, y, ...d };
+  });
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+  return (
+    <div className="line-chart-container">
+      <svg viewBox={`0 0 ${width} ${height}`} className="line-chart">
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = padding + chartHeight - (val / maxAccuracy) * chartHeight;
+          return (
+            <g key={val}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}%</text>
+            </g>
+          );
+        })}
+
+        {/* Line */}
+        <path d={linePath} fill="none" stroke="#667eea" strokeWidth="2" />
+
+        {/* Points */}
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="5" fill="#667eea" />
+            <title>{p.name}: {p.accuracy.toFixed(1)}% ({new Date(p.date).toLocaleDateString()})</title>
+          </g>
+        ))}
+
+        {/* X-axis labels */}
+        {points.length <= 10 && points.map((p, i) => (
+          <text
+            key={i}
+            x={p.x}
+            y={height - 10}
+            textAnchor="middle"
+            fontSize="9"
+            fill="#888"
+          >
+            {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function BarChart({ data }: { data: FlowEvaluationData[] }) {
+  if (data.length === 0) return null;
+
+  const padding = 40;
+  const width = 600;
+  const height = 250;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  // Sort by date and take last 10
+  const sortedData = [...data]
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-10);
+
+  const barWidth = chartWidth / sortedData.length * 0.7;
+  const gap = chartWidth / sortedData.length * 0.3;
+
+  return (
+    <div className="bar-chart-container">
+      <svg viewBox={`0 0 ${width} ${height}`} className="bar-chart">
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((val) => {
+          const y = padding + chartHeight - (val / 100) * chartHeight;
+          return (
+            <g key={val}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}%</text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {sortedData.map((d, i) => {
+          const x = padding + i * (barWidth + gap) + gap / 2;
+          const barHeight = (d.accuracy / 100) * chartHeight;
+          const y = padding + chartHeight - barHeight;
+          const color = d.accuracy >= 80 ? '#27ae60' : d.accuracy >= 50 ? '#f39c12' : '#e74c3c';
+
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barWidth} height={barHeight} fill={color} rx="2" />
+              <text
+                x={x + barWidth / 2}
+                y={height - 10}
+                textAnchor="middle"
+                fontSize="9"
+                fill="#888"
+              >
+                {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </text>
+              <title>{d.name}: {d.accuracy.toFixed(1)}%</title>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'evaluation' | 'analytics'>('evaluation');
+
+  // Evaluation Details tab state
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [selectedEvaluation, setSelectedEvaluation] = useState<StoredEvaluation | null>(null);
   const [results, setResults] = useState<EvaluationResult[]>([]);
   const [stats, setStats] = useState<EvaluationStats | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Flow Analytics tab state
+  const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
+  const [selectedFlowId, setSelectedFlowId] = useState<string>('');
+  const [flowEvaluations, setFlowEvaluations] = useState<FlowEvaluationData[]>([]);
+
   useEffect(() => {
     loadEvaluations();
+    loadFlowConfigs();
   }, []);
 
   useEffect(() => {
@@ -96,6 +240,72 @@ export function Dashboard() {
     if (response.success && response.data) {
       setEvaluations(response.data);
     }
+  };
+
+  const loadFlowConfigs = async () => {
+    const response = await apiClient.getFlowConfigs();
+    if (response.success && response.data) {
+      setFlowConfigs(response.data);
+    }
+  };
+
+  const handleFlowSelect = (flowId: string) => {
+    setSelectedFlowId(flowId);
+    if (!flowId) {
+      setFlowEvaluations([]);
+      return;
+    }
+
+    // Filter evaluations by flowId and calculate stats for each
+    const flowEvals = evaluations
+      .filter((ev) => ev.flowId === flowId)
+      .map((ev) => {
+        const evalResults = (ev.finalOutput as { results?: EvaluationResult[] })?.results || [];
+        const stats = calculateEvalStats(evalResults);
+        const evaluated = stats.correct + stats.partial + stats.incorrect;
+        const accuracy = evaluated > 0 ? (stats.correct / evaluated) * 100 : 0;
+
+        return {
+          id: ev.id,
+          name: ev.name,
+          date: ev.createdAt,
+          accuracy,
+          total: stats.total,
+          correct: stats.correct,
+          partial: stats.partial,
+          incorrect: stats.incorrect,
+          errors: stats.errors,
+        };
+      });
+
+    setFlowEvaluations(flowEvals);
+  };
+
+  const calculateEvalStats = (evalResults: EvaluationResult[]): EvaluationStats => {
+    const stats: EvaluationStats = {
+      correct: 0,
+      partial: 0,
+      incorrect: 0,
+      unevaluated: 0,
+      errors: 0,
+      total: evalResults.length,
+    };
+
+    evalResults.forEach((result) => {
+      if (result.isError) {
+        stats.errors++;
+      } else if (result.humanEvaluation === 'correct') {
+        stats.correct++;
+      } else if (result.humanEvaluation === 'partial') {
+        stats.partial++;
+      } else if (result.humanEvaluation === 'incorrect') {
+        stats.incorrect++;
+      } else {
+        stats.unevaluated++;
+      }
+    });
+
+    return stats;
   };
 
   const handleSelectEvaluation = (evaluation: StoredEvaluation) => {
@@ -197,41 +407,75 @@ export function Dashboard() {
 
   const errorResults = results.filter((r) => r.isError);
 
+  // Calculate aggregate stats for flow analytics
+  const flowAggregateStats = flowEvaluations.length > 0 ? {
+    avgAccuracy: flowEvaluations.reduce((sum, e) => sum + e.accuracy, 0) / flowEvaluations.length,
+    totalEvaluations: flowEvaluations.length,
+    totalQuestions: flowEvaluations.reduce((sum, e) => sum + e.total, 0),
+    latestAccuracy: flowEvaluations.length > 0
+      ? [...flowEvaluations].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].accuracy
+      : 0,
+    trend: flowEvaluations.length >= 2
+      ? (() => {
+          const sorted = [...flowEvaluations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          const latest = sorted[sorted.length - 1].accuracy;
+          const previous = sorted[sorted.length - 2].accuracy;
+          return latest - previous;
+        })()
+      : 0,
+  } : null;
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
-        <h2>Evaluation Dashboard</h2>
-      </div>
-
-      <div className="dashboard-controls">
-        <div className="control-group">
-          <label>Select Stored Evaluation:</label>
-          <select
-            value={selectedEvaluation?.id || ''}
-            onChange={(e) => {
-              const evaluation = evaluations.find((ev) => ev.id === e.target.value);
-              if (evaluation) handleSelectEvaluation(evaluation);
-            }}
+        <h2>Dashboard</h2>
+        <div className="dashboard-tabs">
+          <button
+            className={activeTab === 'evaluation' ? 'active' : ''}
+            onClick={() => setActiveTab('evaluation')}
           >
-            <option value="">Choose an evaluation...</option>
-            {evaluations.map((ev) => (
-              <option key={ev.id} value={ev.id}>
-                {ev.name} ({new Date(ev.createdAt).toLocaleDateString()})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="control-group">
-          <label>Or Upload JSON File:</label>
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleFileUpload}
-          />
-          {uploadError && <span className="error">{uploadError}</span>}
+            Evaluation Details
+          </button>
+          <button
+            className={activeTab === 'analytics' ? 'active' : ''}
+            onClick={() => setActiveTab('analytics')}
+          >
+            Flow Analytics
+          </button>
         </div>
       </div>
+
+      {activeTab === 'evaluation' && (
+        <>
+          <div className="dashboard-controls">
+            <div className="control-group">
+              <label>Select Stored Evaluation:</label>
+              <select
+                value={selectedEvaluation?.id || ''}
+                onChange={(e) => {
+                  const evaluation = evaluations.find((ev) => ev.id === e.target.value);
+                  if (evaluation) handleSelectEvaluation(evaluation);
+                }}
+              >
+                <option value="">Choose an evaluation...</option>
+                {evaluations.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.name} ({new Date(ev.createdAt).toLocaleDateString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="control-group">
+              <label>Or Upload JSON File:</label>
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleFileUpload}
+              />
+              {uploadError && <span className="error">{uploadError}</span>}
+            </div>
+          </div>
 
       {stats && results.length > 0 && (
         <div className="dashboard-content">
@@ -344,10 +588,133 @@ export function Dashboard() {
         </div>
       )}
 
-      {!stats && (
-        <div className="dashboard-empty">
-          <p>Select an evaluation or upload a JSON file to view the dashboard.</p>
-        </div>
+          {!stats && (
+            <div className="dashboard-empty">
+              <p>Select an evaluation or upload a JSON file to view the dashboard.</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'analytics' && (
+        <>
+          <div className="dashboard-controls">
+            <div className="control-group">
+              <label>Select Flow:</label>
+              <select
+                value={selectedFlowId}
+                onChange={(e) => handleFlowSelect(e.target.value)}
+              >
+                <option value="">Choose a flow configuration...</option>
+                {flowConfigs.map((fc) => (
+                  <option key={fc.id} value={fc.flowId}>
+                    {fc.name} ({fc.flowId})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selectedFlowId && flowEvaluations.length > 0 && flowAggregateStats && (
+            <div className="dashboard-content">
+              {/* Top row: KPI cards */}
+              <div className="dashboard-top-row">
+                <div className="dashboard-accuracy">
+                  <div className="accuracy-section">
+                    <div className="accuracy-header">Average Accuracy</div>
+                    <div className="accuracy-value">
+                      {flowAggregateStats.avgAccuracy.toFixed(1)}%
+                    </div>
+                    <div className="accuracy-details">
+                      Across {flowAggregateStats.totalEvaluations} evaluations
+                    </div>
+                  </div>
+                  <div className="accuracy-section">
+                    <div className="accuracy-header">Latest Accuracy</div>
+                    <div className={`accuracy-value ${flowAggregateStats.latestAccuracy >= 80 ? '' : flowAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}>
+                      {flowAggregateStats.latestAccuracy.toFixed(1)}%
+                    </div>
+                    <div className="accuracy-details">
+                      {flowAggregateStats.trend !== 0 && (
+                        <span className={flowAggregateStats.trend > 0 ? 'trend-up' : 'trend-down'}>
+                          {flowAggregateStats.trend > 0 ? '↑' : '↓'} {Math.abs(flowAggregateStats.trend).toFixed(1)}% vs previous
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="accuracy-section">
+                    <div className="accuracy-header">Total Questions</div>
+                    <div className="accuracy-value total">{flowAggregateStats.totalQuestions}</div>
+                    <div className="accuracy-details">
+                      {flowAggregateStats.totalEvaluations} evaluation runs
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="analytics-charts">
+                <div className="chart-card">
+                  <h3>Accuracy Trend Over Time</h3>
+                  <LineChart data={flowEvaluations} />
+                </div>
+                <div className="chart-card">
+                  <h3>Accuracy by Evaluation</h3>
+                  <BarChart data={flowEvaluations} />
+                </div>
+              </div>
+
+              {/* Evaluations table */}
+              <div className="analytics-table">
+                <h3>Evaluation History</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Date</th>
+                      <th>Accuracy</th>
+                      <th>Correct</th>
+                      <th>Partial</th>
+                      <th>Incorrect</th>
+                      <th>Errors</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...flowEvaluations]
+                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                      .map((ev) => (
+                        <tr key={ev.id}>
+                          <td>{ev.name}</td>
+                          <td>{new Date(ev.date).toLocaleDateString()}</td>
+                          <td className={ev.accuracy >= 80 ? 'good' : ev.accuracy >= 50 ? 'medium' : 'bad'}>
+                            {ev.accuracy.toFixed(1)}%
+                          </td>
+                          <td className="correct">{ev.correct}</td>
+                          <td className="partial">{ev.partial}</td>
+                          <td className="incorrect">{ev.incorrect}</td>
+                          <td className="errors">{ev.errors}</td>
+                          <td>{ev.total}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {selectedFlowId && flowEvaluations.length === 0 && (
+            <div className="dashboard-empty">
+              <p>No evaluations found for this flow. Run some evaluations first.</p>
+            </div>
+          )}
+
+          {!selectedFlowId && (
+            <div className="dashboard-empty">
+              <p>Select a flow configuration to view analytics.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
