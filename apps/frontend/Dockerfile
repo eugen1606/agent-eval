@@ -3,17 +3,20 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Enable corepack for yarn
+RUN corepack enable
+
+# Copy package files and yarn config
+COPY package.json yarn.lock .yarnrc.yml ./
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --immutable
 
 # Copy source files
 COPY . .
 
 # Build the frontend
-RUN npx nx build frontend --configuration=production
+RUN yarn nx build frontend --configuration=production
 
 # Production stage with nginx
 FROM nginx:alpine AS production

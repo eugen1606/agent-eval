@@ -10,6 +10,8 @@ import {
   QuestionSetsManager,
   FlowConfigsManager,
   EvaluationsManager,
+  Dashboard,
+  Homepage,
 } from './components';
 import './app.css';
 
@@ -33,7 +35,9 @@ function EvaluationPage() {
 }
 
 function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'tokens' | 'questions' | 'flows' | 'evaluations'>('tokens');
+  const [activeTab, setActiveTab] = useState<
+    'tokens' | 'questions' | 'flows' | 'evaluations'
+  >('tokens');
 
   return (
     <div className="settings-page">
@@ -42,7 +46,7 @@ function SettingsPage() {
           className={activeTab === 'tokens' ? 'active' : ''}
           onClick={() => setActiveTab('tokens')}
         >
-          Access Tokens
+          AI Studio Access Tokens
         </button>
         <button
           className={activeTab === 'questions' ? 'active' : ''}
@@ -81,13 +85,32 @@ export function App() {
     <AppProvider>
       <div className="app">
         <header className="app-header">
-          <h1>Agent Eval</h1>
-          <p>AI Flow Evaluation Application</p>
+          <Link to="/" className="logo-link">
+            <h1>
+              <span className="logo-bench">Bench</span>
+              <span className="logo-mark">Mark</span>
+            </h1>
+          </Link>
+          <p>Agent Evaluation</p>
           <nav>
-            <Link to="/" className={location.pathname === '/' ? 'active' : ''}>
+            <Link
+              to="/evaluate"
+              className={location.pathname === '/evaluate' ? 'active' : ''}
+            >
               Evaluate
             </Link>
-            <Link to="/settings" className={location.pathname === '/settings' ? 'active' : ''}>
+            <Link
+              to="/dashboard"
+              className={
+                location.pathname.startsWith('/dashboard') ? 'active' : ''
+              }
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/settings"
+              className={location.pathname === '/settings' ? 'active' : ''}
+            >
               Settings
             </Link>
           </nav>
@@ -95,7 +118,9 @@ export function App() {
 
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<EvaluationPage />} />
+            <Route path="/" element={<Homepage />} />
+            <Route path="/evaluate" element={<EvaluationPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StoredEvaluation } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
+import { Modal, ConfirmDialog } from './Modal';
 
 const apiClient = new AgentEvalClient();
 
 export function EvaluationsManager() {
+  const navigate = useNavigate();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -18,6 +21,7 @@ export function EvaluationsManager() {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   useEffect(() => {
     loadEvaluations();
@@ -30,8 +34,8 @@ export function EvaluationsManager() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!formData.name || !formData.finalOutputJson) return;
 
     try {
@@ -97,9 +101,10 @@ export function EvaluationsManager() {
     setJsonError(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this evaluation?')) return;
-    await apiClient.deleteEvaluation(id);
+  const handleDelete = async () => {
+    if (!deleteConfirm.id) return;
+    await apiClient.deleteEvaluation(deleteConfirm.id);
+    setDeleteConfirm({ open: false, id: null });
     loadEvaluations();
   };
 
@@ -118,21 +123,42 @@ export function EvaluationsManager() {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Stored Evaluations</h3>
-        <button onClick={() => showForm ? resetForm() : setShowForm(true)}>
-          {showForm ? 'Cancel' : '+ Add Evaluation'}
+        <button onClick={() => setShowForm(true)}>
+          + Add Evaluation
         </button>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="manager-form">
-          <input
-            type="text"
-            placeholder="Evaluation name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <div className="textarea-wrapper">
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        onSubmit={handleSubmit}
+        title={editingId ? 'Edit Evaluation' : 'Add Evaluation'}
+        footer={
+          <>
+            <button className="modal-btn cancel" onClick={resetForm}>
+              Cancel
+            </button>
+            <button
+              className="modal-btn confirm"
+              onClick={() => handleSubmit()}
+              disabled={loading || !formData.name || !formData.finalOutputJson}
+            >
+              {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label>Evaluation Name</label>
+            <input
+              type="text"
+              placeholder="Enter evaluation name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
             <label>Final Output (JSON)</label>
             <textarea
               placeholder='{"results": [...]}'
@@ -142,10 +168,9 @@ export function EvaluationsManager() {
                 setJsonError(null);
               }}
               rows={4}
-              required
             />
           </div>
-          <div className="textarea-wrapper">
+          <div className="form-group">
             <label>Flow Export (JSON, optional)</label>
             <textarea
               placeholder='{"flowData": ...}'
@@ -158,23 +183,26 @@ export function EvaluationsManager() {
             />
           </div>
           {jsonError && <span className="error">{jsonError}</span>}
-          <input
-            type="text"
-            placeholder="Flow ID (optional)"
-            value={formData.flowId}
-            onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : editingId ? 'Update Evaluation' : 'Save Evaluation'}
-          </button>
+          <div className="form-group">
+            <label>Flow ID (optional)</label>
+            <input
+              type="text"
+              placeholder="Enter flow ID"
+              value={formData.flowId}
+              onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Description (optional)</label>
+            <input
+              type="text"
+              placeholder="Enter description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
         </form>
-      )}
+      </Modal>
 
       <div className="manager-list">
         {evaluations.length === 0 ? (
@@ -208,13 +236,16 @@ export function EvaluationsManager() {
                 </div>
               )}
               <div className="item-actions">
+                <button onClick={() => navigate(`/dashboard?id=${ev.id}`)} className="dashboard-btn">
+                  Dashboard
+                </button>
                 <button onClick={() => handleExport(ev)} className="export-btn">
                   Export
                 </button>
                 <button onClick={() => handleEdit(ev)} className="edit-btn">
                   Edit
                 </button>
-                <button onClick={() => handleDelete(ev.id)} className="delete-btn">
+                <button onClick={() => setDeleteConfirm({ open: true, id: ev.id })} className="delete-btn">
                   Delete
                 </button>
               </div>
@@ -222,6 +253,16 @@ export function EvaluationsManager() {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, id: null })}
+        onConfirm={handleDelete}
+        title="Delete Evaluation"
+        message="Are you sure you want to delete this evaluation? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

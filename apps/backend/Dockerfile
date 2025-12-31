@@ -3,28 +3,34 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Enable corepack for yarn
+RUN corepack enable
+
+# Copy package files and yarn config
+COPY package.json yarn.lock .yarnrc.yml ./
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --immutable
 
 # Copy source files
 COPY . .
 
 # Build the backend
-RUN npx nx build backend --configuration=production
+RUN yarn nx build backend --configuration=production
 
 # Production stage
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Enable corepack for yarn
+RUN corepack enable
+
+# Copy package files and yarn config
+COPY package.json yarn.lock .yarnrc.yml ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN yarn workspaces focus --production
 
 # Copy built application
 COPY --from=builder /app/dist/apps/backend ./dist

@@ -49,11 +49,14 @@ export class FlowService {
           `Failed to execute flow for question: ${question.question}`,
           error,
         );
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results.push({
           id: uuidv4(),
           question: question.question,
-          answer: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          answer: `Error: ${errorMessage}`,
           expectedAnswer: question.expectedAnswer,
+          isError: true,
+          errorMessage,
           timestamp: new Date().toISOString(),
         });
       }

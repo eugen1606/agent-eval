@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StoredFlowConfig } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
+import { Modal, ConfirmDialog } from './Modal';
 
 const apiClient = new AgentEvalClient();
 
@@ -20,6 +21,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     description: '',
   });
   const [loading, setLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   useEffect(() => {
     loadFlowConfigs();
@@ -32,8 +34,8 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!formData.name || !formData.flowId) return;
 
     setLoading(true);
@@ -79,9 +81,10 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     setEditingId(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this flow config?')) return;
-    await apiClient.deleteFlowConfig(id);
+  const handleDelete = async () => {
+    if (!deleteConfirm.id) return;
+    await apiClient.deleteFlowConfig(deleteConfirm.id);
+    setDeleteConfirm({ open: false, id: null });
     loadFlowConfigs();
   };
 
@@ -89,44 +92,70 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Flow Configurations</h3>
-        <button onClick={() => showForm ? resetForm() : setShowForm(true)}>
-          {showForm ? 'Cancel' : '+ Add Flow Config'}
+        <button onClick={() => setShowForm(true)}>
+          + Add Flow Config
         </button>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="manager-form">
-          <input
-            type="text"
-            placeholder="Config name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Flow ID"
-            value={formData.flowId}
-            onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Base path (optional)"
-            value={formData.basePath}
-            onChange={(e) => setFormData({ ...formData, basePath: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          />
-          <button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : editingId ? 'Update Flow Config' : 'Save Flow Config'}
-          </button>
+      <Modal
+        isOpen={showForm}
+        onClose={resetForm}
+        onSubmit={handleSubmit}
+        title={editingId ? 'Edit Flow Config' : 'Add Flow Config'}
+        footer={
+          <>
+            <button className="modal-btn cancel" onClick={resetForm}>
+              Cancel
+            </button>
+            <button
+              className="modal-btn confirm"
+              onClick={() => handleSubmit()}
+              disabled={loading || !formData.name || !formData.flowId}
+            >
+              {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="modal-form">
+          <div className="form-group">
+            <label>Config Name</label>
+            <input
+              type="text"
+              placeholder="Enter config name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Flow ID</label>
+            <input
+              type="text"
+              placeholder="Enter flow ID"
+              value={formData.flowId}
+              onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Base Path (optional)</label>
+            <input
+              type="text"
+              placeholder="Enter base path"
+              value={formData.basePath}
+              onChange={(e) => setFormData({ ...formData, basePath: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Description (optional)</label>
+            <input
+              type="text"
+              placeholder="Enter description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
         </form>
-      )}
+      </Modal>
 
       <div className="manager-list">
         {flowConfigs.length === 0 ? (
@@ -149,7 +178,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
                 <button onClick={() => handleEdit(fc)} className="edit-btn">
                   Edit
                 </button>
-                <button onClick={() => handleDelete(fc.id)} className="delete-btn">
+                <button onClick={() => setDeleteConfirm({ open: true, id: fc.id })} className="delete-btn">
                   Delete
                 </button>
               </div>
@@ -157,6 +186,16 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, id: null })}
+        onConfirm={handleDelete}
+        title="Delete Flow Config"
+        message="Are you sure you want to delete this flow configuration? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

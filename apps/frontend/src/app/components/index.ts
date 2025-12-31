@@ -6,3 +6,6 @@ export { AccessTokensManager } from './AccessTokensManager';
 export { QuestionSetsManager } from './QuestionSetsManager';
 export { FlowConfigsManager } from './FlowConfigsManager';
 export { EvaluationsManager } from './EvaluationsManager';
+export { Dashboard } from './Dashboard';
+export { Homepage } from './Homepage';
+export { Modal, ConfirmDialog, AlertDialog } from './Modal';

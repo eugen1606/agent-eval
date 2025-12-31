@@ -8,13 +8,19 @@ import { AccessToken, Evaluation, QuestionSet, FlowConfig, Session } from './ent
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        entities: [AccessToken, Evaluation, QuestionSet, FlowConfig, Session],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: configService.get<string>('NODE_ENV') === 'development',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const logLevel = configService.get<string>('LOG_LEVEL', 'info');
+        // Only enable TypeORM logging for verbose or debug levels
+        const enableTypeOrmLogging = ['verbose', 'debug'].includes(logLevel);
+
+        return {
+          type: 'postgres',
+          url: configService.get<string>('DATABASE_URL'),
+          entities: [AccessToken, Evaluation, QuestionSet, FlowConfig, Session],
+          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          logging: enableTypeOrmLogging,
+        };
+      },
     }),
   ],
 })

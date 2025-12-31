@@ -14,6 +14,7 @@ export interface QuestionInput {
 
 // Evaluation Types
 export type HumanEvaluationStatus = 'correct' | 'incorrect' | 'partial';
+export type IncorrectSeverity = 'critical' | 'major' | 'minor';
 
 export interface EvaluationResult {
   id: string;
@@ -26,6 +27,9 @@ export interface EvaluationResult {
   llmJudgeReasoning?: string;
   humanEvaluation?: HumanEvaluationStatus;
   humanEvaluationDescription?: string;
+  severity?: IncorrectSeverity;
+  isError?: boolean;
+  errorMessage?: string;
   timestamp: string;
 }
 

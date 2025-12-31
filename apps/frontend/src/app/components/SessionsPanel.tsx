@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { EvaluationSession } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useAppContext } from '../context/AppContext';
+import { Modal, ConfirmDialog } from './Modal';
 
 const apiClient = new AgentEvalClient();
 
@@ -10,6 +11,13 @@ export function SessionsPanel() {
   const [sessions, setSessions] = useState<EvaluationSession[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [flowName, setFlowName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+
+  const resetSaveDialog = () => {
+    setFlowName('');
+    setShowSaveDialog(false);
+  };
 
   useEffect(() => {
     loadSessions();
@@ -31,6 +39,8 @@ export function SessionsPanel() {
   const handleSaveSession = async () => {
     if (!flowName.trim()) return;
 
+    setSaving(true);
+
     // Always create a new session (backend ignores any passed ID)
     const session: EvaluationSession = {
       id: '',
@@ -43,10 +53,10 @@ export function SessionsPanel() {
 
     const response = await apiClient.saveSession(flowName, session);
     if (response.success) {
-      setShowSaveDialog(false);
-      setFlowName('');
+      resetSaveDialog();
       loadSessions();
     }
+    setSaving(false);
   };
 
   const handleExport = async (sessionId: string, format: 'json' | 'csv') => {
@@ -64,9 +74,10 @@ export function SessionsPanel() {
     }
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
-    if (!confirm('Delete this session?')) return;
-    await apiClient.deleteSession(sessionId);
+  const handleDeleteSession = async () => {
+    if (!deleteConfirm.id) return;
+    await apiClient.deleteSession(deleteConfirm.id);
+    setDeleteConfirm({ open: false, id: null });
     loadSessions();
   };
 
@@ -129,18 +140,39 @@ export function SessionsPanel() {
         </div>
       )}
 
-      {showSaveDialog && (
-        <div className="save-dialog">
-          <input
-            type="text"
-            placeholder="Flow name"
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-          />
-          <button onClick={handleSaveSession}>Save</button>
-          <button onClick={() => setShowSaveDialog(false)}>Cancel</button>
-        </div>
-      )}
+      <Modal
+        isOpen={showSaveDialog}
+        onClose={resetSaveDialog}
+        onSubmit={handleSaveSession}
+        title="Save Session"
+        footer={
+          <>
+            <button className="modal-btn cancel" onClick={resetSaveDialog}>
+              Cancel
+            </button>
+            <button
+              className="modal-btn confirm"
+              onClick={handleSaveSession}
+              disabled={saving || !flowName.trim()}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <form className="modal-form" onSubmit={(e) => { e.preventDefault(); handleSaveSession(); }}>
+          <div className="form-group">
+            <label>Session Name</label>
+            <input
+              type="text"
+              placeholder="Enter session name"
+              value={flowName}
+              onChange={(e) => setFlowName(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </form>
+      </Modal>
 
       <div className="sessions-list">
         <h3>Saved Sessions</h3>
@@ -158,12 +190,22 @@ export function SessionsPanel() {
                 <button onClick={() => handleLoadSession(session)}>Load</button>
                 <button onClick={() => handleExport(session.id, 'json')}>JSON</button>
                 <button onClick={() => handleExport(session.id, 'csv')}>CSV</button>
-                <button onClick={() => handleDeleteSession(session.id)} className="delete-btn">Delete</button>
+                <button onClick={() => setDeleteConfirm({ open: true, id: session.id })} className="delete-btn">Delete</button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, id: null })}
+        onConfirm={handleDeleteSession}
+        title="Delete Session"
+        message="Are you sure you want to delete this session? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }
