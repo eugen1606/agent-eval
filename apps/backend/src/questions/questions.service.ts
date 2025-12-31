@@ -21,24 +21,26 @@ export class QuestionsService {
     private questionSetRepository: Repository<QuestionSet>
   ) {}
 
-  async create(dto: CreateQuestionSetDto): Promise<QuestionSet> {
+  async create(dto: CreateQuestionSetDto, userId: string): Promise<QuestionSet> {
     const questionSet = this.questionSetRepository.create({
       name: dto.name,
       questions: dto.questions,
       description: dto.description,
+      userId,
     });
     return this.questionSetRepository.save(questionSet);
   }
 
-  async findAll(): Promise<QuestionSet[]> {
+  async findAll(userId: string): Promise<QuestionSet[]> {
     return this.questionSetRepository.find({
+      where: { userId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: string): Promise<QuestionSet> {
+  async findOne(id: string, userId: string): Promise<QuestionSet> {
     const questionSet = await this.questionSetRepository.findOne({
-      where: { id },
+      where: { id, userId },
     });
     if (!questionSet) {
       throw new NotFoundException(`Question set not found: ${id}`);
@@ -46,8 +48,8 @@ export class QuestionsService {
     return questionSet;
   }
 
-  async update(id: string, dto: Partial<CreateQuestionSetDto>): Promise<QuestionSet> {
-    const questionSet = await this.findOne(id);
+  async update(id: string, dto: Partial<CreateQuestionSetDto>, userId: string): Promise<QuestionSet> {
+    const questionSet = await this.findOne(id, userId);
 
     if (dto.name) questionSet.name = dto.name;
     if (dto.questions) questionSet.questions = dto.questions;
@@ -56,8 +58,8 @@ export class QuestionsService {
     return this.questionSetRepository.save(questionSet);
   }
 
-  async delete(id: string): Promise<void> {
-    const result = await this.questionSetRepository.delete(id);
+  async delete(id: string, userId: string): Promise<void> {
+    const result = await this.questionSetRepository.delete({ id, userId });
     if (result.affected === 0) {
       throw new NotFoundException(`Question set not found: ${id}`);
     }

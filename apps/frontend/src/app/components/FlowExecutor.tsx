@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { AgentEvalClient } from '@agent-eval/api-client';
+import { EvaluationResult } from '@agent-eval/shared';
 
-const apiClient = new AgentEvalClient();
+const API_URL = 'http://localhost:3001/api';
 
 export function FlowExecutor() {
-  const { state, setResults, setLoading, setError } = useAppContext();
+  const { state, addResult, clearResults, setLoading, setError } = useAppContext();
+  const [processedCount, setProcessedCount] = useState(0);
 
   const isConfigValid = () => {
     const hasAccessToken = state.config.accessToken.trim() !== '' || !!state.config.accessTokenId;
@@ -25,19 +26,80 @@ export function FlowExecutor() {
 
     setLoading(true);
     setError(null);
+    clearResults();
+    setProcessedCount(0);
 
     try {
-      const response = await apiClient.executeFlow(state.config, state.questions);
+      // Get auth token from localStorage
+      const authTokens = localStorage.getItem('auth_tokens');
+      const accessToken = authTokens ? JSON.parse(authTokens).accessToken : null;
 
-      if (response.success && response.data) {
-        setResults(response.data.results);
-      } else {
-        setError(response.error || 'Failed to execute flow');
+      if (!accessToken) {
+        setError('Not authenticated. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/flow/execute-stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          config: state.config,
+          questions: state.questions,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'result') {
+                const result: EvaluationResult = data.result;
+                addResult(result);
+                setProcessedCount((prev) => prev + 1);
+              } else if (data.type === 'error') {
+                setError(data.error);
+              } else if (data.type === 'complete') {
+                // Stream complete
+              }
+            } catch (e) {
+              // Ignore parse errors for incomplete data
+            }
+          }
+        }
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
+      setProcessedCount(0);
     }
   };
 
@@ -56,7 +118,9 @@ export function FlowExecutor() {
       {state.isLoading && (
         <div className="loading-indicator">
           <div className="spinner"></div>
-          <span>Processing questions...</span>
+          <span>
+            Processing questions... ({processedCount}/{state.questions.length})
+          </span>
         </div>
       )}
     </div>

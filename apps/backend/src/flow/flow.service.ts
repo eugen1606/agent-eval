@@ -13,17 +13,16 @@ export class FlowService {
 
   constructor(private readonly accessTokensService: AccessTokensService) {}
 
-  async executeFlow(
+  async *executeFlowStream(
     config: FlowConfig,
     questions: QuestionInput[],
-  ): Promise<EvaluationResult[]> {
-    const results: EvaluationResult[] = [];
-
+    userId: string,
+  ): AsyncGenerator<EvaluationResult> {
     // Resolve access token - decrypt if it's a stored token ID
     let resolvedToken = config.accessToken;
     if (config.accessTokenId) {
       try {
-        resolvedToken = await this.accessTokensService.getDecryptedToken(config.accessTokenId);
+        resolvedToken = await this.accessTokensService.getDecryptedToken(config.accessTokenId, userId);
       } catch (error) {
         this.logger.error(`Failed to decrypt access token: ${config.accessTokenId}`, error);
         throw new Error('Failed to decrypt stored access token');
@@ -36,21 +35,21 @@ export class FlowService {
       try {
         const { answer, executionId } = await this.callFlowEndpoint(resolvedConfig, question.question);
 
-        results.push({
+        yield {
           id: uuidv4(),
           question: question.question,
           answer,
           executionId,
           expectedAnswer: question.expectedAnswer,
           timestamp: new Date().toISOString(),
-        });
+        };
       } catch (error) {
         this.logger.error(
           `Failed to execute flow for question: ${question.question}`,
           error,
         );
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        results.push({
+        yield {
           id: uuidv4(),
           question: question.question,
           answer: `Error: ${errorMessage}`,
@@ -58,11 +57,9 @@ export class FlowService {
           isError: true,
           errorMessage,
           timestamp: new Date().toISOString(),
-        });
+        };
       }
     }
-
-    return results;
   }
 
   private async callFlowEndpoint(

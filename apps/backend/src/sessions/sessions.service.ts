@@ -15,13 +15,14 @@ export class SessionsService {
 
   async saveSession(
     flowName: string,
-    session: EvaluationSession
+    session: EvaluationSession,
+    userId: string
   ): Promise<{ id: string }> {
-    // Always create a new session
     const newSession = this.sessionRepository.create({
       flowName,
       flowConfig: session.flowConfig,
       results: session.results,
+      userId,
     });
 
     const saved = await this.sessionRepository.save(newSession);
@@ -29,16 +30,19 @@ export class SessionsService {
     return { id: saved.id };
   }
 
-  async getSessions(): Promise<EvaluationSession[]> {
+  async getSessions(userId: string): Promise<EvaluationSession[]> {
     const sessions = await this.sessionRepository.find({
+      where: { userId },
       order: { updatedAt: 'DESC' },
     });
 
     return sessions.map((s) => this.toEvaluationSession(s));
   }
 
-  async getSession(id: string): Promise<EvaluationSession> {
-    const session = await this.sessionRepository.findOne({ where: { id } });
+  async getSession(id: string, userId: string): Promise<EvaluationSession> {
+    const session = await this.sessionRepository.findOne({
+      where: { id, userId },
+    });
 
     if (!session) {
       throw new NotFoundException(`Session not found: ${id}`);
@@ -47,8 +51,8 @@ export class SessionsService {
     return this.toEvaluationSession(session);
   }
 
-  async deleteSession(id: string): Promise<void> {
-    const result = await this.sessionRepository.delete(id);
+  async deleteSession(id: string, userId: string): Promise<void> {
+    const result = await this.sessionRepository.delete({ id, userId });
 
     if (result.affected === 0) {
       throw new NotFoundException(`Session not found: ${id}`);
@@ -57,8 +61,8 @@ export class SessionsService {
     this.logger.log(`Session deleted: ${id}`);
   }
 
-  async exportSession(id: string, format: 'json' | 'csv'): Promise<string> {
-    const session = await this.getSession(id);
+  async exportSession(id: string, userId: string, format: 'json' | 'csv'): Promise<string> {
+    const session = await this.getSession(id, userId);
 
     if (format === 'json') {
       return JSON.stringify(session, null, 2);

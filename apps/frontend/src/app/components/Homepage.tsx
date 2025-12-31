@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export function Homepage() {
+  const { user } = useAuth();
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
+
   return (
     <div className="homepage">
-      <h2>Welcome to <span className="logo-bench">Bench</span><span className="logo-mark">Mark</span></h2>
+      <h2>Welcome back, {displayName}!</h2>
       <p className="tagline">
-        Agent Evaluation for testing and analyzing AI flows
+        Ready to evaluate your AI flows with <span className="logo-bench">Bench</span><span className="logo-mark">Mark</span>
       </p>
 
       <div className="homepage-cards">

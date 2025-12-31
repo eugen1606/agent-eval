@@ -27,7 +27,7 @@ export class AccessTokensService {
     private encryptionService: EncryptionService
   ) {}
 
-  async create(dto: CreateAccessTokenDto): Promise<AccessTokenResponse> {
+  async create(dto: CreateAccessTokenDto, userId: string): Promise<AccessTokenResponse> {
     const { encryptedToken, iv } = this.encryptionService.encryptToken(dto.token);
 
     const accessToken = this.accessTokenRepository.create({
@@ -35,21 +35,25 @@ export class AccessTokensService {
       encryptedToken,
       iv,
       description: dto.description,
+      userId,
     });
 
     const saved = await this.accessTokenRepository.save(accessToken);
     return this.toResponse(saved);
   }
 
-  async findAll(): Promise<AccessTokenResponse[]> {
+  async findAll(userId: string): Promise<AccessTokenResponse[]> {
     const tokens = await this.accessTokenRepository.find({
+      where: { userId },
       order: { createdAt: 'DESC' },
     });
     return tokens.map((t) => this.toResponse(t));
   }
 
-  async findOne(id: string): Promise<AccessTokenResponse> {
-    const token = await this.accessTokenRepository.findOne({ where: { id } });
+  async findOne(id: string, userId: string): Promise<AccessTokenResponse> {
+    const token = await this.accessTokenRepository.findOne({
+      where: { id, userId },
+    });
     if (!token) {
       throw new NotFoundException(`Access token not found: ${id}`);
     }
@@ -58,9 +62,12 @@ export class AccessTokensService {
 
   async update(
     id: string,
-    dto: Partial<CreateAccessTokenDto>
+    dto: Partial<CreateAccessTokenDto>,
+    userId: string
   ): Promise<AccessTokenResponse> {
-    const token = await this.accessTokenRepository.findOne({ where: { id } });
+    const token = await this.accessTokenRepository.findOne({
+      where: { id, userId },
+    });
     if (!token) {
       throw new NotFoundException(`Access token not found: ${id}`);
     }
@@ -78,16 +85,19 @@ export class AccessTokensService {
     return this.toResponse(saved);
   }
 
-  async delete(id: string): Promise<void> {
-    const result = await this.accessTokenRepository.delete(id);
+  async delete(id: string, userId: string): Promise<void> {
+    const result = await this.accessTokenRepository.delete({ id, userId });
     if (result.affected === 0) {
       throw new NotFoundException(`Access token not found: ${id}`);
     }
   }
 
   // Internal method to get decrypted token for use in flow execution
-  async getDecryptedToken(id: string): Promise<string> {
-    const token = await this.accessTokenRepository.findOne({ where: { id } });
+  // Note: This validates ownership by userId
+  async getDecryptedToken(id: string, userId: string): Promise<string> {
+    const token = await this.accessTokenRepository.findOne({
+      where: { id, userId },
+    });
     if (!token) {
       throw new NotFoundException(`Access token not found: ${id}`);
     }

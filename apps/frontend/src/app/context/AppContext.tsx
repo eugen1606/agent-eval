@@ -20,6 +20,8 @@ interface AppContextType {
   setConfig: (config: FlowConfig) => void;
   setQuestions: (questions: QuestionInput[]) => void;
   setResults: (results: EvaluationResult[]) => void;
+  addResult: (result: EvaluationResult) => void;
+  clearResults: () => void;
   setCurrentSession: (session: EvaluationSession | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -56,6 +58,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, results }));
   };
 
+  const addResult = (result: EvaluationResult) => {
+    setState((prev) => ({ ...prev, results: [...prev.results, result] }));
+  };
+
+  const clearResults = () => {
+    setState((prev) => ({ ...prev, results: [] }));
+  };
+
   const setCurrentSession = (session: EvaluationSession | null) => {
     setState((prev) => ({ ...prev, currentSession: session }));
   };
@@ -84,6 +94,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setConfig,
         setQuestions,
         setResults,
+        addResult,
+        clearResults,
         setCurrentSession,
         setLoading,
         setError,

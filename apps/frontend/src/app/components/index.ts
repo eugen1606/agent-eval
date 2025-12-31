@@ -9,3 +9,6 @@ export { EvaluationsManager } from './EvaluationsManager';
 export { Dashboard } from './Dashboard';
 export { Homepage } from './Homepage';
 export { Modal, ConfirmDialog, AlertDialog } from './Modal';
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { ProtectedRoute } from './ProtectedRoute';

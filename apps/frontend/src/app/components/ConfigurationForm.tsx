@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { QuestionInput, StoredAccessToken, StoredQuestionSet, StoredFlowConfig } from '@agent-eval/shared';
+import {
+  QuestionInput,
+  StoredAccessToken,
+  StoredQuestionSet,
+  StoredFlowConfig,
+} from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,14 +17,20 @@ export function ConfigurationForm() {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [useManualToken, setUseManualToken] = useState(true);
   const [useManualFlowConfig, setUseManualFlowConfig] = useState(true);
+  const [useManualQuestions, setUseManualQuestions] = useState(true);
 
   // Stored data
   const [storedTokens, setStoredTokens] = useState<StoredAccessToken[]>([]);
-  const [storedQuestionSets, setStoredQuestionSets] = useState<StoredQuestionSet[]>([]);
-  const [storedFlowConfigs, setStoredFlowConfigs] = useState<StoredFlowConfig[]>([]);
+  const [storedQuestionSets, setStoredQuestionSets] = useState<
+    StoredQuestionSet[]
+  >([]);
+  const [storedFlowConfigs, setStoredFlowConfigs] = useState<
+    StoredFlowConfig[]
+  >([]);
   const [selectedTokenId, setSelectedTokenId] = useState<string>('');
   const [selectedFlowConfigId, setSelectedFlowConfigId] = useState<string>('');
-  const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string>('');
+  const [selectedQuestionSetId, setSelectedQuestionSetId] =
+    useState<string>('');
 
   useEffect(() => {
     loadStoredData();
@@ -33,8 +44,10 @@ export function ConfigurationForm() {
     ]);
 
     if (tokensRes.success && tokensRes.data) setStoredTokens(tokensRes.data);
-    if (questionsRes.success && questionsRes.data) setStoredQuestionSets(questionsRes.data);
-    if (flowConfigsRes.success && flowConfigsRes.data) setStoredFlowConfigs(flowConfigsRes.data);
+    if (questionsRes.success && questionsRes.data)
+      setStoredQuestionSets(questionsRes.data);
+    if (flowConfigsRes.success && flowConfigsRes.data)
+      setStoredFlowConfigs(flowConfigsRes.data);
   };
 
   const handleConfigChange = (field: string, value: string) => {
@@ -120,7 +133,7 @@ export function ConfigurationForm() {
       {/* Access Token Section */}
       <div className="form-group">
         <label>
-          Access Token
+          AI Studio Access Token
           <div className="toggle-group">
             <button
               type="button"
@@ -215,44 +228,67 @@ export function ConfigurationForm() {
         )}
       </div>
 
-      {/* Questions */}
+      {/* Questions Section */}
       <div className="form-group">
-        <label htmlFor="questions">
-          Questions (JSON)
-          <div className="label-actions">
-            {storedQuestionSets.length > 0 && (
-              <select
-                className="inline-select"
-                value={selectedQuestionSetId}
-                onChange={(e) => handleQuestionSetSelect(e.target.value)}
-              >
-                <option value="">Load saved set...</option>
-                {storedQuestionSets.map((qs) => (
-                  <option key={qs.id} value={qs.id}>
-                    {qs.name} ({qs.questions.length} questions)
-                  </option>
-                ))}
-              </select>
-            )}
+        <label>
+          Questions
+          <div className="toggle-group">
             <button
               type="button"
-              className="example-btn"
-              onClick={() => handleQuestionsChange(exampleJson)}
+              className={useManualQuestions ? 'active' : ''}
+              onClick={() => {
+                setUseManualQuestions(true);
+                setSelectedQuestionSetId('');
+              }}
             >
-              Load Example
+              Manual
+            </button>
+            <button
+              type="button"
+              className={!useManualQuestions ? 'active' : ''}
+              onClick={() => setUseManualQuestions(false)}
+            >
+              Stored
             </button>
           </div>
         </label>
-        <textarea
-          id="questions"
-          value={questionsJson}
-          onChange={(e) => handleQuestionsChange(e.target.value)}
-          placeholder={exampleJson}
-          rows={8}
-        />
-        {jsonError && <span className="error">{jsonError}</span>}
+        {useManualQuestions ? (
+          <>
+            <div className="questions-header">
+              <button
+                type="button"
+                className="example-btn"
+                onClick={() => handleQuestionsChange(exampleJson)}
+              >
+                Load Example
+              </button>
+            </div>
+            <textarea
+              id="questions"
+              value={questionsJson}
+              onChange={(e) => handleQuestionsChange(e.target.value)}
+              placeholder={exampleJson}
+              rows={8}
+            />
+            {jsonError && <span className="error">{jsonError}</span>}
+          </>
+        ) : (
+          <select
+            value={selectedQuestionSetId}
+            onChange={(e) => handleQuestionSetSelect(e.target.value)}
+          >
+            <option value="">Select a question set...</option>
+            {storedQuestionSets.map((qs) => (
+              <option key={qs.id} value={qs.id}>
+                {qs.name} ({qs.questions.length} questions)
+              </option>
+            ))}
+          </select>
+        )}
         {state.questions.length > 0 && (
-          <span className="success">{state.questions.length} questions loaded</span>
+          <span className="success">
+            {state.questions.length} questions loaded
+          </span>
         )}
       </div>
     </div>

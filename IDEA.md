@@ -1,0 +1,4 @@
+- [ ] implement multi step evaluation possibility
+- [ ] refactor dashboard, above pie chart and problematic questions precentage preview of all options
+- [ ] investigate possibility to implement tracking of flow performance
+- [ ] implement rendering answer by answer instead of rendering all at once

@@ -1,8 +1,10 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { EvaluationService } from './evaluation.service';
 import { LLMJudgeRequest, LLMJudgeResponse } from '@agent-eval/shared';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('evaluate')
+@UseGuards(JwtAuthGuard)
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService) {}
 

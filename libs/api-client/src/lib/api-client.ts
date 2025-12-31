@@ -13,29 +13,109 @@ import {
   CreateFlowConfigRequest,
   StoredEvaluation,
   CreateEvaluationRequest,
+  User,
+  AuthTokens,
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  RefreshTokenRequest,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
+const TOKEN_STORAGE_KEY = 'auth_tokens';
 
 export class AgentEvalClient {
   private apiUrl: string;
+  private tokens: AuthTokens | null = null;
+  private onAuthChange?: (isAuthenticated: boolean) => void;
 
   constructor(apiUrl: string = DEFAULT_API_URL) {
     this.apiUrl = apiUrl;
+    this.loadTokens();
+  }
+
+  // Token Management
+  private loadTokens(): void {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if (stored) {
+        try {
+          this.tokens = JSON.parse(stored);
+        } catch {
+          this.tokens = null;
+        }
+      }
+    }
+  }
+
+  private saveTokens(tokens: AuthTokens | null): void {
+    this.tokens = tokens;
+    if (typeof window !== 'undefined') {
+      if (tokens) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
+      } else {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    }
+    this.onAuthChange?.(!!tokens);
+  }
+
+  public setOnAuthChange(callback: (isAuthenticated: boolean) => void): void {
+    this.onAuthChange = callback;
+  }
+
+  public isAuthenticated(): boolean {
+    return !!this.tokens?.accessToken;
+  }
+
+  public getAuthToken(): string | null {
+    return this.tokens?.accessToken || null;
   }
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    requireAuth: boolean = true
   ): Promise<ApiResponse<T>> {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string>),
+      };
+
+      if (requireAuth && this.tokens?.accessToken) {
+        headers['Authorization'] = `Bearer ${this.tokens.accessToken}`;
+      }
+
       const response = await fetch(`${this.apiUrl}${endpoint}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
         ...options,
+        headers,
       });
+
+      // Handle 401 - try to refresh token
+      if (response.status === 401 && requireAuth && this.tokens?.refreshToken) {
+        const refreshed = await this.refreshTokens();
+        if (refreshed) {
+          // Retry the original request with new token
+          headers['Authorization'] = `Bearer ${this.tokens.accessToken}`;
+          const retryResponse = await fetch(`${this.apiUrl}${endpoint}`, {
+            ...options,
+            headers,
+          });
+
+          if (!retryResponse.ok) {
+            const data = await retryResponse.json();
+            return { success: false, error: data.message || 'Request failed' };
+          }
+
+          const data = await retryResponse.json();
+          return { success: true, data };
+        } else {
+          // Refresh failed, clear tokens
+          this.saveTokens(null);
+          return { success: false, error: 'Session expired. Please login again.' };
+        }
+      }
 
       const data = await response.json();
 
@@ -50,6 +130,69 @@ export class AgentEvalClient {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  // Auth Methods
+  async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    const result = await this.request<AuthResponse>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      },
+      false
+    );
+
+    if (result.success && result.data) {
+      this.saveTokens(result.data.tokens);
+    }
+
+    return result;
+  }
+
+  async register(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
+    const result = await this.request<AuthResponse>(
+      '/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+      false
+    );
+
+    if (result.success && result.data) {
+      this.saveTokens(result.data.tokens);
+    }
+
+    return result;
+  }
+
+  private async refreshTokens(): Promise<boolean> {
+    if (!this.tokens?.refreshToken) return false;
+
+    try {
+      const response = await fetch(`${this.apiUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.tokens.refreshToken } as RefreshTokenRequest),
+      });
+
+      if (!response.ok) return false;
+
+      const data: AuthTokens = await response.json();
+      this.saveTokens(data);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getMe(): Promise<ApiResponse<User>> {
+    return this.request<User>('/auth/me');
+  }
+
+  logout(): void {
+    this.saveTokens(null);
   }
 
   // Flow Execution

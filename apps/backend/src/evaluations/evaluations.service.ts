@@ -18,26 +18,28 @@ export class EvaluationsService {
     private evaluationRepository: Repository<Evaluation>
   ) {}
 
-  async create(dto: CreateEvaluationDto): Promise<Evaluation> {
+  async create(dto: CreateEvaluationDto, userId: string): Promise<Evaluation> {
     const evaluation = this.evaluationRepository.create({
       name: dto.name,
       finalOutput: dto.finalOutput,
       flowExport: dto.flowExport,
       flowId: dto.flowId,
       description: dto.description,
+      userId,
     });
     return this.evaluationRepository.save(evaluation);
   }
 
-  async findAll(): Promise<Evaluation[]> {
+  async findAll(userId: string): Promise<Evaluation[]> {
     return this.evaluationRepository.find({
+      where: { userId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: string): Promise<Evaluation> {
+  async findOne(id: string, userId: string): Promise<Evaluation> {
     const evaluation = await this.evaluationRepository.findOne({
-      where: { id },
+      where: { id, userId },
     });
     if (!evaluation) {
       throw new NotFoundException(`Evaluation not found: ${id}`);
@@ -45,8 +47,8 @@ export class EvaluationsService {
     return evaluation;
   }
 
-  async update(id: string, dto: Partial<CreateEvaluationDto>): Promise<Evaluation> {
-    const evaluation = await this.findOne(id);
+  async update(id: string, dto: Partial<CreateEvaluationDto>, userId: string): Promise<Evaluation> {
+    const evaluation = await this.findOne(id, userId);
 
     if (dto.name) evaluation.name = dto.name;
     if (dto.finalOutput) evaluation.finalOutput = dto.finalOutput;
@@ -57,15 +59,15 @@ export class EvaluationsService {
     return this.evaluationRepository.save(evaluation);
   }
 
-  async delete(id: string): Promise<void> {
-    const result = await this.evaluationRepository.delete(id);
+  async delete(id: string, userId: string): Promise<void> {
+    const result = await this.evaluationRepository.delete({ id, userId });
     if (result.affected === 0) {
       throw new NotFoundException(`Evaluation not found: ${id}`);
     }
   }
 
-  async exportAsJson(id: string): Promise<string> {
-    const evaluation = await this.findOne(id);
+  async exportAsJson(id: string, userId: string): Promise<string> {
+    const evaluation = await this.findOne(id, userId);
     return JSON.stringify(evaluation, null, 2);
   }
 }

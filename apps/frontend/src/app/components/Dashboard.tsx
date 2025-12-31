@@ -235,34 +235,32 @@ export function Dashboard() {
 
       {stats && results.length > 0 && (
         <div className="dashboard-content">
-          <div className="dashboard-stats">
-            <h3>Evaluation Summary</h3>
-            <div className="stats-grid">
-              <div className="stat-card correct">
-                <div className="stat-value">{stats.correct}</div>
-                <div className="stat-label">Correct</div>
+          {/* Top row: Accuracy and Summary side by side */}
+          <div className="dashboard-top-row">
+            <div className="dashboard-accuracy">
+              <div className="accuracy-header">Accuracy Rate</div>
+              <div className="accuracy-value">
+                {(() => {
+                  const evaluatedCount = stats.correct + stats.partial + stats.incorrect;
+                  if (evaluatedCount === 0) return 'N/A';
+                  const percentage = (stats.correct / evaluatedCount) * 100;
+                  return `${percentage.toFixed(1)}%`;
+                })()}
               </div>
-              <div className="stat-card partial">
-                <div className="stat-value">{stats.partial}</div>
-                <div className="stat-label">Partial</div>
-              </div>
-              <div className="stat-card incorrect">
-                <div className="stat-value">{stats.incorrect}</div>
-                <div className="stat-label">Incorrect</div>
-              </div>
-              <div className="stat-card errors">
-                <div className="stat-value">{stats.errors}</div>
-                <div className="stat-label">Errors</div>
-              </div>
-              <div className="stat-card unevaluated">
-                <div className="stat-value">{stats.unevaluated}</div>
-                <div className="stat-label">Unevaluated</div>
+              <div className="accuracy-details">
+                {stats.correct} correct out of {stats.correct + stats.partial + stats.incorrect} evaluated
+                {stats.unevaluated > 0 && ` (${stats.unevaluated} pending)`}
+                {stats.errors > 0 && ` (${stats.errors} errors excluded)`}
               </div>
             </div>
 
-            <PieChart stats={stats} />
+            <div className="dashboard-stats">
+              <h3>Evaluation Summary</h3>
+              <PieChart stats={stats} />
+            </div>
           </div>
 
+          {/* Full width issues section */}
           <div className="dashboard-issues">
             {errorResults.length > 0 && (
               <div className="dashboard-errors">

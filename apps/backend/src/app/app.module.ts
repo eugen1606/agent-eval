@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from '../config/config.module';
 import { DatabaseModule } from '../database/database.module';
+import { MigrationModule } from '../database/migration.module';
+import { AuthModule } from '../auth/auth.module';
 import { FlowModule } from '../flow/flow.module';
 import { EvaluationModule } from '../evaluation/evaluation.module';
 import { SessionsModule } from '../sessions/sessions.module';
@@ -15,6 +17,8 @@ import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
   imports: [
     AppConfigModule,
     DatabaseModule,
+    AuthModule,
+    MigrationModule,
     FlowModule,
     EvaluationModule,
     SessionsModule,

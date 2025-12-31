@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import {
   ConfigurationForm,
   EvaluationResults,
@@ -12,6 +13,9 @@ import {
   EvaluationsManager,
   Dashboard,
   Homepage,
+  LoginPage,
+  RegisterPage,
+  ProtectedRoute,
 } from './components';
 import './app.css';
 
@@ -78,8 +82,42 @@ function SettingsPage() {
   );
 }
 
-export function App() {
+function UserMenu() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="user-menu">
+      <span className="user-email">{user.displayName || user.email}</span>
+      <button onClick={handleLogout} className="logout-button">
+        Logout
+      </button>
+    </div>
+  );
+}
+
+function AppContent() {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
+
+  // Don't show header on auth pages
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+
+  if (isAuthPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+      </Routes>
+    );
+  }
 
   return (
     <AppProvider>
@@ -114,18 +152,55 @@ export function App() {
               Settings
             </Link>
           </nav>
+          {isAuthenticated && <UserMenu />}
         </header>
 
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<Homepage />} />
-            <Route path="/evaluate" element={<EvaluationPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Homepage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/evaluate"
+              element={
+                <ProtectedRoute>
+                  <EvaluationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </div>
     </AppProvider>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

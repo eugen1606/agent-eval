@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AccessToken, Evaluation, QuestionSet, FlowConfig, Session } from './entities';
+import { AccessToken, Evaluation, QuestionSet, FlowConfig, Session, User } from './entities';
 
 @Module({
   imports: [
@@ -16,7 +16,7 @@ import { AccessToken, Evaluation, QuestionSet, FlowConfig, Session } from './ent
         return {
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
-          entities: [AccessToken, Evaluation, QuestionSet, FlowConfig, Session],
+          entities: [AccessToken, Evaluation, QuestionSet, FlowConfig, Session, User],
           synchronize: configService.get<string>('NODE_ENV') !== 'production',
           logging: enableTypeOrmLogging,
         };

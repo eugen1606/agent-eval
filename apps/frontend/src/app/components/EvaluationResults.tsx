@@ -14,6 +14,10 @@ export function EvaluationResults() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Filter out error results for evaluation purposes
+  const evaluatableResults = state.results.filter(r => !r.isError);
+  const errorResults = state.results.filter(r => r.isError);
+
   const resetSaveDialog = () => {
     setEvaluationName('');
     setEvaluationDescription('');
@@ -21,6 +25,10 @@ export function EvaluationResults() {
   };
 
   const toggleSelect = (id: string) => {
+    // Only allow selecting non-error results
+    const result = state.results.find(r => r.id === id);
+    if (result?.isError) return;
+
     const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -31,22 +39,31 @@ export function EvaluationResults() {
   };
 
   const selectAll = () => {
-    if (selectedIds.size === state.results.length) {
+    // Only select non-error results
+    if (selectedIds.size === evaluatableResults.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(state.results.map(r => r.id)));
+      setSelectedIds(new Set(evaluatableResults.map(r => r.id)));
     }
   };
 
   const bulkAssign = (status: HumanEvaluationStatus) => {
     const isCorrect = status === 'correct' ? true : status === 'incorrect' ? false : undefined;
     selectedIds.forEach(id => {
-      updateResult(id, { humanEvaluation: status, isCorrect });
+      // Double-check it's not an error result
+      const result = state.results.find(r => r.id === id);
+      if (result && !result.isError) {
+        updateResult(id, { humanEvaluation: status, isCorrect });
+      }
     });
     setSelectedIds(new Set());
   };
 
   const handleHumanEvaluation = (id: string, status: HumanEvaluationStatus) => {
+    // Don't allow evaluation of error results
+    const result = state.results.find(r => r.id === id);
+    if (result?.isError) return;
+
     const isCorrect = status === 'correct' ? true : status === 'incorrect' ? false : undefined;
     updateResult(id, { humanEvaluation: status, isCorrect });
   };
@@ -62,7 +79,7 @@ export function EvaluationResults() {
   // LLM evaluation functions kept for future implementation
   const handleLLMEvaluation = async (id: string) => {
     const result = state.results.find((r) => r.id === id);
-    if (!result) return;
+    if (!result || result.isError) return;
 
     setLoading(true);
     try {
@@ -89,7 +106,7 @@ export function EvaluationResults() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleEvaluateAll = async () => {
     setLoading(true);
-    for (const result of state.results) {
+    for (const result of evaluatableResults) {
       if (!result.llmJudgeScore) {
         await handleLLMEvaluation(result.id);
       }
@@ -118,7 +135,8 @@ export function EvaluationResults() {
     setSaving(false);
   };
 
-  const evaluatedCount = state.results.filter(
+  // Only count non-error results as evaluatable
+  const evaluatedCount = evaluatableResults.filter(
     r => r.humanEvaluation !== undefined
   ).length;
 
@@ -135,7 +153,10 @@ export function EvaluationResults() {
       <div className="results-header">
         <h2>Evaluation Results</h2>
         <span className="evaluation-progress">
-          {evaluatedCount}/{state.results.length} evaluated
+          {evaluatedCount}/{evaluatableResults.length} evaluated
+          {errorResults.length > 0 && (
+            <span className="error-count"> ({errorResults.length} errors)</span>
+          )}
         </span>
         <button onClick={() => setShowSaveDialog(true)}>Save as Evaluation</button>
       </div>
@@ -144,10 +165,11 @@ export function EvaluationResults() {
         <label className="select-all">
           <input
             type="checkbox"
-            checked={selectedIds.size === state.results.length && state.results.length > 0}
+            checked={selectedIds.size === evaluatableResults.length && evaluatableResults.length > 0}
             onChange={selectAll}
+            disabled={evaluatableResults.length === 0}
           />
-          Select All ({selectedIds.size}/{state.results.length})
+          Select All ({selectedIds.size}/{evaluatableResults.length})
         </label>
         {selectedIds.size > 0 && (
           <div className="bulk-buttons">
@@ -216,6 +238,7 @@ export function EvaluationResults() {
                 type="checkbox"
                 checked={selectedIds.has(result.id)}
                 onChange={() => toggleSelect(result.id)}
+                disabled={result.isError}
               />
             </div>
             <div className="result-content">
@@ -244,60 +267,68 @@ export function EvaluationResults() {
                 </div>
               )}
 
-              <div className="result-actions">
-                <span>Human Evaluation:</span>
-                <button
-                  className={`eval-btn ${result.humanEvaluation === 'correct' ? 'active correct' : ''}`}
-                  onClick={() => handleHumanEvaluation(result.id, 'correct')}
-                >
-                  Correct
-                </button>
-                <button
-                  className={`eval-btn ${result.humanEvaluation === 'partial' ? 'active partial' : ''}`}
-                  onClick={() => handleHumanEvaluation(result.id, 'partial')}
-                >
-                  Partial
-                </button>
-                <button
-                  className={`eval-btn ${result.humanEvaluation === 'incorrect' ? 'active incorrect' : ''}`}
-                  onClick={() => handleHumanEvaluation(result.id, 'incorrect')}
-                >
-                  Incorrect
-                </button>
-              </div>
+              {!result.isError ? (
+                <>
+                  <div className="result-actions">
+                    <span>Human Evaluation:</span>
+                    <button
+                      className={`eval-btn ${result.humanEvaluation === 'correct' ? 'active correct' : ''}`}
+                      onClick={() => handleHumanEvaluation(result.id, 'correct')}
+                    >
+                      Correct
+                    </button>
+                    <button
+                      className={`eval-btn ${result.humanEvaluation === 'partial' ? 'active partial' : ''}`}
+                      onClick={() => handleHumanEvaluation(result.id, 'partial')}
+                    >
+                      Partial
+                    </button>
+                    <button
+                      className={`eval-btn ${result.humanEvaluation === 'incorrect' ? 'active incorrect' : ''}`}
+                      onClick={() => handleHumanEvaluation(result.id, 'incorrect')}
+                    >
+                      Incorrect
+                    </button>
+                  </div>
 
-              {result.humanEvaluation === 'incorrect' && (
-                <div className="result-severity">
-                  <span>Severity:</span>
-                  <button
-                    className={`severity-btn ${result.severity === 'critical' ? 'active critical' : ''}`}
-                    onClick={() => handleSeverityChange(result.id, 'critical')}
-                  >
-                    Critical
-                  </button>
-                  <button
-                    className={`severity-btn ${result.severity === 'major' ? 'active major' : ''}`}
-                    onClick={() => handleSeverityChange(result.id, 'major')}
-                  >
-                    Major
-                  </button>
-                  <button
-                    className={`severity-btn ${result.severity === 'minor' ? 'active minor' : ''}`}
-                    onClick={() => handleSeverityChange(result.id, 'minor')}
-                  >
-                    Minor
-                  </button>
+                  {result.humanEvaluation === 'incorrect' && (
+                    <div className="result-severity">
+                      <span>Severity:</span>
+                      <button
+                        className={`severity-btn ${result.severity === 'critical' ? 'active critical' : ''}`}
+                        onClick={() => handleSeverityChange(result.id, 'critical')}
+                      >
+                        Critical
+                      </button>
+                      <button
+                        className={`severity-btn ${result.severity === 'major' ? 'active major' : ''}`}
+                        onClick={() => handleSeverityChange(result.id, 'major')}
+                      >
+                        Major
+                      </button>
+                      <button
+                        className={`severity-btn ${result.severity === 'minor' ? 'active minor' : ''}`}
+                        onClick={() => handleSeverityChange(result.id, 'minor')}
+                      >
+                        Minor
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="result-description">
+                    <input
+                      type="text"
+                      placeholder="Add evaluation notes (optional)"
+                      value={result.humanEvaluationDescription || ''}
+                      onChange={(e) => handleDescriptionChange(result.id, e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="result-error-note">
+                  This result cannot be evaluated due to an error during execution.
                 </div>
               )}
-
-              <div className="result-description">
-                <input
-                  type="text"
-                  placeholder="Add evaluation notes (optional)"
-                  value={result.humanEvaluationDescription || ''}
-                  onChange={(e) => handleDescriptionChange(result.id, e.target.value)}
-                />
-              </div>
             </div>
           </div>
         ))}
