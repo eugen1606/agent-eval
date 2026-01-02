@@ -12,6 +12,7 @@ import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 import { QuestionsModule } from '../questions/questions.module';
 import { EvaluationsModule } from '../evaluations/evaluations.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
+import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-evaluations.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
     QuestionsModule,
     EvaluationsModule,
     FlowConfigsModule,
+    ScheduledEvaluationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -11,6 +11,7 @@ import {
   QuestionSetsManager,
   FlowConfigsManager,
   EvaluationsManager,
+  ScheduledEvaluationsManager,
   Dashboard,
   Homepage,
   LoginPage,
@@ -40,7 +41,7 @@ function EvaluationPage() {
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'evaluations'
+    'tokens' | 'questions' | 'flows' | 'evaluations' | 'scheduled'
   >('tokens');
 
   return (
@@ -50,7 +51,7 @@ function SettingsPage() {
           className={activeTab === 'tokens' ? 'active' : ''}
           onClick={() => setActiveTab('tokens')}
         >
-          AI Studio Access Tokens
+          Access Tokens
         </button>
         <button
           className={activeTab === 'questions' ? 'active' : ''}
@@ -70,6 +71,12 @@ function SettingsPage() {
         >
           Evaluations
         </button>
+        <button
+          className={activeTab === 'scheduled' ? 'active' : ''}
+          onClick={() => setActiveTab('scheduled')}
+        >
+          Scheduled
+        </button>
       </div>
 
       <div className="settings-content">
@@ -77,6 +84,7 @@ function SettingsPage() {
         {activeTab === 'questions' && <QuestionSetsManager />}
         {activeTab === 'flows' && <FlowConfigsManager />}
         {activeTab === 'evaluations' && <EvaluationsManager />}
+        {activeTab === 'scheduled' && <ScheduledEvaluationsManager />}
       </div>
     </div>
   );

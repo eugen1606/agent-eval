@@ -1,96 +1,185 @@
-# AgentEval
+# BenchMark
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+**AI Flow Evaluation & Benchmarking Platform**
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+BenchMark is a comprehensive tool for testing, evaluating, and tracking the performance of AI agent flows. Execute your flows against question sets, evaluate responses manually or with LLM-as-judge, and monitor accuracy trends over time.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## Features
 
-## Run tasks
+- **Flow Execution** - Test AI flows against custom question sets with real-time streaming results
+- **Human Evaluation** - Mark responses as correct, partial, or incorrect with severity ratings
+- **LLM-as-Judge** - Automated evaluation using GPT-4 or Claude
+- **Multi-step Conversations** - Test flows that require conversation context
+- **Flow Analytics** - Track accuracy trends across multiple evaluation runs
+- **Secure Storage** - Encrypted access tokens, reusable question sets, and saved configurations
+- **Multi-user Support** - User authentication with isolated data
 
-To run tasks with Nx use:
+## Screenshots
 
-```sh
-npx nx <target> <project-name>
+| Evaluation | Dashboard | Analytics |
+|------------|-----------|-----------|
+| Execute flows and evaluate results | View detailed evaluation breakdown | Track performance over time |
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Yarn
+- Docker (for PostgreSQL)
+
+### Installation
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd agent-eval
+
+# Install dependencies
+yarn install
+
+# Copy environment file
+cp .env.example .env
+
+# Generate encryption keys and update .env
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"  # ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"  # JWT_SECRET
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"  # JWT_REFRESH_SECRET
+
+# Start database
+docker-compose up -d postgres
+
+# Start backend
+yarn nx serve backend
+
+# Start frontend (new terminal)
+yarn nx serve frontend
 ```
 
-For example:
+### Access the Application
 
-```sh
-npx nx build myproject
+- **Frontend**: http://localhost:4201
+- **Backend API**: http://localhost:3001/api
+- **Default Login**: `admin@benchmark.local` / `admin123`
+
+## Usage
+
+### 1. Configure Access Token
+
+Navigate to **Settings > AI Studio Access Tokens** and add your AI flow API token. Tokens are encrypted at rest.
+
+### 2. Set Up Flow Configuration
+
+Go to **Settings > Flow Configs** and save your flow's base path and flow ID for easy reuse.
+
+### 3. Create Question Sets
+
+In **Settings > Question Sets**, create reusable question sets with optional expected answers:
+
+```json
+[
+  { "question": "What is 2+2?", "expectedAnswer": "4" },
+  { "question": "What is the capital of France?", "expectedAnswer": "Paris" }
+]
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### 4. Run Evaluation
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+Go to **Evaluate**, select your configuration, choose a question set, and click **Execute Flow**. Results stream in real-time.
 
-## Add new projects
+### 5. Evaluate Responses
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+Mark each response as:
+- **Correct** - Answer is accurate
+- **Partial** - Partially correct
+- **Incorrect** - Wrong (with severity: Critical, Major, Minor)
 
-To install a new plugin you can use the `nx add` command. Here's an example of adding the React plugin:
-```sh
-npx nx add @nx/react
+### 6. Save & Analyze
+
+Save your evaluation and view it in the **Dashboard**. Use **Flow Analytics** to compare performance across multiple runs.
+
+## Architecture
+
+```
+agent-eval/
+├── apps/
+│   ├── frontend/          # React + Vite application
+│   └── backend/           # NestJS API server
+├── libs/
+│   ├── shared/            # Shared TypeScript types
+│   └── api-client/        # HTTP client library
+└── docker-compose.yml     # PostgreSQL database
 ```
 
-Use the plugin's generator to create new projects. For example, to create a new React app or library:
+### Tech Stack
 
-```sh
-# Generate an app
-npx nx g @nx/react:app demo
+- **Frontend**: React 18, TypeScript, Vite, React Router
+- **Backend**: NestJS, TypeORM, PostgreSQL, JWT Auth
+- **Infrastructure**: Docker, Nx Monorepo
 
-# Generate a library
-npx nx g @nx/react:lib some-lib
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | User login |
+| POST | `/api/auth/register` | User registration |
+| POST | `/api/flow/execute-stream` | Execute flow (SSE) |
+| GET | `/api/evaluations` | List evaluations |
+| POST | `/api/evaluations` | Save evaluation |
+| GET | `/api/access-tokens` | List tokens |
+| GET | `/api/questions` | List question sets |
+| GET | `/api/flow-configs` | List flow configs |
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `ENCRYPTION_KEY` | 64-char hex key for token encryption | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+| `JWT_REFRESH_SECRET` | Refresh token secret | Yes |
+| `ADMIN_EMAIL` | Initial admin email | No |
+| `ADMIN_PASSWORD` | Initial admin password | No |
+| `OPENAI_API_KEY` | For LLM-as-judge | No |
+| `ANTHROPIC_API_KEY` | For LLM-as-judge | No |
+
+## Development
+
+```bash
+# Run all builds
+yarn nx run-many -t build
+
+# Lint
+yarn nx lint frontend
+yarn nx lint backend
+
+# Test
+yarn nx test shared
+yarn nx test api-client
+
+# Generate dependency graph
+yarn nx graph
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+## Production Deployment
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
+```bash
+# Build and run with Docker Compose
+docker-compose -f docker-compose.prod.yml up --build
 ```
 
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+## Contributing
 
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Step 2
+## License
 
-Use the following command to configure a CI workflow for your workspace:
+MIT License - see [LICENSE](LICENSE) for details.
 
-```sh
-npx nx g ci-workflow
-```
+## Roadmap
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/intro#learn-nx?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+See [IDEA.md](IDEA.md) for planned features and ideas.

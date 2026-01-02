@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StoredEvaluation } from '@agent-eval/shared';
+import { StoredEvaluation, EvaluationResult, FlowConfig } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
+import { useAppContext } from '../context/AppContext';
 
 const apiClient = new AgentEvalClient();
 
 export function EvaluationsManager() {
   const navigate = useNavigate();
+  const { loadEvaluation } = useAppContext();
   const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -117,6 +119,25 @@ export function EvaluationsManager() {
     a.download = `evaluation-${evaluation.name}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleContinueEvaluating = (evaluation: StoredEvaluation) => {
+    // Extract results and config from the stored evaluation
+    const finalOutput = evaluation.finalOutput as {
+      results?: EvaluationResult[];
+      config?: FlowConfig;
+    };
+
+    const results = finalOutput.results || [];
+    const config: FlowConfig = finalOutput.config || {
+      accessToken: '',
+      basePath: '',
+      flowId: evaluation.flowId || '',
+    };
+
+    // Load into app context and navigate to evaluate tab
+    loadEvaluation(evaluation.id, config, results);
+    navigate('/evaluate');
   };
 
   return (
@@ -236,6 +257,9 @@ export function EvaluationsManager() {
                 </div>
               )}
               <div className="item-actions">
+                <button onClick={() => handleContinueEvaluating(ev)} className="evaluate-btn">
+                  Evaluate
+                </button>
                 <button onClick={() => navigate(`/dashboard?id=${ev.id}`)} className="dashboard-btn">
                   Dashboard
                 </button>

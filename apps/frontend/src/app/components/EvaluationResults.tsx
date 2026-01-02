@@ -7,7 +7,7 @@ import { Modal } from './Modal';
 const apiClient = new AgentEvalClient();
 
 export function EvaluationResults() {
-  const { state, updateResult, setLoading } = useAppContext();
+  const { state, updateResult, setLoading, clearLoadedEvaluation } = useAppContext();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [evaluationName, setEvaluationName] = useState('');
   const [evaluationDescription, setEvaluationDescription] = useState('');
@@ -135,32 +135,81 @@ export function EvaluationResults() {
     setSaving(false);
   };
 
+  const handleUpdateEvaluation = async () => {
+    if (!state.loadedEvaluationId) return;
+
+    setSaving(true);
+    const response = await apiClient.updateEvaluation(state.loadedEvaluationId, {
+      finalOutput: {
+        config: state.config,
+        results: state.results,
+        savedAt: new Date().toISOString(),
+      },
+    });
+
+    if (response.success) {
+      // Keep the evaluation loaded but show success
+      setSaving(false);
+    }
+    setSaving(false);
+  };
+
+  const handleFinishEvaluating = () => {
+    clearLoadedEvaluation();
+  };
+
   // Only count non-error results as evaluatable
   const evaluatedCount = evaluatableResults.filter(
     r => r.humanEvaluation !== undefined
   ).length;
 
-  if (state.results.length === 0) {
-    return (
-      <div className="evaluation-results empty">
-        <p>No results yet. Execute a flow to see results here.</p>
-      </div>
-    );
-  }
+  const hasResults = state.results.length > 0;
 
   return (
     <div className="evaluation-results">
+      {state.loadedEvaluationId && (
+        <div className="continue-evaluation-banner">
+          <span>Continuing evaluation from stored data</span>
+          <div className="banner-actions">
+            <button
+              onClick={handleUpdateEvaluation}
+              disabled={saving}
+              className="update-btn"
+            >
+              {saving ? 'Saving...' : 'Save Progress'}
+            </button>
+            <button onClick={handleFinishEvaluating} className="finish-btn">
+              Finish
+            </button>
+          </div>
+        </div>
+      )}
       <div className="results-header">
         <h2>Evaluation Results</h2>
-        <span className="evaluation-progress">
-          {evaluatedCount}/{evaluatableResults.length} evaluated
-          {errorResults.length > 0 && (
-            <span className="error-count"> ({errorResults.length} errors)</span>
-          )}
-        </span>
-        <button onClick={() => setShowSaveDialog(true)}>Save as Evaluation</button>
+        {hasResults && (
+          <span className="evaluation-progress">
+            {evaluatedCount}/{evaluatableResults.length} evaluated
+            {errorResults.length > 0 && (
+              <span className="error-count"> ({errorResults.length} errors)</span>
+            )}
+          </span>
+        )}
+        {!state.loadedEvaluationId && (
+          <button
+            onClick={() => setShowSaveDialog(true)}
+            disabled={!hasResults}
+          >
+            Save as Evaluation
+          </button>
+        )}
       </div>
 
+      {!hasResults ? (
+        <div className="empty-results">
+          <p>No results yet. Execute a flow to see results here.</p>
+        </div>
+      ) : (
+        <>
       <div className="bulk-actions">
         <label className="select-all">
           <input
@@ -255,11 +304,9 @@ export function EvaluationResults() {
                 <strong>Answer:</strong> {result.answer}
               </div>
 
-              {result.expectedAnswer && (
-                <div className="result-expected">
-                  <strong>Expected:</strong> {result.expectedAnswer}
-                </div>
-              )}
+              <div className="result-expected">
+                <strong>Expected:</strong> {result.expectedAnswer || <span className="na-value">N/A</span>}
+              </div>
 
               {result.executionId && (
                 <div className="result-execution-id">
@@ -333,6 +380,8 @@ export function EvaluationResults() {
           </div>
         ))}
       </div>
+        </>
+      )}
     </div>
   );
 }

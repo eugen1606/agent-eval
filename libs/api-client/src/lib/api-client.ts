@@ -13,6 +13,8 @@ import {
   CreateFlowConfigRequest,
   StoredEvaluation,
   CreateEvaluationRequest,
+  StoredScheduledEvaluation,
+  CreateScheduledEvaluationRequest,
   User,
   AuthTokens,
   LoginRequest,
@@ -374,6 +376,54 @@ export class AgentEvalClient {
 
   async deleteEvaluation(id: string): Promise<ApiResponse<void>> {
     return this.request<void>(`/evaluations/${id}`, { method: 'DELETE' });
+  }
+
+  // Scheduled Evaluations
+  async createScheduledEvaluation(
+    data: CreateScheduledEvaluationRequest
+  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
+    return this.request<StoredScheduledEvaluation>('/scheduled-evaluations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getScheduledEvaluations(): Promise<ApiResponse<StoredScheduledEvaluation[]>> {
+    return this.request<StoredScheduledEvaluation[]>('/scheduled-evaluations');
+  }
+
+  async getScheduledEvaluation(id: string): Promise<ApiResponse<StoredScheduledEvaluation>> {
+    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}`);
+  }
+
+  async updateScheduledEvaluation(
+    id: string,
+    data: Partial<CreateScheduledEvaluationRequest>
+  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
+    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteScheduledEvaluation(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/scheduled-evaluations/${id}`, { method: 'DELETE' });
+  }
+
+  async resetScheduledEvaluation(
+    id: string,
+    scheduledAt?: string
+  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
+    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}/reset`, {
+      method: 'POST',
+      body: JSON.stringify({ scheduledAt }),
+    });
+  }
+
+  async executeScheduledEvaluationNow(id: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/scheduled-evaluations/${id}/execute`, {
+      method: 'POST',
+    });
   }
 }
 

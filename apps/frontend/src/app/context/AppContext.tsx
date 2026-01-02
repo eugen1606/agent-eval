@@ -13,6 +13,7 @@ interface AppState {
   currentSession: EvaluationSession | null;
   isLoading: boolean;
   error: string | null;
+  loadedEvaluationId: string | null; // ID of evaluation being continued
 }
 
 interface AppContextType {
@@ -26,6 +27,8 @@ interface AppContextType {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   updateResult: (id: string, updates: Partial<EvaluationResult>) => void;
+  loadEvaluation: (evaluationId: string, config: FlowConfig, results: EvaluationResult[]) => void;
+  clearLoadedEvaluation: () => void;
 }
 
 const initialState: AppState = {
@@ -40,6 +43,7 @@ const initialState: AppState = {
   currentSession: null,
   isLoading: false,
   error: null,
+  loadedEvaluationId: null,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -88,6 +92,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const loadEvaluation = (evaluationId: string, config: FlowConfig, results: EvaluationResult[]) => {
+    setState((prev) => ({
+      ...prev,
+      config,
+      results,
+      loadedEvaluationId: evaluationId,
+      error: null,
+    }));
+  };
+
+  const clearLoadedEvaluation = () => {
+    setState((prev) => ({
+      ...prev,
+      loadedEvaluationId: null,
+    }));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -101,6 +122,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLoading,
         setError,
         updateResult,
+        loadEvaluation,
+        clearLoadedEvaluation,
       }}
     >
       {children}

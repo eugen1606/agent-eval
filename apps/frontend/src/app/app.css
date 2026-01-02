@@ -291,6 +291,17 @@ body {
   cursor: not-allowed;
 }
 
+.empty-results {
+  color: #888;
+  text-align: center;
+  padding: 3rem;
+}
+
+.na-value {
+  color: #999;
+  font-style: italic;
+}
+
 .evaluation-progress {
   background: #f0f0f0;
   padding: 0.4rem 0.75rem;
@@ -923,6 +934,160 @@ body {
   font-size: 0.85rem;
 }
 
+/* Scheduled Evaluations */
+.scheduled-item .item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.scheduled-item .item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.scheduled-item .item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.scheduled-item .item-error {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #fdf2f2;
+  border-radius: 4px;
+}
+
+.status-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-running {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.multi-step-badge {
+  padding: 0.2rem 0.5rem;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.cron-badge {
+  padding: 0.2rem 0.5rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.schedule-toggle {
+  margin-left: 0;
+}
+
+.input-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
+.execute-now-btn {
+  padding: 0.4rem 0.75rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.execute-now-btn:hover {
+  background: #059669;
+}
+
+.execute-now-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.view-result-btn {
+  padding: 0.4rem 0.75rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.view-result-btn:hover {
+  background: #5a67d8;
+}
+
+.reset-btn {
+  padding: 0.4rem 0.75rem;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.reset-btn:hover {
+  background: #7c3aed;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-hint {
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: 1.5rem;
+}
+
 /* Toggle Group */
 .toggle-group {
   display: inline-flex;
@@ -1384,6 +1549,75 @@ body {
   font-size: 0.85rem;
 }
 
+/* Evaluate button */
+.evaluate-btn {
+  padding: 0.4rem 0.75rem;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.evaluate-btn:hover {
+  background: #219a52;
+}
+
+/* Continue evaluation banner */
+.continue-evaluation-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.continue-evaluation-banner span {
+  font-weight: 500;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.banner-actions .update-btn,
+.banner-actions .finish-btn {
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.banner-actions .update-btn {
+  background: white;
+  color: #667eea;
+}
+
+.banner-actions .update-btn:hover {
+  background: #f0f0f0;
+}
+
+.banner-actions .update-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.banner-actions .finish-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.banner-actions .finish-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 @media (max-width: 900px) {
   .dashboard-top-row {
     flex-direction: column;
@@ -1425,7 +1659,8 @@ body {
   min-width: 400px;
   max-width: 90vw;
   max-height: 90vh;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   animation: slideIn 0.15s ease-out;
 }
 
@@ -1471,6 +1706,8 @@ body {
 
 .modal-body {
   padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .modal-body p {

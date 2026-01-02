@@ -99,7 +99,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
 
   const exampleJson = `[
   { "question": "What is 2+2?", "expectedAnswer": "4" },
-  { "question": "Capital of France?", "expectedAnswer": "Paris" }
+  { "question": "Capital of France?" },
+  { "question": "Explain gravity" }
 ]`;
 
   return (

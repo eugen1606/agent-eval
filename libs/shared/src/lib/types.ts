@@ -182,3 +182,38 @@ export interface AuthResponse {
 export interface RefreshTokenRequest {
   refreshToken: string;
 }
+
+// Scheduled Evaluation Types
+export type ScheduledEvaluationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ScheduleType = 'once' | 'cron';
+
+export interface StoredScheduledEvaluation {
+  id: string;
+  name: string;
+  description?: string;
+  accessTokenId: string;
+  flowConfigId: string;
+  questionSetId: string;
+  scheduleType: ScheduleType;
+  scheduledAt?: string;
+  cronExpression?: string;
+  multiStepEvaluation: boolean;
+  status: ScheduledEvaluationStatus;
+  lastRunAt?: string;
+  errorMessage?: string;
+  resultEvaluationId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateScheduledEvaluationRequest {
+  name: string;
+  description?: string;
+  accessTokenId: string;
+  flowConfigId: string;
+  questionSetId: string;
+  scheduleType?: ScheduleType;
+  scheduledAt?: string;
+  cronExpression?: string;
+  multiStepEvaluation?: boolean;
+}
