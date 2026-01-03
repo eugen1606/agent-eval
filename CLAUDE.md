@@ -45,6 +45,7 @@ yarn nx lint frontend
 yarn nx lint backend
 yarn nx test shared
 yarn nx test api-client
+yarn nx e2e backend-e2e    # E2E tests (requires running backend)
 
 # Production
 docker-compose -f docker-compose.prod.yml up --build
@@ -58,6 +59,7 @@ Nx monorepo structure:
 apps/
   frontend/          # React + Vite
   backend/           # NestJS API
+  backend-e2e/       # E2E tests for backend
 libs/
   shared/            # TypeScript types
   api-client/        # HTTP client library
@@ -67,7 +69,8 @@ libs/
 
 | Module | Endpoint | Description |
 |--------|----------|-------------|
-| `auth` | `/api/auth/*` | JWT authentication (login, register, refresh) |
+| `health` | `/api/health/*` | Health checks (live, ready) |
+| `auth` | `/api/auth/*` | JWT authentication (login, register, refresh, account) |
 | `flow` | `/api/flow/*` | Execute AI flows (supports SSE streaming) |
 | `evaluation` | `/api/evaluate/*` | LLM-as-judge evaluation |
 | `access-tokens` | `/api/access-tokens` | Encrypted token storage |
@@ -104,6 +107,7 @@ EvaluationResult {
 | `/evaluate` | EvaluationPage | Execute flows & evaluate results |
 | `/dashboard` | Dashboard | View evaluations + Flow Analytics |
 | `/settings` | SettingsPage | Manage tokens, questions, configs |
+| `/account` | AccountPage | User profile, stats, password change |
 | `/login` | LoginPage | Authentication |
 
 ### Key Features

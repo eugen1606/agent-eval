@@ -13,6 +13,7 @@ import { QuestionsModule } from '../questions/questions.module';
 import { EvaluationsModule } from '../evaluations/evaluations.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-evaluations.module';
+import { HealthModule } from '../health/health.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-e
     EvaluationsModule,
     FlowConfigsModule,
     ScheduledEvaluationsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
