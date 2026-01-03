@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StoredEvaluation, EvaluationResult, IncorrectSeverity, StoredFlowConfig } from '@agent-eval/shared';
+import { StoredEvaluation, EvaluationResult, IncorrectSeverity, StoredFlowConfig, StoredQuestionSet } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useSearchParams } from 'react-router-dom';
 
@@ -217,12 +217,15 @@ export function Dashboard() {
 
   // Flow Analytics tab state
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
+  const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [selectedFlowId, setSelectedFlowId] = useState<string>('');
+  const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string>('');
   const [flowEvaluations, setFlowEvaluations] = useState<FlowEvaluationData[]>([]);
 
   useEffect(() => {
     loadEvaluations();
     loadFlowConfigs();
+    loadQuestionSets();
   }, []);
 
   useEffect(() => {
@@ -249,16 +252,35 @@ export function Dashboard() {
     }
   };
 
+  const loadQuestionSets = async () => {
+    const response = await apiClient.getQuestionSets();
+    if (response.success && response.data) {
+      setQuestionSets(response.data);
+    }
+  };
+
   const handleFlowSelect = (flowId: string) => {
     setSelectedFlowId(flowId);
-    if (!flowId) {
+  };
+
+  const handleQuestionSetSelect = (questionSetId: string) => {
+    setSelectedQuestionSetId(questionSetId);
+  };
+
+  // Update flow evaluations when flow or question set selection changes
+  useEffect(() => {
+    if (!selectedFlowId) {
       setFlowEvaluations([]);
       return;
     }
 
-    // Filter evaluations by flowId and calculate stats for each
+    // Filter evaluations by flowId and optionally by questionSetId
     const flowEvals = evaluations
-      .filter((ev) => ev.flowId === flowId)
+      .filter((ev) => {
+        if (ev.flowId !== selectedFlowId) return false;
+        if (selectedQuestionSetId && ev.questionSetId !== selectedQuestionSetId) return false;
+        return true;
+      })
       .map((ev) => {
         const evalResults = (ev.finalOutput as { results?: EvaluationResult[] })?.results || [];
         const stats = calculateEvalStats(evalResults);
@@ -279,7 +301,7 @@ export function Dashboard() {
       });
 
     setFlowEvaluations(flowEvals);
-  };
+  }, [selectedFlowId, selectedQuestionSetId, evaluations]);
 
   const calculateEvalStats = (evalResults: EvaluationResult[]): EvaluationStats => {
     const stats: EvaluationStats = {
@@ -609,6 +631,20 @@ export function Dashboard() {
                 {flowConfigs.map((fc) => (
                   <option key={fc.id} value={fc.flowId}>
                     {fc.name} ({fc.flowId})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="control-group">
+              <label>Filter by Question Set:</label>
+              <select
+                value={selectedQuestionSetId}
+                onChange={(e) => handleQuestionSetSelect(e.target.value)}
+              >
+                <option value="">All question sets</option>
+                {questionSets.map((qs) => (
+                  <option key={qs.id} value={qs.id}>
+                    {qs.name} ({qs.questions.length} questions)
                   </option>
                 ))}
               </select>

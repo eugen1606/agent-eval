@@ -186,13 +186,6 @@ export function ScheduledEvaluationsManager() {
     setLoading(false);
   };
 
-  const handleReset = async (id: string) => {
-    const result = await apiClient.resetScheduledEvaluation(id);
-    if (result.success) {
-      loadData();
-    }
-  };
-
   const handleViewResult = (evaluationId: string) => {
     navigate(`/dashboard?id=${evaluationId}`);
   };
@@ -453,11 +446,6 @@ export function ScheduledEvaluationsManager() {
                     className="view-result-btn"
                   >
                     View Result
-                  </button>
-                )}
-                {scheduled.scheduleType === 'once' && (scheduled.status === 'completed' || scheduled.status === 'failed') && (
-                  <button onClick={() => handleReset(scheduled.id)} className="reset-btn">
-                    Reschedule
                   </button>
                 )}
                 <button onClick={() => handleEdit(scheduled)} className="edit-btn">

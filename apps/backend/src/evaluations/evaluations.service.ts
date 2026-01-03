@@ -8,6 +8,7 @@ export interface CreateEvaluationDto {
   finalOutput: Record<string, unknown>;
   flowExport?: Record<string, unknown>;
   flowId?: string;
+  questionSetId?: string;
   description?: string;
 }
 
@@ -24,6 +25,7 @@ export class EvaluationsService {
       finalOutput: dto.finalOutput,
       flowExport: dto.flowExport,
       flowId: dto.flowId,
+      questionSetId: dto.questionSetId,
       description: dto.description,
       userId,
     });
@@ -54,6 +56,7 @@ export class EvaluationsService {
     if (dto.finalOutput) evaluation.finalOutput = dto.finalOutput;
     if (dto.flowExport !== undefined) evaluation.flowExport = dto.flowExport;
     if (dto.flowId !== undefined) evaluation.flowId = dto.flowId;
+    if (dto.questionSetId !== undefined) evaluation.questionSetId = dto.questionSetId;
     if (dto.description !== undefined) evaluation.description = dto.description;
 
     return this.evaluationRepository.save(evaluation);

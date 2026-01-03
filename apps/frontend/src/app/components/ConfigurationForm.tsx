@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 const apiClient = new AgentEvalClient();
 
 export function ConfigurationForm() {
-  const { state, setConfig, setQuestions } = useAppContext();
+  const { state, setConfig, setQuestions, setSelectedQuestionSetId } = useAppContext();
   const [questionsJson, setQuestionsJson] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [useManualToken, setUseManualToken] = useState(true);
@@ -29,8 +29,6 @@ export function ConfigurationForm() {
   >([]);
   const [selectedTokenId, setSelectedTokenId] = useState<string>('');
   const [selectedFlowConfigId, setSelectedFlowConfigId] = useState<string>('');
-  const [selectedQuestionSetId, setSelectedQuestionSetId] =
-    useState<string>('');
 
   useEffect(() => {
     loadStoredData();
@@ -71,7 +69,7 @@ export function ConfigurationForm() {
   };
 
   const handleQuestionSetSelect = (setId: string) => {
-    setSelectedQuestionSetId(setId);
+    setSelectedQuestionSetId(setId || null);
     const questionSet = storedQuestionSets.find((qs) => qs.id === setId);
     if (questionSet) {
       const questions: QuestionInput[] = questionSet.questions.map((q) => ({
@@ -99,7 +97,7 @@ export function ConfigurationForm() {
   const handleQuestionsChange = (value: string) => {
     setQuestionsJson(value);
     setJsonError(null);
-    setSelectedQuestionSetId('');
+    setSelectedQuestionSetId(null);
 
     if (!value.trim()) {
       setQuestions([]);
@@ -238,7 +236,7 @@ export function ConfigurationForm() {
               className={useManualQuestions ? 'active' : ''}
               onClick={() => {
                 setUseManualQuestions(true);
-                setSelectedQuestionSetId('');
+                setSelectedQuestionSetId(null);
               }}
             >
               Manual
@@ -274,7 +272,7 @@ export function ConfigurationForm() {
           </>
         ) : (
           <select
-            value={selectedQuestionSetId}
+            value={state.selectedQuestionSetId || ''}
             onChange={(e) => handleQuestionSetSelect(e.target.value)}
           >
             <option value="">Select a question set...</option>

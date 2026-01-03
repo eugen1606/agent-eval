@@ -34,6 +34,9 @@ export class Evaluation {
   flowId: string;
 
   @Column({ nullable: true })
+  questionSetId: string;
+
+  @Column({ nullable: true })
   description: string;
 
   @CreateDateColumn()

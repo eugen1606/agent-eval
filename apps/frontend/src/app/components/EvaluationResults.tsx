@@ -7,7 +7,7 @@ import { Modal } from './Modal';
 const apiClient = new AgentEvalClient();
 
 export function EvaluationResults() {
-  const { state, updateResult, setLoading, clearLoadedEvaluation } = useAppContext();
+  const { state, updateResult, setLoading, clearLoadedEvaluation, clearResults } = useAppContext();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [evaluationName, setEvaluationName] = useState('');
   const [evaluationDescription, setEvaluationDescription] = useState('');
@@ -126,6 +126,7 @@ export function EvaluationResults() {
         savedAt: new Date().toISOString(),
       },
       flowId: state.config.flowId || undefined,
+      questionSetId: state.selectedQuestionSetId || undefined,
       description: evaluationDescription || undefined,
     });
 
@@ -156,6 +157,14 @@ export function EvaluationResults() {
 
   const handleFinishEvaluating = () => {
     clearLoadedEvaluation();
+  };
+
+  const handleClearResults = () => {
+    clearResults();
+    setSelectedIds(new Set());
+    if (state.loadedEvaluationId) {
+      clearLoadedEvaluation();
+    }
   };
 
   // Only count non-error results as evaluatable
@@ -194,14 +203,21 @@ export function EvaluationResults() {
             )}
           </span>
         )}
-        {!state.loadedEvaluationId && (
-          <button
-            onClick={() => setShowSaveDialog(true)}
-            disabled={!hasResults}
-          >
-            Save as Evaluation
-          </button>
-        )}
+          <div className="results-header-actions">
+          {!state.loadedEvaluationId && (
+            <button
+              onClick={() => setShowSaveDialog(true)}
+              disabled={!hasResults}
+            >
+              Save Evaluation
+            </button>
+          )}
+          {hasResults && (
+            <button onClick={handleClearResults} className="clear-btn">
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {!hasResults ? (

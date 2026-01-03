@@ -14,6 +14,7 @@ interface AppState {
   isLoading: boolean;
   error: string | null;
   loadedEvaluationId: string | null; // ID of evaluation being continued
+  selectedQuestionSetId: string | null; // ID of question set used for evaluation
 }
 
 interface AppContextType {
@@ -29,6 +30,7 @@ interface AppContextType {
   updateResult: (id: string, updates: Partial<EvaluationResult>) => void;
   loadEvaluation: (evaluationId: string, config: FlowConfig, results: EvaluationResult[]) => void;
   clearLoadedEvaluation: () => void;
+  setSelectedQuestionSetId: (id: string | null) => void;
 }
 
 const initialState: AppState = {
@@ -44,6 +46,7 @@ const initialState: AppState = {
   isLoading: false,
   error: null,
   loadedEvaluationId: null,
+  selectedQuestionSetId: null,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -109,6 +112,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const setSelectedQuestionSetId = (id: string | null) => {
+    setState((prev) => ({ ...prev, selectedQuestionSetId: id }));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -124,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateResult,
         loadEvaluation,
         clearLoadedEvaluation,
+        setSelectedQuestionSetId,
       }}
     >
       {children}

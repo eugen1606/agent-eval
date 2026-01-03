@@ -136,6 +136,7 @@ export interface StoredEvaluation {
   finalOutput: Record<string, unknown>;
   flowExport?: Record<string, unknown>;
   flowId?: string;
+  questionSetId?: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -146,6 +147,7 @@ export interface CreateEvaluationRequest {
   finalOutput: Record<string, unknown>;
   flowExport?: Record<string, unknown>;
   flowId?: string;
+  questionSetId?: string;
   description?: string;
 }
 
