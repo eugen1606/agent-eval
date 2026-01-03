@@ -1,10 +1,18 @@
-import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, Post, HttpStatus, Res, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { HealthService } from './health.service';
+import { ThrottlerStorageRedisService } from '../throttler/throttler-storage-redis.service';
 
 @Controller('health')
+@SkipThrottle()
 export class HealthController {
-  constructor(private readonly healthService: HealthService) {}
+  constructor(
+    private readonly healthService: HealthService,
+    private readonly configService: ConfigService,
+    private readonly throttlerStorage: ThrottlerStorageRedisService,
+  ) {}
 
   @Get()
   getHealth() {
@@ -23,5 +31,17 @@ export class HealthController {
   @Get('live')
   getLiveness() {
     return this.healthService.getLiveness();
+  }
+
+  @Post('clear-throttle')
+  async clearThrottle() {
+    // Only allow in non-production environments
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+    if (nodeEnv === 'production') {
+      throw new ForbiddenException('This endpoint is not available in production');
+    }
+
+    const clearedCount = await this.throttlerStorage.clearAllThrottleKeys();
+    return { cleared: clearedCount };
   }
 }

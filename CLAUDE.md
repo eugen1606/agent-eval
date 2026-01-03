@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Install dependencies
 yarn install
 
-# Start database
-docker-compose up -d postgres
+# Start database and Redis
+docker-compose up -d postgres redis
 
 # Start development servers (in separate terminals)
 yarn nx serve backend     # http://localhost:3001/api
@@ -117,6 +117,7 @@ EvaluationResult {
 3. **Flow Analytics** - Track accuracy trends across evaluations
 4. **Error Handling** - Errors excluded from human evaluation
 5. **Bulk Actions** - Select all + bulk assign evaluations
+6. **Rate Limiting** - Redis-backed rate limiting for multi-node scalability
 
 ## Environment Variables
 
@@ -135,6 +136,12 @@ JWT_REFRESH_SECRET=<128 hex chars>
 ADMIN_EMAIL=admin@benchmark.local
 ADMIN_PASSWORD=admin123
 
+# Redis (for rate limiting)
+REDIS_URL=redis://localhost:6380
+THROTTLE_LIMIT=100        # Max requests per time window (default: 100)
+THROTTLE_TTL=60000        # Time window in ms (default: 60000 = 1 minute)
+THROTTLE_DISABLED=false   # Set to 'true' to disable rate limiting (auto-disabled in test env)
+
 # Optional
 OPENAI_API_KEY=
 ANTHROPIC_API_KEY=
@@ -151,6 +158,43 @@ LOG_LEVEL=info  # error, warn, info, debug, verbose
 - Run migration on backend startup (automatic)
 - Check `ADMIN_EMAIL` in .env matches expected user
 
+## Testing Requirements
+
+**Every new feature must include integration tests.** This is a mandatory requirement.
+
+### E2E Test Guidelines
+
+1. **Location**: All backend e2e tests go in `apps/backend-e2e/src/`
+2. **Naming**: Use `<feature>.spec.ts` naming convention
+3. **Coverage**: Test happy path, error cases, and edge cases
+4. **Run tests**: `yarn nx e2e backend-e2e` (requires running backend)
+
+### Test Structure
+
+```typescript
+// Example: apps/backend-e2e/src/feature.spec.ts
+import { API_URL, createTestUser, authenticatedRequest } from './support/test-setup';
+
+describe('Feature Name', () => {
+  it('should handle success case', async () => { ... });
+  it('should handle error case', async () => { ... });
+  it('should validate input', async () => { ... });
+});
+```
+
+### Existing Test Files
+
+| File | Coverage |
+|------|----------|
+| `health.spec.ts` | Health check endpoints |
+| `auth.spec.ts` | Authentication, password change, account deletion |
+| `questions.spec.ts` | Question sets CRUD |
+| `flow-configs.spec.ts` | Flow configurations CRUD |
+| `access-tokens.spec.ts` | Access tokens CRUD |
+| `evaluations.spec.ts` | Evaluations CRUD |
+| `data-isolation.spec.ts` | Multi-user data isolation |
+| `throttling.spec.ts` | Rate limiting |
+
 ## Git Conventions
 
 - Short commit messages (one line, under 50 characters)
@@ -164,3 +208,5 @@ LOG_LEVEL=info  # error, warn, info, debug, verbose
 - App context: `apps/frontend/src/app/context/AppContext.tsx`
 - Flow service: `apps/backend/src/flow/flow.service.ts`
 - Encryption: `apps/backend/src/config/encryption.service.ts`
+- Rate limiting: `apps/backend/src/throttler/`
+- E2E tests: `apps/backend-e2e/src/`

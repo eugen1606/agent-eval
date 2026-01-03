@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Sse, MessageEvent } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FlowService } from './flow.service';
 import { ExecuteFlowRequest } from '@agent-eval/shared';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,6 +9,7 @@ import { Observable } from 'rxjs';
 
 @Controller('flow')
 @UseGuards(JwtAuthGuard)
+@Throttle({ default: { limit: 30, ttl: 60000 } })
 export class FlowController {
   constructor(private readonly flowService: FlowService) {}
 

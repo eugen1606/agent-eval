@@ -2,6 +2,15 @@
 
 export const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
+// Clear throttle keys before tests
+export async function clearThrottleKeys(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/health/clear-throttle`, { method: 'POST' });
+  } catch {
+    // Ignore errors - endpoint may not be available
+  }
+}
+
 // Helper function to make authenticated requests
 export async function authenticatedRequest(
   endpoint: string,

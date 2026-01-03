@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from '../config/config.module';
@@ -14,6 +15,7 @@ import { EvaluationsModule } from '../evaluations/evaluations.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-evaluations.module';
 import { HealthModule } from '../health/health.module';
+import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
 
 @Module({
   imports: [
@@ -30,8 +32,15 @@ import { HealthModule } from '../health/health.module';
     FlowConfigsModule,
     ScheduledEvaluationsModule,
     HealthModule,
+    AppThrottlerModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

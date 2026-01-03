@@ -5,7 +5,8 @@
       "Bash(yarn install)",
       "Bash(yarn nx build:*)",
       "Bash(yarn add:*)",
-      "Bash(yarn nx run-many:*)"
+      "Bash(yarn nx run-many:*)",
+      "Bash(yarn nx e2e:*)"
     ]
   }
 }
