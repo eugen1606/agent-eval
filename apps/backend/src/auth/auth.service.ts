@@ -1,11 +1,12 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { User } from '../database/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 export interface AuthTokens {
   accessToken: string;
@@ -33,6 +34,7 @@ export class AuthService {
     private userRepository: Repository<User>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private dataSource: DataSource,
   ) {
     this.jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET') || 'default-refresh-secret-change-me';
     this.jwtRefreshExpiration = configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d';
@@ -155,6 +157,90 @@ export class AuthService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  async getAccountStats(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Get counts from related tables
+    const evaluationsCount = await this.dataSource
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('evaluations', 'e')
+      .where('e."userId" = :userId', { userId })
+      .getRawOne();
+
+    const questionSetsCount = await this.dataSource
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('question_sets', 'qs')
+      .where('qs."userId" = :userId', { userId })
+      .getRawOne();
+
+    const flowConfigsCount = await this.dataSource
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('flow_configs', 'fc')
+      .where('fc."userId" = :userId', { userId })
+      .getRawOne();
+
+    const accessTokensCount = await this.dataSource
+      .createQueryBuilder()
+      .select('COUNT(*)', 'count')
+      .from('access_tokens', 'at')
+      .where('at."userId" = :userId', { userId })
+      .getRawOne();
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        createdAt: user.createdAt,
+      },
+      stats: {
+        evaluationsCount: parseInt(evaluationsCount?.count || '0', 10),
+        questionSetsCount: parseInt(questionSetsCount?.count || '0', 10),
+        flowConfigsCount: parseInt(flowConfigsCount?.count || '0', 10),
+        accessTokensCount: parseInt(accessTokensCount?.count || '0', 10),
+      },
+    };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Verify new passwords match
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('New passwords do not match');
+    }
+
+    // Hash and save new password
+    const saltRounds = 10;
+    user.passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
+    await this.userRepository.save(user);
+  }
+
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Delete user - cascading deletes will handle related data
+    await this.userRepository.delete({ id: userId });
   }
 
   // Method to create admin user if none exists (for data migration)

@@ -21,6 +21,8 @@ import {
   RegisterRequest,
   AuthResponse,
   RefreshTokenRequest,
+  ChangePasswordRequest,
+  AccountStats,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -28,30 +30,28 @@ const TOKEN_STORAGE_KEY = 'auth_tokens';
 
 export class AgentEvalClient {
   private apiUrl: string;
-  private tokens: AuthTokens | null = null;
   private onAuthChange?: (isAuthenticated: boolean) => void;
 
   constructor(apiUrl: string = DEFAULT_API_URL) {
     this.apiUrl = apiUrl;
-    this.loadTokens();
   }
 
-  // Token Management
-  private loadTokens(): void {
+  // Token Management - always read fresh from localStorage
+  private getTokens(): AuthTokens | null {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
       if (stored) {
         try {
-          this.tokens = JSON.parse(stored);
+          return JSON.parse(stored);
         } catch {
-          this.tokens = null;
+          return null;
         }
       }
     }
+    return null;
   }
 
   private saveTokens(tokens: AuthTokens | null): void {
-    this.tokens = tokens;
     if (typeof window !== 'undefined') {
       if (tokens) {
         localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
@@ -67,11 +67,11 @@ export class AgentEvalClient {
   }
 
   public isAuthenticated(): boolean {
-    return !!this.tokens?.accessToken;
+    return !!this.getTokens()?.accessToken;
   }
 
   public getAuthToken(): string | null {
-    return this.tokens?.accessToken || null;
+    return this.getTokens()?.accessToken || null;
   }
 
   private async request<T>(
@@ -85,8 +85,9 @@ export class AgentEvalClient {
         ...(options.headers as Record<string, string>),
       };
 
-      if (requireAuth && this.tokens?.accessToken) {
-        headers['Authorization'] = `Bearer ${this.tokens.accessToken}`;
+      const tokens = this.getTokens();
+      if (requireAuth && tokens?.accessToken) {
+        headers['Authorization'] = `Bearer ${tokens.accessToken}`;
       }
 
       const response = await fetch(`${this.apiUrl}${endpoint}`, {
@@ -95,11 +96,12 @@ export class AgentEvalClient {
       });
 
       // Handle 401 - try to refresh token
-      if (response.status === 401 && requireAuth && this.tokens?.refreshToken) {
+      if (response.status === 401 && requireAuth && tokens?.refreshToken) {
         const refreshed = await this.refreshTokens();
         if (refreshed) {
           // Retry the original request with new token
-          headers['Authorization'] = `Bearer ${this.tokens.accessToken}`;
+          const newTokens = this.getTokens();
+          headers['Authorization'] = `Bearer ${newTokens?.accessToken}`;
           const retryResponse = await fetch(`${this.apiUrl}${endpoint}`, {
             ...options,
             headers,
@@ -170,13 +172,14 @@ export class AgentEvalClient {
   }
 
   private async refreshTokens(): Promise<boolean> {
-    if (!this.tokens?.refreshToken) return false;
+    const tokens = this.getTokens();
+    if (!tokens?.refreshToken) return false;
 
     try {
       const response = await fetch(`${this.apiUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: this.tokens.refreshToken } as RefreshTokenRequest),
+        body: JSON.stringify({ refreshToken: tokens.refreshToken } as RefreshTokenRequest),
       });
 
       if (!response.ok) return false;
@@ -195,6 +198,24 @@ export class AgentEvalClient {
 
   logout(): void {
     this.saveTokens(null);
+  }
+
+  // Account Management
+  async getAccountStats(): Promise<ApiResponse<AccountStats>> {
+    return this.request<AccountStats>('/auth/account/stats');
+  }
+
+  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/account/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAccount(): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/account', {
+      method: 'DELETE',
+    });
   }
 
   // Flow Execution

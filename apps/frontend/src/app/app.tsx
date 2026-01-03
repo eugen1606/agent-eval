@@ -17,6 +17,8 @@ import {
   LoginPage,
   RegisterPage,
   ProtectedRoute,
+  AccountPage,
+  ConfirmDialog,
 } from './components';
 import './app.css';
 
@@ -93,6 +95,7 @@ function SettingsPage() {
 function UserMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -103,10 +106,21 @@ function UserMenu() {
 
   return (
     <div className="user-menu">
-      <span className="user-email">{user.displayName || user.email}</span>
-      <button onClick={handleLogout} className="logout-button">
+      <Link to="/account" className="user-email-link">
+        {user.displayName || user.email}
+      </Link>
+      <button onClick={() => setShowLogoutConfirm(true)} className="logout-button">
         Logout
       </button>
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        confirmText="Logout"
+        cancelText="Cancel"
+      />
     </div>
   );
 }
@@ -194,6 +208,14 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <AccountPage />
                 </ProtectedRoute>
               }
             />

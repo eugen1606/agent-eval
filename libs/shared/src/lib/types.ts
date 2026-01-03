@@ -185,6 +185,27 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface AccountStats {
+  user: {
+    id: string;
+    email: string;
+    displayName?: string;
+    createdAt: string;
+  };
+  stats: {
+    evaluationsCount: number;
+    questionSetsCount: number;
+    flowConfigsCount: number;
+    accessTokensCount: number;
+  };
+}
+
 // Scheduled Evaluation Types
 export type ScheduledEvaluationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ScheduleType = 'once' | 'cron';
