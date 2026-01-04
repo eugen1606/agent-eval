@@ -9,17 +9,55 @@ import {
   Query,
   Res,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { EvaluationsService, CreateEvaluationDto } from './evaluations.service';
 import { Evaluation } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { EvaluationResult } from '@agent-eval/shared';
 
 @Controller('evaluations')
 @UseGuards(JwtAuthGuard)
 export class EvaluationsController {
   constructor(private readonly evaluationsService: EvaluationsService) {}
+
+  private escapeCsvValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  }
+
+  private convertResultsToCsv(results: EvaluationResult[]): string {
+    const headers = [
+      'id',
+      'question',
+      'answer',
+      'expectedAnswer',
+      'humanEvaluation',
+      'humanEvaluationDescription',
+      'severity',
+      'isCorrect',
+      'llmJudgeScore',
+      'llmJudgeReasoning',
+      'isError',
+      'errorMessage',
+      'executionId',
+      'timestamp',
+    ];
+
+    const rows = results.map((result) =>
+      headers.map((header) => this.escapeCsvValue(result[header as keyof EvaluationResult])).join(',')
+    );
+
+    return [headers.join(','), ...rows].join('\n');
+  }
 
   @Post()
   async create(
@@ -70,6 +108,21 @@ export class EvaluationsController {
   ) {
     const evaluation = await this.evaluationsService.findOne(id, user.userId);
 
+    if (format === 'csv') {
+      const results = evaluation.finalOutput?.results as EvaluationResult[] | undefined;
+      if (!results || !Array.isArray(results)) {
+        throw new BadRequestException('Evaluation has no results to export');
+      }
+
+      const csv = this.convertResultsToCsv(results);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="evaluation-${id}.csv"`
+      );
+      return res.send(csv);
+    }
+
     if (format === 'json') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader(
@@ -79,7 +132,6 @@ export class EvaluationsController {
       return res.send(JSON.stringify(evaluation, null, 2));
     }
 
-    // Default to JSON
-    return res.json(evaluation);
+    throw new BadRequestException(`Unsupported export format: ${format}. Supported formats: json, csv`);
   }
 }

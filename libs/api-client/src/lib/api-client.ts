@@ -2,7 +2,6 @@ import {
   FlowConfig,
   QuestionInput,
   ExecuteFlowResponse,
-  EvaluationSession,
   LLMJudgeResponse,
   ApiResponse,
   StoredAccessToken,
@@ -23,6 +22,9 @@ import {
   RefreshTokenRequest,
   ChangePasswordRequest,
   AccountStats,
+  StoredWebhook,
+  CreateWebhookRequest,
+  WebhookEvent,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -241,36 +243,6 @@ export class AgentEvalClient {
     });
   }
 
-  // Sessions (file-based)
-  async saveSession(
-    flowName: string,
-    session: EvaluationSession
-  ): Promise<ApiResponse<{ id: string }>> {
-    return this.request<{ id: string }>('/sessions', {
-      method: 'POST',
-      body: JSON.stringify({ flowName, session }),
-    });
-  }
-
-  async getSessions(): Promise<ApiResponse<EvaluationSession[]>> {
-    return this.request<EvaluationSession[]>('/sessions');
-  }
-
-  async getSession(id: string): Promise<ApiResponse<EvaluationSession>> {
-    return this.request<EvaluationSession>(`/sessions/${id}`);
-  }
-
-  async deleteSession(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/sessions/${id}`, { method: 'DELETE' });
-  }
-
-  async exportSession(
-    sessionId: string,
-    format: 'json' | 'csv'
-  ): Promise<ApiResponse<string>> {
-    return this.request<string>(`/sessions/${sessionId}/export?format=${format}`);
-  }
-
   // Access Tokens
   async createAccessToken(
     data: CreateAccessTokenRequest
@@ -333,6 +305,17 @@ export class AgentEvalClient {
 
   async deleteQuestionSet(id: string): Promise<ApiResponse<void>> {
     return this.request<void>(`/questions/${id}`, { method: 'DELETE' });
+  }
+
+  async importQuestionSet(data: {
+    name: string;
+    description?: string;
+    questions: unknown;
+  }): Promise<ApiResponse<StoredQuestionSet>> {
+    return this.request<StoredQuestionSet>('/questions/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Flow Configs
@@ -399,6 +382,24 @@ export class AgentEvalClient {
     return this.request<void>(`/evaluations/${id}`, { method: 'DELETE' });
   }
 
+  async exportEvaluation(id: string, format: 'json' | 'csv' = 'json'): Promise<Blob> {
+    const tokens = this.getTokens();
+    const headers: Record<string, string> = {};
+    if (tokens?.accessToken) {
+      headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+    }
+
+    const response = await fetch(`${this.apiUrl}/evaluations/${id}/export?format=${format}`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    return response.blob();
+  }
+
   // Scheduled Evaluations
   async createScheduledEvaluation(
     data: CreateScheduledEvaluationRequest
@@ -445,6 +446,49 @@ export class AgentEvalClient {
     return this.request<{ message: string }>(`/scheduled-evaluations/${id}/execute`, {
       method: 'POST',
     });
+  }
+
+  // Webhooks
+  async createWebhook(data: CreateWebhookRequest): Promise<ApiResponse<StoredWebhook>> {
+    return this.request<StoredWebhook>('/webhooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWebhooks(): Promise<ApiResponse<StoredWebhook[]>> {
+    return this.request<StoredWebhook[]>('/webhooks');
+  }
+
+  async getWebhook(id: string): Promise<ApiResponse<StoredWebhook>> {
+    return this.request<StoredWebhook>(`/webhooks/${id}`);
+  }
+
+  async updateWebhook(id: string, data: Partial<CreateWebhookRequest>): Promise<ApiResponse<StoredWebhook>> {
+    return this.request<StoredWebhook>(`/webhooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWebhook(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/webhooks/${id}`, { method: 'DELETE' });
+  }
+
+  async toggleWebhook(id: string): Promise<ApiResponse<StoredWebhook>> {
+    return this.request<StoredWebhook>(`/webhooks/${id}/toggle`, {
+      method: 'POST',
+    });
+  }
+
+  async testWebhook(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request<{ success: boolean; message: string }>(`/webhooks/${id}/test`, {
+      method: 'POST',
+    });
+  }
+
+  async getWebhookEvents(): Promise<ApiResponse<{ events: WebhookEvent[] }>> {
+    return this.request<{ events: WebhookEvent[] }>('/webhooks/events');
   }
 }
 

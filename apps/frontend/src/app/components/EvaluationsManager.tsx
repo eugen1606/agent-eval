@@ -110,15 +110,18 @@ export function EvaluationsManager() {
     loadEvaluations();
   };
 
-  const handleExport = (evaluation: StoredEvaluation) => {
-    const data = JSON.stringify(evaluation, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `evaluation-${evaluation.name}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async (evaluation: StoredEvaluation, format: 'json' | 'csv') => {
+    try {
+      const blob = await apiClient.exportEvaluation(evaluation.id, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `evaluation-${evaluation.name}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
   };
 
   const handleContinueEvaluating = (evaluation: StoredEvaluation) => {
@@ -263,8 +266,11 @@ export function EvaluationsManager() {
                 <button onClick={() => navigate(`/dashboard?id=${ev.id}`)} className="dashboard-btn">
                   Dashboard
                 </button>
-                <button onClick={() => handleExport(ev)} className="export-btn">
-                  Export
+                <button onClick={() => handleExport(ev, 'json')} className="export-btn">
+                  JSON
+                </button>
+                <button onClick={() => handleExport(ev, 'csv')} className="export-btn">
+                  CSV
                 </button>
                 <button onClick={() => handleEdit(ev)} className="edit-btn">
                   Edit

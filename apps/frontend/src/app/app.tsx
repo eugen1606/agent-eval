@@ -2,16 +2,17 @@ import { useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import {
   ConfigurationForm,
   EvaluationResults,
-  SessionsPanel,
   FlowExecutor,
   AccessTokensManager,
   QuestionSetsManager,
   FlowConfigsManager,
   EvaluationsManager,
   ScheduledEvaluationsManager,
+  WebhooksManager,
   Dashboard,
   Homepage,
   LoginPage,
@@ -34,16 +35,13 @@ function EvaluationPage() {
           <EvaluationResults />
         </div>
       </div>
-      <div className="bottom-panel">
-        <SessionsPanel />
-      </div>
     </div>
   );
 }
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'evaluations' | 'scheduled'
+    'tokens' | 'questions' | 'flows' | 'evaluations' | 'scheduled' | 'webhooks'
   >('tokens');
 
   return (
@@ -79,6 +77,12 @@ function SettingsPage() {
         >
           Scheduled
         </button>
+        <button
+          className={activeTab === 'webhooks' ? 'active' : ''}
+          onClick={() => setActiveTab('webhooks')}
+        >
+          Webhooks
+        </button>
       </div>
 
       <div className="settings-content">
@@ -87,8 +91,18 @@ function SettingsPage() {
         {activeTab === 'flows' && <FlowConfigsManager />}
         {activeTab === 'evaluations' && <EvaluationsManager />}
         {activeTab === 'scheduled' && <ScheduledEvaluationsManager />}
+        {activeTab === 'webhooks' && <WebhooksManager />}
       </div>
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme} className="theme-toggle" title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+      {theme === 'light' ? '\u263D' : '\u2600'}
+    </button>
   );
 }
 
@@ -106,6 +120,7 @@ function UserMenu() {
 
   return (
     <div className="user-menu">
+      <ThemeToggle />
       <Link to="/account" className="user-email-link">
         {user.displayName || user.email}
       </Link>
@@ -228,9 +243,11 @@ function AppContent() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

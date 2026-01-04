@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StoredQuestionSet } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
-import { Modal, ConfirmDialog } from './Modal';
+import { Modal, ConfirmDialog, AlertDialog } from './Modal';
 
 const apiClient = new AgentEvalClient();
 
@@ -22,6 +22,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadQuestionSets();
@@ -97,6 +99,56 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     loadQuestionSets();
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Extract questions from various formats
+      let questions: unknown;
+      let name = file.name.replace(/\.json$/i, '');
+
+      if (Array.isArray(data)) {
+        questions = data;
+      } else if (data.questions && Array.isArray(data.questions)) {
+        questions = data.questions;
+        if (data.name) name = data.name;
+      } else {
+        setImportError('Invalid JSON format. Expected an array of questions or an object with a "questions" array.');
+        return;
+      }
+
+      const response = await apiClient.importQuestionSet({
+        name,
+        questions,
+        description: data.description,
+      });
+
+      if (response.success) {
+        loadQuestionSets();
+      } else {
+        setImportError(response.error || 'Import failed');
+      }
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        setImportError('Invalid JSON file. Please ensure the file contains valid JSON.');
+      } else {
+        setImportError(error instanceof Error ? error.message : 'Import failed');
+      }
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const exampleJson = `[
   { "question": "What is 2+2?", "expectedAnswer": "4" },
   { "question": "Capital of France?" },
@@ -107,9 +159,21 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Question Sets</h3>
-        <button onClick={() => setShowForm(true)}>
-          + Add Question Set
-        </button>
+        <div className="header-actions">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".json"
+            style={{ display: 'none' }}
+          />
+          <button onClick={handleImportClick} className="import-btn">
+            Import JSON
+          </button>
+          <button onClick={() => setShowForm(true)}>
+            + Add Question Set
+          </button>
+        </div>
       </div>
 
       <Modal
@@ -204,6 +268,13 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         message="Are you sure you want to delete this question set? This action cannot be undone."
         confirmText="Delete"
         variant="danger"
+      />
+
+      <AlertDialog
+        isOpen={!!importError}
+        onClose={() => setImportError(null)}
+        title="Import Error"
+        message={importError || ''}
       />
     </div>
   );

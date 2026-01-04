@@ -63,8 +63,8 @@ export function Homepage() {
           <div className="feature-item">
             <span className="feature-icon">&#128190;</span>
             <div className="feature-text">
-              <strong>Session Management</strong>
-              <span>Save and load evaluation sessions</span>
+              <strong>Evaluation History</strong>
+              <span>Save and review past evaluations</span>
             </div>
           </div>
 

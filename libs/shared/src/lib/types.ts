@@ -240,3 +240,26 @@ export interface CreateScheduledEvaluationRequest {
   cronExpression?: string;
   multiStepEvaluation?: boolean;
 }
+
+// Webhook Types
+export type WebhookEvent = 'evaluation.completed' | 'scheduled.completed' | 'scheduled.failed';
+
+export interface StoredWebhook {
+  id: string;
+  name: string;
+  url: string;
+  description?: string;
+  events: WebhookEvent[];
+  enabled: boolean;
+  secret?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateWebhookRequest {
+  name: string;
+  url: string;
+  description?: string;
+  events: WebhookEvent[];
+  secret?: string;
+}

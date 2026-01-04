@@ -9,6 +9,7 @@
 - [x] Error handling for failed API responses
 - [x] Multi-user authentication system
 - [x] Schedule periodic evaluations to run automatically
+- [ ] implement notification service
 
 ---
 

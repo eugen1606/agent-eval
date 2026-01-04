@@ -1,12 +1,12 @@
 export { ConfigurationForm } from './ConfigurationForm';
 export { EvaluationResults } from './EvaluationResults';
-export { SessionsPanel } from './SessionsPanel';
 export { FlowExecutor } from './FlowExecutor';
 export { AccessTokensManager } from './AccessTokensManager';
 export { QuestionSetsManager } from './QuestionSetsManager';
 export { FlowConfigsManager } from './FlowConfigsManager';
 export { EvaluationsManager } from './EvaluationsManager';
 export { ScheduledEvaluationsManager } from './ScheduledEvaluationsManager';
+export { WebhooksManager } from './WebhooksManager';
 export { Dashboard } from './Dashboard';
 export { Homepage } from './Homepage';
 export { Modal, ConfirmDialog, AlertDialog } from './Modal';

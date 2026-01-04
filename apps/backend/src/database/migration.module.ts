@@ -6,7 +6,6 @@ import {
   Evaluation,
   QuestionSet,
   FlowConfig,
-  Session,
 } from './entities';
 import { MigrationService } from './migration.service';
 
@@ -18,7 +17,6 @@ import { MigrationService } from './migration.service';
       Evaluation,
       QuestionSet,
       FlowConfig,
-      Session,
     ]),
   ],
   providers: [MigrationService],

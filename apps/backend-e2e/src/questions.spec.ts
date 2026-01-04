@@ -126,4 +126,117 @@ describe('Question Sets CRUD', () => {
       expect(getRes.status).toBe(404);
     });
   });
+
+  describe('POST /api/questions/import', () => {
+    it('should import valid questions array', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Imported Set',
+          description: 'Imported via API',
+          questions: [
+            { question: 'What is 2+2?', expectedAnswer: '4' },
+            { question: 'Capital of France?' },
+          ],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(201);
+
+      const data = await response.json();
+      expect(data.id).toBeDefined();
+      expect(data.name).toBe('Imported Set');
+      expect(data.description).toBe('Imported via API');
+      expect(data.questions).toHaveLength(2);
+      expect(data.questions[0].question).toBe('What is 2+2?');
+      expect(data.questions[0].expectedAnswer).toBe('4');
+      expect(data.questions[1].question).toBe('Capital of France?');
+    });
+
+    it('should reject empty name', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: '',
+          questions: [{ question: 'Test?' }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('Name is required');
+    });
+
+    it('should reject non-array questions', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Invalid Import',
+          questions: { question: 'Not an array' },
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('Questions must be an array');
+    });
+
+    it('should reject empty questions array', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Empty Import',
+          questions: [],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('Questions array cannot be empty');
+    });
+
+    it('should reject question without question property', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Invalid Question',
+          questions: [{ answer: 'No question here' }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('index 0');
+      expect(data.message).toContain('"question"');
+    });
+
+    it('should reject question with non-string expectedAnswer', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Invalid Expected Answer',
+          questions: [{ question: 'What is 2+2?', expectedAnswer: 4 }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('expectedAnswer');
+      expect(data.message).toContain('string');
+    });
+
+    it('should trim whitespace from name', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: '  Trimmed Name  ',
+          questions: [{ question: 'Test?' }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(201);
+      const data = await response.json();
+      expect(data.name).toBe('Trimmed Name');
+    });
+  });
 });

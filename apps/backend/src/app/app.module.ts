@@ -8,7 +8,6 @@ import { MigrationModule } from '../database/migration.module';
 import { AuthModule } from '../auth/auth.module';
 import { FlowModule } from '../flow/flow.module';
 import { EvaluationModule } from '../evaluation/evaluation.module';
-import { SessionsModule } from '../sessions/sessions.module';
 import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 import { QuestionsModule } from '../questions/questions.module';
 import { EvaluationsModule } from '../evaluations/evaluations.module';
@@ -16,6 +15,7 @@ import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-evaluations.module';
 import { HealthModule } from '../health/health.module';
 import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -25,7 +25,6 @@ import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
     MigrationModule,
     FlowModule,
     EvaluationModule,
-    SessionsModule,
     AccessTokensModule,
     QuestionsModule,
     EvaluationsModule,
@@ -33,6 +32,7 @@ import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
     ScheduledEvaluationsModule,
     HealthModule,
     AppThrottlerModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [

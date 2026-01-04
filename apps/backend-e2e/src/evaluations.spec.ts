@@ -125,4 +125,115 @@ describe('Evaluations CRUD', () => {
       expect(getRes.status).toBe(404);
     });
   });
+
+  describe('GET /api/evaluations/:id/export', () => {
+    it('should export evaluation as JSON', async () => {
+      const createRes = await authenticatedRequest('/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Export JSON Test',
+          finalOutput: {
+            results: [
+              { id: '1', question: 'What is 2+2?', answer: '4', humanEvaluation: 'correct', timestamp: '2024-01-01T00:00:00Z' },
+            ],
+          },
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/evaluations/${created.id}/export?format=json`, {}, accessToken);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('application/json');
+      expect(response.headers.get('content-disposition')).toContain('attachment');
+
+      const data = await response.json();
+      expect(data.name).toBe('Export JSON Test');
+      expect(data.finalOutput.results).toHaveLength(1);
+    });
+
+    it('should export evaluation as CSV', async () => {
+      const createRes = await authenticatedRequest('/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Export CSV Test',
+          finalOutput: {
+            results: [
+              { id: '1', question: 'What is 2+2?', answer: '4', humanEvaluation: 'correct', timestamp: '2024-01-01T00:00:00Z' },
+              { id: '2', question: 'Capital of France?', answer: 'Paris', humanEvaluation: 'correct', timestamp: '2024-01-01T00:00:01Z' },
+            ],
+          },
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/evaluations/${created.id}/export?format=csv`, {}, accessToken);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/csv');
+      expect(response.headers.get('content-disposition')).toContain('attachment');
+      expect(response.headers.get('content-disposition')).toContain('.csv');
+
+      const csv = await response.text();
+      expect(csv).toContain('id,question,answer');
+      expect(csv).toContain('What is 2+2?');
+      expect(csv).toContain('Capital of France?');
+      expect(csv).toContain('correct');
+    });
+
+    it('should handle CSV export with special characters', async () => {
+      const createRes = await authenticatedRequest('/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Export CSV Special Chars',
+          finalOutput: {
+            results: [
+              { id: '1', question: 'Question with, comma', answer: 'Answer with "quotes"', timestamp: '2024-01-01T00:00:00Z' },
+              { id: '2', question: 'Multi\nline', answer: 'Normal answer', timestamp: '2024-01-01T00:00:01Z' },
+            ],
+          },
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/evaluations/${created.id}/export?format=csv`, {}, accessToken);
+      expect(response.status).toBe(200);
+
+      const csv = await response.text();
+      expect(csv).toContain('"Question with, comma"');
+      expect(csv).toContain('"Answer with ""quotes"""');
+    });
+
+    it('should return error for unsupported format', async () => {
+      const createRes = await authenticatedRequest('/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Export Format Error Test',
+          finalOutput: { results: [] },
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/evaluations/${created.id}/export?format=xml`, {}, accessToken);
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.message).toContain('Unsupported export format');
+    });
+
+    it('should return error when exporting empty results as CSV', async () => {
+      const createRes = await authenticatedRequest('/evaluations', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Export Empty CSV Test',
+          finalOutput: { config: {} },
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/evaluations/${created.id}/export?format=csv`, {}, accessToken);
+      expect(response.status).toBe(400);
+
+      const data = await response.json();
+      expect(data.message).toContain('no results');
+    });
+  });
 });
