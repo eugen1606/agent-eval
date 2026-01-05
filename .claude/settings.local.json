@@ -7,7 +7,9 @@
       "Bash(yarn add:*)",
       "Bash(yarn nx run-many:*)",
       "Bash(yarn nx e2e:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(yarn nx lint:*)",
+      "Bash(yarn nx test:*)"
     ]
   }
 }

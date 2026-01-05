@@ -16,6 +16,8 @@ import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-e
 import { HealthModule } from '../health/health.module';
 import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { TestsModule } from '../tests/tests.module';
+import { RunsModule } from '../runs/runs.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     HealthModule,
     AppThrottlerModule,
     WebhooksModule,
+    TestsModule,
+    RunsModule,
   ],
   controllers: [AppController],
   providers: [

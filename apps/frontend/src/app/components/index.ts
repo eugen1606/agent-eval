@@ -14,3 +14,6 @@ export { LoginPage } from './LoginPage';
 export { RegisterPage } from './RegisterPage';
 export { ProtectedRoute } from './ProtectedRoute';
 export { AccountPage } from './AccountPage';
+export { TestsPage } from './TestsPage';
+export { RunsPage } from './RunsPage';
+export { RunDetailPage } from './RunDetailPage';

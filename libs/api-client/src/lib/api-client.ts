@@ -25,6 +25,13 @@ import {
   StoredWebhook,
   CreateWebhookRequest,
   WebhookEvent,
+  StoredTest,
+  CreateTestRequest,
+  StoredRun,
+  CreateRunRequest,
+  UpdateRunRequest,
+  UpdateResultEvaluationRequest,
+  RunStats,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -79,7 +86,7 @@ export class AgentEvalClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    requireAuth: boolean = true
+    requireAuth = true
   ): Promise<ApiResponse<T>> {
     try {
       const headers: Record<string, string> = {
@@ -489,6 +496,97 @@ export class AgentEvalClient {
 
   async getWebhookEvents(): Promise<ApiResponse<{ events: WebhookEvent[] }>> {
     return this.request<{ events: WebhookEvent[] }>('/webhooks/events');
+  }
+
+  // Tests
+  async createTest(data: CreateTestRequest): Promise<ApiResponse<StoredTest>> {
+    return this.request<StoredTest>('/tests', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTests(): Promise<ApiResponse<StoredTest[]>> {
+    return this.request<StoredTest[]>('/tests');
+  }
+
+  async getTest(id: string): Promise<ApiResponse<StoredTest>> {
+    return this.request<StoredTest>(`/tests/${id}`);
+  }
+
+  async updateTest(id: string, data: Partial<CreateTestRequest>): Promise<ApiResponse<StoredTest>> {
+    return this.request<StoredTest>(`/tests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTest(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/tests/${id}`, { method: 'DELETE' });
+  }
+
+  async runTest(testId: string): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/tests/${testId}/run`, {
+      method: 'POST',
+    });
+  }
+
+  // Runs
+  async createRun(data: CreateRunRequest): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>('/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getRuns(testId?: string): Promise<ApiResponse<StoredRun[]>> {
+    const query = testId ? `?testId=${testId}` : '';
+    return this.request<StoredRun[]>(`/runs${query}`);
+  }
+
+  async getRun(id: string): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/runs/${id}`);
+  }
+
+  async updateRun(id: string, data: UpdateRunRequest): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/runs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRun(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/runs/${id}`, { method: 'DELETE' });
+  }
+
+  async getRunStats(id: string): Promise<ApiResponse<RunStats>> {
+    return this.request<RunStats>(`/runs/${id}/stats`);
+  }
+
+  async updateResultEvaluation(
+    runId: string,
+    resultId: string,
+    data: Omit<UpdateResultEvaluationRequest, 'resultId'>
+  ): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/runs/${runId}/results/${resultId}/evaluation`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async bulkUpdateResultEvaluations(
+    runId: string,
+    updates: UpdateResultEvaluationRequest[]
+  ): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/runs/${runId}/results/evaluations`, {
+      method: 'PUT',
+      body: JSON.stringify({ updates }),
+    });
+  }
+
+  // Stream run execution (returns EventSource URL for SSE)
+  getRunStreamUrl(runId: string): string {
+    return `${this.apiUrl}/runs/${runId}/stream`;
   }
 }
 

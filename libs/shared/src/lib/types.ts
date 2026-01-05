@@ -263,3 +263,92 @@ export interface CreateWebhookRequest {
   events: WebhookEvent[];
   secret?: string;
 }
+
+// Test Types (new model)
+export interface StoredTest {
+  id: string;
+  name: string;
+  description?: string;
+  flowId: string;
+  basePath: string;
+  accessTokenId?: string;
+  questionSetId?: string;
+  questionSet?: StoredQuestionSet;
+  multiStepEvaluation: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTestRequest {
+  name: string;
+  description?: string;
+  flowId: string;
+  basePath: string;
+  accessTokenId?: string;
+  questionSetId?: string;
+  multiStepEvaluation?: boolean;
+}
+
+// Run Types (new model - replaces Evaluation for new workflow)
+export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface RunResult {
+  id: string;
+  question: string;
+  answer: string;
+  expectedAnswer?: string;
+  executionId?: string;
+  isError?: boolean;
+  errorMessage?: string;
+  humanEvaluation?: HumanEvaluationStatus;
+  humanEvaluationDescription?: string;
+  severity?: IncorrectSeverity;
+  llmJudgeScore?: number;
+  llmJudgeReasoning?: string;
+  timestamp?: string;
+}
+
+export interface StoredRun {
+  id: string;
+  testId?: string;
+  test?: StoredTest;
+  status: RunStatus;
+  results: RunResult[];
+  errorMessage?: string;
+  totalQuestions: number;
+  completedQuestions: number;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRunRequest {
+  testId: string;
+  totalQuestions?: number;
+}
+
+export interface UpdateRunRequest {
+  status?: RunStatus;
+  errorMessage?: string;
+  completedQuestions?: number;
+}
+
+export interface UpdateResultEvaluationRequest {
+  resultId: string;
+  humanEvaluation?: HumanEvaluationStatus;
+  humanEvaluationDescription?: string;
+  severity?: IncorrectSeverity;
+  llmJudgeScore?: number;
+  llmJudgeReasoning?: string;
+}
+
+export interface RunStats {
+  total: number;
+  evaluated: number;
+  correct: number;
+  partial: number;
+  incorrect: number;
+  errors: number;
+  accuracy: number | null;
+}

@@ -102,7 +102,7 @@ export class EvaluationsController {
   @Get(':id/export')
   async export(
     @Param('id') id: string,
-    @Query('format') format: string = 'json',
+    @Query('format') format = 'json',
     @Res() res: Response,
     @CurrentUser() user: { userId: string; email: string },
   ) {

@@ -20,6 +20,9 @@ import {
   ProtectedRoute,
   AccountPage,
   ConfirmDialog,
+  TestsPage,
+  RunsPage,
+  RunDetailPage,
 } from './components';
 import './app.css';
 
@@ -169,10 +172,16 @@ function AppContent() {
           <p>Agent Evaluation</p>
           <nav>
             <Link
-              to="/evaluate"
-              className={location.pathname === '/evaluate' ? 'active' : ''}
+              to="/tests"
+              className={location.pathname === '/tests' ? 'active' : ''}
             >
-              Evaluate
+              Tests
+            </Link>
+            <Link
+              to="/runs"
+              className={location.pathname.startsWith('/runs') ? 'active' : ''}
+            >
+              Runs
             </Link>
             <Link
               to="/dashboard"
@@ -199,6 +208,30 @@ function AppContent() {
               element={
                 <ProtectedRoute>
                   <Homepage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tests"
+              element={
+                <ProtectedRoute>
+                  <TestsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/runs"
+              element={
+                <ProtectedRoute>
+                  <RunsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/runs/:id"
+              element={
+                <ProtectedRoute>
+                  <RunDetailPage />
                 </ProtectedRoute>
               }
             />

@@ -5,10 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **BenchMark** (Agent Eval) is an AI flow evaluation application for testing and benchmarking AI agent flows. It allows users to:
-- Execute AI flows against question sets
-- Evaluate responses manually or via LLM-as-judge
-- Track flow performance over time with analytics
-- Store and manage reusable configurations
+- Create reusable test configurations (flow + questions + settings)
+- Execute tests to generate runs with streaming results
+- Evaluate run results manually or via LLM-as-judge
+- Track test performance over time with analytics
+- Store and manage access tokens and question sets
+
+## Core Concepts
+
+- **Test** - Reusable configuration defining what to evaluate (flowId, basePath, questionSet, settings)
+- **Run** - Single execution of a test, containing results and status
+- **Evaluation** - Human or LLM judgment of run results (correct/partial/incorrect)
 
 ## Quick Start
 
@@ -71,31 +78,49 @@ libs/
 |--------|----------|-------------|
 | `health` | `/api/health/*` | Health checks (live, ready) |
 | `auth` | `/api/auth/*` | JWT authentication (login, register, refresh, account) |
+| `tests` | `/api/tests` | Test configuration CRUD + run execution (SSE) |
+| `runs` | `/api/runs` | Run management, result evaluations, stats |
 | `flow` | `/api/flow/*` | Execute AI flows (supports SSE streaming) |
 | `evaluation` | `/api/evaluate/*` | LLM-as-judge evaluation |
 | `access-tokens` | `/api/access-tokens` | Encrypted token storage |
 | `questions` | `/api/questions` | Question set management |
-| `flow-configs` | `/api/flow-configs` | Saved flow configurations |
-| `evaluations` | `/api/evaluations` | Stored evaluation results |
+| `flow-configs` | `/api/flow-configs` | Saved flow configurations (legacy) |
+| `evaluations` | `/api/evaluations` | Stored evaluation results (legacy) |
 
 ### Database Entities
 
-- `User` - Multi-user authentication
-- `AccessToken` - Encrypted tokens (AES-256-GCM)
-- `Evaluation` - Results with flow exports
-- `QuestionSet` - Reusable question collections
-- `FlowConfig` - Saved flow configurations
+| Entity | Description |
+|--------|-------------|
+| `User` | Multi-user authentication |
+| `Test` | Reusable test configuration (flowId, basePath, questionSetId, accessTokenId) |
+| `Run` | Execution instance with results, status, timestamps |
+| `AccessToken` | Encrypted tokens (AES-256-GCM) |
+| `QuestionSet` | Reusable question collections |
+| `FlowConfig` | Saved flow configurations (legacy) |
+| `Evaluation` | Stored evaluation results (legacy) |
 
 ### Key Types (libs/shared)
 
 ```typescript
-FlowConfig {
-  accessToken, accessTokenId?, basePath, flowId, multiStepEvaluation?
+// Test configuration
+StoredTest {
+  id, userId, name, description?, flowId, basePath,
+  accessTokenId?, questionSetId?, multiStepEvaluation, createdAt, updatedAt
 }
 
-EvaluationResult {
+// Run execution
+StoredRun {
+  id, userId?, testId?, status: 'pending' | 'running' | 'completed' | 'failed',
+  results: RunResult[], errorMessage?, totalQuestions, completedQuestions,
+  startedAt?, completedAt?, createdAt, updatedAt
+}
+
+// Individual result in a run
+RunResult {
   id, question, answer, expectedAnswer?, executionId?,
-  humanEvaluation?, severity?, isError?, errorMessage?
+  humanEvaluation?: 'correct' | 'partial' | 'incorrect',
+  severity?: 'critical' | 'major' | 'minor',
+  humanEvaluationDescription?, isError?, errorMessage?, timestamp?
 }
 ```
 
@@ -104,20 +129,24 @@ EvaluationResult {
 | Route | Component | Description |
 |-------|-----------|-------------|
 | `/` | Homepage | Welcome + quick actions |
-| `/evaluate` | EvaluationPage | Execute flows & evaluate results |
-| `/dashboard` | Dashboard | View evaluations + Flow Analytics |
+| `/tests` | TestsPage | Create and manage test configurations |
+| `/runs` | RunsPage | View runs, execute tests with live progress |
+| `/runs/:id` | RunDetailPage | Evaluate run results with bulk actions |
+| `/dashboard` | Dashboard | Test Analytics + legacy Flow Analytics |
 | `/settings` | SettingsPage | Manage tokens, questions, configs |
 | `/account` | AccountPage | User profile, stats, password change |
 | `/login` | LoginPage | Authentication |
+| `/evaluate` | EvaluationPage | Legacy: Execute flows & evaluate (still accessible) |
 
 ### Key Features
 
-1. **Streaming Results** - SSE endpoint streams answers one-by-one
-2. **Multi-step Evaluation** - Same sessionId for conversation flows
-3. **Flow Analytics** - Track accuracy trends across evaluations
-4. **Error Handling** - Errors excluded from human evaluation
-5. **Bulk Actions** - Select all + bulk assign evaluations
-6. **Rate Limiting** - Redis-backed rate limiting for multi-node scalability
+1. **Test-based Workflow** - Create reusable test configs, run them, evaluate results
+2. **Streaming Results** - SSE endpoint streams answers one-by-one during execution
+3. **Multi-step Evaluation** - Same sessionId for conversation flows
+4. **Test Analytics** - Track accuracy trends across runs with charts
+5. **Bulk Evaluations** - Select all + bulk assign correct/partial/incorrect
+6. **Error Handling** - Errors tracked separately, excluded from accuracy
+7. **Rate Limiting** - Redis-backed rate limiting for multi-node scalability
 
 ## Environment Variables
 
@@ -188,6 +217,8 @@ describe('Feature Name', () => {
 |------|----------|
 | `health.spec.ts` | Health check endpoints |
 | `auth.spec.ts` | Authentication, password change, account deletion |
+| `tests.spec.ts` | Tests CRUD operations |
+| `runs.spec.ts` | Runs CRUD, result evaluations, bulk updates, stats |
 | `questions.spec.ts` | Question sets CRUD |
 | `flow-configs.spec.ts` | Flow configurations CRUD |
 | `access-tokens.spec.ts` | Access tokens CRUD |
@@ -202,11 +233,24 @@ describe('Feature Name', () => {
 
 ## File Locations
 
-- API client: `libs/api-client/src/lib/api-client.ts`
-- Shared types: `libs/shared/src/lib/types.ts`
-- Auth context: `apps/frontend/src/app/context/AuthContext.tsx`
-- App context: `apps/frontend/src/app/context/AppContext.tsx`
+### Backend
+- Tests module: `apps/backend/src/tests/`
+- Runs module: `apps/backend/src/runs/`
+- Test entity: `apps/backend/src/database/entities/test.entity.ts`
+- Run entity: `apps/backend/src/database/entities/run.entity.ts`
 - Flow service: `apps/backend/src/flow/flow.service.ts`
 - Encryption: `apps/backend/src/config/encryption.service.ts`
 - Rate limiting: `apps/backend/src/throttler/`
+
+### Frontend
+- Tests page: `apps/frontend/src/app/components/TestsPage.tsx`
+- Runs page: `apps/frontend/src/app/components/RunsPage.tsx`
+- Run detail page: `apps/frontend/src/app/components/RunDetailPage.tsx`
+- Dashboard: `apps/frontend/src/app/components/Dashboard.tsx`
+- Auth context: `apps/frontend/src/app/context/AuthContext.tsx`
+- App context: `apps/frontend/src/app/context/AppContext.tsx`
+
+### Shared
+- API client: `libs/api-client/src/lib/api-client.ts`
+- Shared types: `libs/shared/src/lib/types.ts`
 - E2E tests: `apps/backend-e2e/src/`
