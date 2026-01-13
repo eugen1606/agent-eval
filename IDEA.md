@@ -10,6 +10,9 @@
 - [x] Multi-user authentication system
 - [x] Schedule periodic evaluations to run automatically
 - [ ] implement notification service
+- [x] implement pagination in runs details
+- [ ] imporve webhooks
+- [ ] fix scheduled testing
 
 ---
 

@@ -23,6 +23,7 @@ export function WebhooksManager() {
     secret: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [testResult, setTestResult] = useState<{ open: boolean; success: boolean; message: string }>({ open: false, success: false, message: '' });
   const [formError, setFormError] = useState<string | null>(null);
@@ -32,10 +33,12 @@ export function WebhooksManager() {
   }, []);
 
   const loadWebhooks = async () => {
+    setIsLoading(true);
     const response = await apiClient.getWebhooks();
     if (response.success && response.data) {
       setWebhooks(response.data);
     }
+    setIsLoading(false);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -219,7 +222,12 @@ export function WebhooksManager() {
       </Modal>
 
       <div className="manager-list">
-        {webhooks.length === 0 ? (
+        {isLoading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading webhooks...</span>
+          </div>
+        ) : webhooks.length === 0 ? (
           <p className="empty-message">No webhooks configured</p>
         ) : (
           webhooks.map((webhook) => (

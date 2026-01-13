@@ -3,14 +3,19 @@ import {
   Get,
   Post,
   Put,
-  Delete,
   Body,
   Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { RunsService, CreateRunDto, UpdateRunDto, UpdateResultEvaluationDto } from './runs.service';
-import { Run } from '../database/entities';
+import {
+  RunsService,
+  CreateRunDto,
+  UpdateRunDto,
+  UpdateResultEvaluationDto,
+  PaginatedRuns,
+} from './runs.service';
+import { Run, RunStatus } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -29,10 +34,20 @@ export class RunsController {
 
   @Get()
   async findAll(
-    @Query('testId') testId: string | undefined,
-    @CurrentUser() user: { userId: string; email: string },
-  ): Promise<Run[]> {
-    return this.runsService.findAll(user.userId, testId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: RunStatus,
+    @Query('testId') testId?: string,
+    @CurrentUser() user?: { userId: string; email: string },
+  ): Promise<PaginatedRuns> {
+    return this.runsService.findAll(user!.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      status,
+      testId,
+    });
   }
 
   @Get(':id')
@@ -67,7 +82,11 @@ export class RunsController {
     @Body() dto: Omit<UpdateResultEvaluationDto, 'resultId'>,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Run> {
-    return this.runsService.updateResultEvaluation(id, { ...dto, resultId }, user.userId);
+    return this.runsService.updateResultEvaluation(
+      id,
+      { ...dto, resultId },
+      user.userId,
+    );
   }
 
   @Put(':id/results/evaluations')
@@ -76,14 +95,18 @@ export class RunsController {
     @Body() dto: { updates: UpdateResultEvaluationDto[] },
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Run> {
-    return this.runsService.bulkUpdateResultEvaluations(id, dto.updates, user.userId);
+    return this.runsService.bulkUpdateResultEvaluations(
+      id,
+      dto.updates,
+      user.userId,
+    );
   }
 
-  @Delete(':id')
-  async delete(
+  @Post(':id/cancel')
+  async cancel(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<void> {
-    return this.runsService.delete(id, user.userId);
+  ): Promise<Run> {
+    return this.runsService.cancel(id, user.userId);
   }
 }

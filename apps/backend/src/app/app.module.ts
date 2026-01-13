@@ -12,7 +12,7 @@ import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 import { QuestionsModule } from '../questions/questions.module';
 import { EvaluationsModule } from '../evaluations/evaluations.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
-import { ScheduledEvaluationsModule } from '../scheduled-evaluations/scheduled-evaluations.module';
+import { ScheduledTestsModule } from '../scheduled-tests/scheduled-tests.module';
 import { HealthModule } from '../health/health.module';
 import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
 import { WebhooksModule } from '../webhooks/webhooks.module';
@@ -31,7 +31,7 @@ import { RunsModule } from '../runs/runs.module';
     QuestionsModule,
     EvaluationsModule,
     FlowConfigsModule,
-    ScheduledEvaluationsModule,
+    ScheduledTestsModule,
     HealthModule,
     AppThrottlerModule,
     WebhooksModule,

@@ -21,6 +21,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     description: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   useEffect(() => {
@@ -28,10 +29,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
   }, []);
 
   const loadFlowConfigs = async () => {
+    setIsLoading(true);
     const response = await apiClient.getFlowConfigs();
     if (response.success && response.data) {
       setFlowConfigs(response.data);
     }
+    setIsLoading(false);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -158,7 +161,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
       </Modal>
 
       <div className="manager-list">
-        {flowConfigs.length === 0 ? (
+        {isLoading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading flow configs...</span>
+          </div>
+        ) : flowConfigs.length === 0 ? (
           <p className="empty-message">No flow configs stored</p>
         ) : (
           flowConfigs.map((fc) => (

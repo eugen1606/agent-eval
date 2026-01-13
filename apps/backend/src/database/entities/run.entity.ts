@@ -10,7 +10,7 @@ import {
 import { User } from './user.entity';
 import { Test } from './test.entity';
 
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type RunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
 
 @Entity('runs')
 export class Run {

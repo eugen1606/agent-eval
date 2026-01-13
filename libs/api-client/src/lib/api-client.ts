@@ -12,8 +12,8 @@ import {
   CreateFlowConfigRequest,
   StoredEvaluation,
   CreateEvaluationRequest,
-  StoredScheduledEvaluation,
-  CreateScheduledEvaluationRequest,
+  StoredScheduledTest,
+  CreateScheduledTestRequest,
   User,
   AuthTokens,
   LoginRequest,
@@ -32,6 +32,9 @@ import {
   UpdateRunRequest,
   UpdateResultEvaluationRequest,
   RunStats,
+  PaginatedResponse,
+  TestsFilterParams,
+  RunsFilterParams,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -407,50 +410,50 @@ export class AgentEvalClient {
     return response.blob();
   }
 
-  // Scheduled Evaluations
-  async createScheduledEvaluation(
-    data: CreateScheduledEvaluationRequest
-  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
-    return this.request<StoredScheduledEvaluation>('/scheduled-evaluations', {
+  // Scheduled Tests
+  async createScheduledTest(
+    data: CreateScheduledTestRequest
+  ): Promise<ApiResponse<StoredScheduledTest>> {
+    return this.request<StoredScheduledTest>('/scheduled-tests', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async getScheduledEvaluations(): Promise<ApiResponse<StoredScheduledEvaluation[]>> {
-    return this.request<StoredScheduledEvaluation[]>('/scheduled-evaluations');
+  async getScheduledTests(): Promise<ApiResponse<StoredScheduledTest[]>> {
+    return this.request<StoredScheduledTest[]>('/scheduled-tests');
   }
 
-  async getScheduledEvaluation(id: string): Promise<ApiResponse<StoredScheduledEvaluation>> {
-    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}`);
+  async getScheduledTest(id: string): Promise<ApiResponse<StoredScheduledTest>> {
+    return this.request<StoredScheduledTest>(`/scheduled-tests/${id}`);
   }
 
-  async updateScheduledEvaluation(
+  async updateScheduledTest(
     id: string,
-    data: Partial<CreateScheduledEvaluationRequest>
-  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
-    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}`, {
+    data: Partial<CreateScheduledTestRequest>
+  ): Promise<ApiResponse<StoredScheduledTest>> {
+    return this.request<StoredScheduledTest>(`/scheduled-tests/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteScheduledEvaluation(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/scheduled-evaluations/${id}`, { method: 'DELETE' });
+  async deleteScheduledTest(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/scheduled-tests/${id}`, { method: 'DELETE' });
   }
 
-  async resetScheduledEvaluation(
+  async resetScheduledTest(
     id: string,
     scheduledAt?: string
-  ): Promise<ApiResponse<StoredScheduledEvaluation>> {
-    return this.request<StoredScheduledEvaluation>(`/scheduled-evaluations/${id}/reset`, {
+  ): Promise<ApiResponse<StoredScheduledTest>> {
+    return this.request<StoredScheduledTest>(`/scheduled-tests/${id}/reset`, {
       method: 'POST',
       body: JSON.stringify({ scheduledAt }),
     });
   }
 
-  async executeScheduledEvaluationNow(id: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>(`/scheduled-evaluations/${id}/execute`, {
+  async executeScheduledTestNow(id: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/scheduled-tests/${id}/execute`, {
       method: 'POST',
     });
   }
@@ -506,8 +509,16 @@ export class AgentEvalClient {
     });
   }
 
-  async getTests(): Promise<ApiResponse<StoredTest[]>> {
-    return this.request<StoredTest[]>('/tests');
+  async getTests(filters?: TestsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredTest>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.questionSetId) params.append('questionSetId', filters.questionSetId);
+    if (filters?.multiStep !== undefined) params.append('multiStep', filters.multiStep.toString());
+    if (filters?.flowId) params.append('flowId', filters.flowId);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredTest>>(`/tests${query ? `?${query}` : ''}`);
   }
 
   async getTest(id: string): Promise<ApiResponse<StoredTest>> {
@@ -539,9 +550,15 @@ export class AgentEvalClient {
     });
   }
 
-  async getRuns(testId?: string): Promise<ApiResponse<StoredRun[]>> {
-    const query = testId ? `?testId=${testId}` : '';
-    return this.request<StoredRun[]>(`/runs${query}`);
+  async getRuns(filters?: RunsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredRun>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.testId) params.append('testId', filters.testId);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredRun>>(`/runs${query ? `?${query}` : ''}`);
   }
 
   async getRun(id: string): Promise<ApiResponse<StoredRun>> {
@@ -555,8 +572,8 @@ export class AgentEvalClient {
     });
   }
 
-  async deleteRun(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/runs/${id}`, { method: 'DELETE' });
+  async cancelRun(id: string): Promise<ApiResponse<StoredRun>> {
+    return this.request<StoredRun>(`/runs/${id}/cancel`, { method: 'POST' });
   }
 
   async getRunStats(id: string): Promise<ApiResponse<RunStats>> {

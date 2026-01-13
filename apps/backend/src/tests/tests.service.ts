@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, ILike } from 'typeorm';
 import { Test } from '../database/entities';
 
 export interface CreateTestDto {
@@ -11,6 +11,25 @@ export interface CreateTestDto {
   accessTokenId?: string;
   questionSetId?: string;
   multiStepEvaluation?: boolean;
+}
+
+export interface TestsFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  questionSetId?: string;
+  multiStep?: boolean;
+  flowId?: string;
+}
+
+export interface PaginatedTests {
+  data: Test[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 @Injectable()
@@ -34,12 +53,64 @@ export class TestsService {
     return this.testRepository.save(test);
   }
 
-  async findAll(userId: string): Promise<Test[]> {
-    return this.testRepository.find({
-      where: { userId },
-      relations: ['questionSet'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(userId: string, filters: TestsFilterDto = {}): Promise<PaginatedTests> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.testRepository
+      .createQueryBuilder('test')
+      .leftJoinAndSelect('test.questionSet', 'questionSet')
+      .where('test.userId = :userId', { userId });
+
+    // Apply search filter
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(test.name ILIKE :search OR test.description ILIKE :search)',
+        { search: `%${filters.search}%` }
+      );
+    }
+
+    // Apply questionSetId filter
+    if (filters.questionSetId) {
+      queryBuilder.andWhere('test.questionSetId = :questionSetId', {
+        questionSetId: filters.questionSetId,
+      });
+    }
+
+    // Apply multiStep filter
+    if (filters.multiStep !== undefined) {
+      queryBuilder.andWhere('test.multiStepEvaluation = :multiStep', {
+        multiStep: filters.multiStep,
+      });
+    }
+
+    // Apply flowId filter
+    if (filters.flowId) {
+      queryBuilder.andWhere('test.flowId ILIKE :flowId', {
+        flowId: `%${filters.flowId}%`,
+      });
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination and ordering
+    const data = await queryBuilder
+      .orderBy('test.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Test> {

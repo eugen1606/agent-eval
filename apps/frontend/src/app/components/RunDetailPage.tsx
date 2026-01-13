@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   StoredRun,
@@ -8,6 +8,7 @@ import {
   RunStats,
 } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
+import { Pagination } from './Pagination';
 
 const apiClient = new AgentEvalClient();
 
@@ -20,6 +21,8 @@ export function RunDetailPage() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingUpdates, setPendingUpdates] = useState<Map<string, Partial<RunResult>>>(new Map());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const loadRun = useCallback(async () => {
     if (!id) return;
@@ -50,8 +53,23 @@ export function RunDetailPage() {
     return result;
   };
 
-  const evaluatableResults = run?.results.filter((r) => !r.isError) || [];
-  const errorResults = run?.results.filter((r) => r.isError) || [];
+  const allResults = run?.results || [];
+  const evaluatableResults = allResults.filter((r) => !r.isError);
+  const errorResults = allResults.filter((r) => r.isError);
+
+  // Pagination for results
+  const totalPages = Math.ceil(allResults.length / itemsPerPage);
+  const paginatedResults = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return allResults.slice(start, start + itemsPerPage);
+  }, [allResults, currentPage, itemsPerPage]);
+
+  // Reset page if out of bounds
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [allResults.length, currentPage, totalPages]);
 
   const toggleSelect = (resultId: string) => {
     const result = run?.results.find((r) => r.id === resultId);
@@ -258,7 +276,7 @@ export function RunDetailPage() {
 
       {/* Results List */}
       <div className="results-list">
-        {run.results.map((result) => {
+        {paginatedResults.map((result) => {
           const displayResult = getResultWithUpdates(result);
           return (
             <div
@@ -409,6 +427,15 @@ export function RunDetailPage() {
           );
         })}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={allResults.length}
+        itemsPerPage={itemsPerPage}
+        itemName="results"
+      />
     </div>
   );
 }

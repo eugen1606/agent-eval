@@ -19,6 +19,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
     description: '',
   });
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
 
   const resetForm = () => {
@@ -31,10 +32,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
   }, []);
 
   const loadTokens = async () => {
+    setIsLoading(true);
     const response = await apiClient.getAccessTokens();
     if (response.success && response.data) {
       setTokens(response.data);
     }
+    setIsLoading(false);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -124,7 +127,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
       </Modal>
 
       <div className="manager-list">
-        {tokens.length === 0 ? (
+        {isLoading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading tokens...</span>
+          </div>
+        ) : tokens.length === 0 ? (
           <p className="empty-message">No access tokens stored</p>
         ) : (
           tokens.map((token) => (

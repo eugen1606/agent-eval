@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StoredEvaluation, EvaluationResult, IncorrectSeverity, StoredFlowConfig, StoredQuestionSet, StoredTest, StoredRun } from '@agent-eval/shared';
+import { StoredTest, StoredRun } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const apiClient = new AgentEvalClient();
 
@@ -14,7 +14,7 @@ interface EvaluationStats {
   total: number;
 }
 
-interface FlowEvaluationData {
+interface TestRunData {
   id: string;
   name: string;
   date: string;
@@ -26,62 +26,7 @@ interface FlowEvaluationData {
   errors: number;
 }
 
-function PieChart({ stats }: { stats: EvaluationStats }) {
-  const total = stats.total || 1;
-  const data = [
-    { label: 'Correct', value: stats.correct, color: '#27ae60' },
-    { label: 'Partial', value: stats.partial, color: '#f39c12' },
-    { label: 'Incorrect', value: stats.incorrect, color: '#e74c3c' },
-    { label: 'Errors', value: stats.errors, color: '#8e44ad' },
-    { label: 'Unevaluated', value: stats.unevaluated, color: '#95a5a6' },
-  ].filter(d => d.value > 0);
-
-  let currentAngle = 0;
-  const paths = data.map((item) => {
-    const percentage = item.value / total;
-    const angle = percentage * 360;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + angle;
-    currentAngle = endAngle;
-
-    const startRad = (startAngle - 90) * (Math.PI / 180);
-    const endRad = (endAngle - 90) * (Math.PI / 180);
-
-    const x1 = 50 + 40 * Math.cos(startRad);
-    const y1 = 50 + 40 * Math.sin(startRad);
-    const x2 = 50 + 40 * Math.cos(endRad);
-    const y2 = 50 + 40 * Math.sin(endRad);
-
-    const largeArc = angle > 180 ? 1 : 0;
-
-    const pathD = percentage === 1
-      ? `M 50 10 A 40 40 0 1 1 49.99 10 Z`
-      : `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-    return { ...item, pathD, percentage };
-  });
-
-  return (
-    <div className="pie-chart-container">
-      <svg viewBox="0 0 100 100" className="pie-chart">
-        {paths.map((item, i) => (
-          <path key={i} d={item.pathD} fill={item.color} />
-        ))}
-      </svg>
-      <div className="pie-legend">
-        {paths.map((item, i) => (
-          <div key={i} className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: item.color }} />
-            <span className="legend-label">{item.label}</span>
-            <span className="legend-value">{item.value} ({Math.round(item.percentage * 100)}%)</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LineChart({ data }: { data: FlowEvaluationData[] }) {
+function LineChart({ data }: { data: TestRunData[] }) {
   if (data.length === 0) return null;
 
   const maxAccuracy = 100;
@@ -145,7 +90,7 @@ function LineChart({ data }: { data: FlowEvaluationData[] }) {
   );
 }
 
-function BarChart({ data }: { data: FlowEvaluationData[] }) {
+function BarChart({ data }: { data: TestRunData[] }) {
   if (data.length === 0) return null;
 
   const padding = 40;
@@ -205,89 +150,29 @@ function BarChart({ data }: { data: FlowEvaluationData[] }) {
 }
 
 export function Dashboard() {
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'evaluation' | 'analytics' | 'test-analytics'>('test-analytics');
-
-  // Evaluation Details tab state
-  const [evaluations, setEvaluations] = useState<StoredEvaluation[]>([]);
-  const [selectedEvaluation, setSelectedEvaluation] = useState<StoredEvaluation | null>(null);
-  const [results, setResults] = useState<EvaluationResult[]>([]);
-  const [stats, setStats] = useState<EvaluationStats | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // Flow Analytics tab state (legacy)
-  const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
-  const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
-  const [selectedFlowId, setSelectedFlowId] = useState<string>('');
-  const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string>('');
-  const [flowEvaluations, setFlowEvaluations] = useState<FlowEvaluationData[]>([]);
-
-  // Test Analytics tab state (new)
+  const navigate = useNavigate();
   const [tests, setTests] = useState<StoredTest[]>([]);
   const [runs, setRuns] = useState<StoredRun[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>('');
-  const [testRuns, setTestRuns] = useState<FlowEvaluationData[]>([]);
-  const navigate = useNavigate();
+  const [testRuns, setTestRuns] = useState<TestRunData[]>([]);
 
   useEffect(() => {
-    loadEvaluations();
-    loadFlowConfigs();
-    loadQuestionSets();
     loadTests();
     loadRuns();
   }, []);
 
-  useEffect(() => {
-    const evalId = searchParams.get('id');
-    if (evalId && evaluations.length > 0) {
-      const evaluation = evaluations.find(e => e.id === evalId);
-      if (evaluation) {
-        handleSelectEvaluation(evaluation);
-      }
-    }
-  }, [searchParams, evaluations]);
-
-  const loadEvaluations = async () => {
-    const response = await apiClient.getEvaluations();
-    if (response.success && response.data) {
-      setEvaluations(response.data);
-    }
-  };
-
-  const loadFlowConfigs = async () => {
-    const response = await apiClient.getFlowConfigs();
-    if (response.success && response.data) {
-      setFlowConfigs(response.data);
-    }
-  };
-
-  const loadQuestionSets = async () => {
-    const response = await apiClient.getQuestionSets();
-    if (response.success && response.data) {
-      setQuestionSets(response.data);
-    }
-  };
-
   const loadTests = async () => {
-    const response = await apiClient.getTests();
+    const response = await apiClient.getTests({ limit: 100 });
     if (response.success && response.data) {
-      setTests(response.data);
+      setTests(response.data.data);
     }
   };
 
   const loadRuns = async () => {
-    const response = await apiClient.getRuns();
+    const response = await apiClient.getRuns({ limit: 1000 });
     if (response.success && response.data) {
-      setRuns(response.data);
+      setRuns(response.data.data);
     }
-  };
-
-  const handleFlowSelect = (flowId: string) => {
-    setSelectedFlowId(flowId);
-  };
-
-  const handleQuestionSetSelect = (questionSetId: string) => {
-    setSelectedQuestionSetId(questionSetId);
   };
 
   const handleTestSelect = (testId: string) => {
@@ -306,15 +191,7 @@ export function Dashboard() {
       .filter((run) => run.testId === selectedTestId && run.status === 'completed')
       .map((run) => {
         const results = run.results || [];
-        const stats = calculateEvalStats(results.map(r => ({
-          id: r.id,
-          question: r.question,
-          answer: r.answer,
-          expectedAnswer: r.expectedAnswer,
-          humanEvaluation: r.humanEvaluation,
-          isError: r.isError,
-          errorMessage: r.errorMessage,
-        })));
+        const stats = calculateEvalStats(results);
         const evaluated = stats.correct + stats.partial + stats.incorrect;
         const accuracy = evaluated > 0 ? (stats.correct / evaluated) * 100 : 0;
 
@@ -334,53 +211,17 @@ export function Dashboard() {
     setTestRuns(testRunData);
   }, [selectedTestId, runs]);
 
-  // Update flow evaluations when flow or question set selection changes
-  useEffect(() => {
-    if (!selectedFlowId) {
-      setFlowEvaluations([]);
-      return;
-    }
-
-    // Filter evaluations by flowId and optionally by questionSetId
-    const flowEvals = evaluations
-      .filter((ev) => {
-        if (ev.flowId !== selectedFlowId) return false;
-        if (selectedQuestionSetId && ev.questionSetId !== selectedQuestionSetId) return false;
-        return true;
-      })
-      .map((ev) => {
-        const evalResults = (ev.finalOutput as { results?: EvaluationResult[] })?.results || [];
-        const stats = calculateEvalStats(evalResults);
-        const evaluated = stats.correct + stats.partial + stats.incorrect;
-        const accuracy = evaluated > 0 ? (stats.correct / evaluated) * 100 : 0;
-
-        return {
-          id: ev.id,
-          name: ev.name,
-          date: ev.createdAt,
-          accuracy,
-          total: stats.total,
-          correct: stats.correct,
-          partial: stats.partial,
-          incorrect: stats.incorrect,
-          errors: stats.errors,
-        };
-      });
-
-    setFlowEvaluations(flowEvals);
-  }, [selectedFlowId, selectedQuestionSetId, evaluations]);
-
-  const calculateEvalStats = (evalResults: EvaluationResult[]): EvaluationStats => {
+  const calculateEvalStats = (results: StoredRun['results']): EvaluationStats => {
     const stats: EvaluationStats = {
       correct: 0,
       partial: 0,
       incorrect: 0,
       unevaluated: 0,
       errors: 0,
-      total: evalResults.length,
+      total: results.length,
     };
 
-    evalResults.forEach((result) => {
+    results.forEach((result) => {
       if (result.isError) {
         stats.errors++;
       } else if (result.humanEvaluation === 'correct') {
@@ -396,123 +237,6 @@ export function Dashboard() {
 
     return stats;
   };
-
-  const handleSelectEvaluation = (evaluation: StoredEvaluation) => {
-    setSelectedEvaluation(evaluation);
-
-    // Extract results from finalOutput
-    const evalResults = (evaluation.finalOutput as { results?: EvaluationResult[] })?.results || [];
-    setResults(evalResults);
-    calculateStats(evalResults);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadError(null);
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      // Try to extract results from various formats
-      let evalResults: EvaluationResult[] = [];
-
-      if (Array.isArray(data)) {
-        evalResults = data;
-      } else if (data.results && Array.isArray(data.results)) {
-        evalResults = data.results;
-      } else if (data.finalOutput?.results && Array.isArray(data.finalOutput.results)) {
-        evalResults = data.finalOutput.results;
-      }
-
-      if (evalResults.length === 0) {
-        setUploadError('No evaluation results found in file');
-        return;
-      }
-
-      setSelectedEvaluation(null);
-      setResults(evalResults);
-      calculateStats(evalResults);
-    } catch {
-      setUploadError('Invalid JSON file');
-    }
-
-    // Reset file input
-    e.target.value = '';
-  };
-
-  const calculateStats = (evalResults: EvaluationResult[]) => {
-    const stats: EvaluationStats = {
-      correct: 0,
-      partial: 0,
-      incorrect: 0,
-      unevaluated: 0,
-      errors: 0,
-      total: evalResults.length,
-    };
-
-    evalResults.forEach((result) => {
-      if (result.isError) {
-        stats.errors++;
-      } else if (result.humanEvaluation === 'correct') {
-        stats.correct++;
-      } else if (result.humanEvaluation === 'partial') {
-        stats.partial++;
-      } else if (result.humanEvaluation === 'incorrect') {
-        stats.incorrect++;
-      } else {
-        stats.unevaluated++;
-      }
-    });
-
-    setStats(stats);
-  };
-
-  // Sort order for severity: critical > major > minor > (no severity/partial)
-  const severityOrder: Record<IncorrectSeverity | 'none', number> = {
-    critical: 0,
-    major: 1,
-    minor: 2,
-    none: 3,
-  };
-
-  const problemResults = results
-    .filter((r) => r.humanEvaluation === 'incorrect' || r.humanEvaluation === 'partial')
-    .sort((a, b) => {
-      // Incorrect answers come before partial
-      if (a.humanEvaluation !== b.humanEvaluation) {
-        return a.humanEvaluation === 'incorrect' ? -1 : 1;
-      }
-      // For incorrect answers, sort by severity
-      if (a.humanEvaluation === 'incorrect' && b.humanEvaluation === 'incorrect') {
-        const aSeverity = a.severity || 'none';
-        const bSeverity = b.severity || 'none';
-        return severityOrder[aSeverity] - severityOrder[bSeverity];
-      }
-      return 0;
-    });
-
-  const errorResults = results.filter((r) => r.isError);
-
-  // Calculate aggregate stats for flow analytics
-  const flowAggregateStats = flowEvaluations.length > 0 ? {
-    avgAccuracy: flowEvaluations.reduce((sum, e) => sum + e.accuracy, 0) / flowEvaluations.length,
-    totalEvaluations: flowEvaluations.length,
-    totalQuestions: flowEvaluations.reduce((sum, e) => sum + e.total, 0),
-    latestAccuracy: flowEvaluations.length > 0
-      ? [...flowEvaluations].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].accuracy
-      : 0,
-    trend: flowEvaluations.length >= 2
-      ? (() => {
-          const sorted = [...flowEvaluations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          const latest = sorted[sorted.length - 1].accuracy;
-          const previous = sorted[sorted.length - 2].accuracy;
-          return latest - previous;
-        })()
-      : 0,
-  } : null;
 
   // Calculate aggregate stats for test analytics
   const testRunAggregateStats = testRuns.length > 0 ? {
@@ -536,440 +260,130 @@ export function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-header">
         <h2>Dashboard</h2>
-        <div className="dashboard-tabs">
-          <button
-            className={activeTab === 'test-analytics' ? 'active' : ''}
-            onClick={() => setActiveTab('test-analytics')}
+      </div>
+
+      <div className="dashboard-controls">
+        <div className="control-group">
+          <label>Select Test:</label>
+          <select
+            value={selectedTestId}
+            onChange={(e) => handleTestSelect(e.target.value)}
           >
-            Test Analytics
-          </button>
-          <button
-            className={activeTab === 'evaluation' ? 'active' : ''}
-            onClick={() => setActiveTab('evaluation')}
-          >
-            Evaluation Details
-          </button>
-          <button
-            className={activeTab === 'analytics' ? 'active' : ''}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Flow Analytics (Legacy)
-          </button>
+            <option value="">Choose a test...</option>
+            {tests.map((test) => (
+              <option key={test.id} value={test.id}>
+                {test.name} ({test.flowId})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {activeTab === 'test-analytics' && (
-        <>
-          <div className="dashboard-controls">
-            <div className="control-group">
-              <label>Select Test:</label>
-              <select
-                value={selectedTestId}
-                onChange={(e) => handleTestSelect(e.target.value)}
-              >
-                <option value="">Choose a test...</option>
-                {tests.map((test) => (
-                  <option key={test.id} value={test.id}>
-                    {test.name} ({test.flowId})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {selectedTestId && testRuns.length > 0 && testRunAggregateStats && (
-            <div className="dashboard-content">
-              {/* Top row: KPI cards */}
-              <div className="dashboard-top-row">
-                <div className="dashboard-accuracy">
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Average Accuracy</div>
-                    <div className="accuracy-value">
-                      {testRunAggregateStats.avgAccuracy.toFixed(1)}%
-                    </div>
-                    <div className="accuracy-details">
-                      Across {testRunAggregateStats.totalRuns} runs
-                    </div>
-                  </div>
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Latest Accuracy</div>
-                    <div className={`accuracy-value ${testRunAggregateStats.latestAccuracy >= 80 ? '' : testRunAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}>
-                      {testRunAggregateStats.latestAccuracy.toFixed(1)}%
-                    </div>
-                    <div className="accuracy-details">
-                      {testRunAggregateStats.trend !== 0 && (
-                        <span className={testRunAggregateStats.trend > 0 ? 'trend-up' : 'trend-down'}>
-                          {testRunAggregateStats.trend > 0 ? '\u2191' : '\u2193'} {Math.abs(testRunAggregateStats.trend).toFixed(1)}% vs previous
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Total Questions</div>
-                    <div className="accuracy-value total">{testRunAggregateStats.totalQuestions}</div>
-                    <div className="accuracy-details">
-                      {testRunAggregateStats.totalRuns} test runs
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Charts */}
-              <div className="analytics-charts">
-                <div className="chart-card">
-                  <h3>Accuracy Trend Over Time</h3>
-                  <LineChart data={testRuns} />
-                </div>
-                <div className="chart-card">
-                  <h3>Accuracy by Run</h3>
-                  <BarChart data={testRuns} />
-                </div>
-              </div>
-
-              {/* Runs table */}
-              <div className="analytics-table">
-                <h3>Run History</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Accuracy</th>
-                      <th>Correct</th>
-                      <th>Partial</th>
-                      <th>Incorrect</th>
-                      <th>Errors</th>
-                      <th>Total</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...testRuns]
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((run) => (
-                        <tr key={run.id}>
-                          <td>{new Date(run.date).toLocaleString()}</td>
-                          <td className={run.accuracy >= 80 ? 'good' : run.accuracy >= 50 ? 'medium' : 'bad'}>
-                            {run.accuracy.toFixed(1)}%
-                          </td>
-                          <td className="correct">{run.correct}</td>
-                          <td className="partial">{run.partial}</td>
-                          <td className="incorrect">{run.incorrect}</td>
-                          <td className="errors">{run.errors}</td>
-                          <td>{run.total}</td>
-                          <td>
-                            <button
-                              className="btn-link"
-                              onClick={() => navigate(`/runs/${run.id}`)}
-                            >
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {selectedTestId && testRuns.length === 0 && (
-            <div className="dashboard-empty">
-              <p>No completed runs found for this test. Run the test first to see analytics.</p>
-            </div>
-          )}
-
-          {!selectedTestId && (
-            <div className="dashboard-empty">
-              <p>Select a test to view analytics. Create tests from the Tests page.</p>
-            </div>
-          )}
-        </>
-      )}
-
-      {activeTab === 'evaluation' && (
-        <>
-          <div className="dashboard-controls">
-            <div className="control-group">
-              <label>Select Stored Evaluation:</label>
-              <select
-                value={selectedEvaluation?.id || ''}
-                onChange={(e) => {
-                  const evaluation = evaluations.find((ev) => ev.id === e.target.value);
-                  if (evaluation) handleSelectEvaluation(evaluation);
-                }}
-              >
-                <option value="">Choose an evaluation...</option>
-                {evaluations.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.name} ({new Date(ev.createdAt).toLocaleDateString()})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="control-group">
-              <label>Or Upload JSON File:</label>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleFileUpload}
-              />
-              {uploadError && <span className="error">{uploadError}</span>}
-            </div>
-          </div>
-
-      {stats && results.length > 0 && (
+      {selectedTestId && testRuns.length > 0 && testRunAggregateStats && (
         <div className="dashboard-content">
-          {/* Top row: Accuracy and Summary side by side */}
+          {/* Top row: KPI cards */}
           <div className="dashboard-top-row">
             <div className="dashboard-accuracy">
               <div className="accuracy-section">
-                <div className="accuracy-header">Accuracy Rate</div>
+                <div className="accuracy-header">Average Accuracy</div>
                 <div className="accuracy-value">
-                  {(() => {
-                    const evaluatedCount = stats.correct + stats.partial + stats.incorrect;
-                    if (evaluatedCount === 0) return 'N/A';
-                    const percentage = (stats.correct / evaluatedCount) * 100;
-                    return `${percentage.toFixed(1)}%`;
-                  })()}
+                  {testRunAggregateStats.avgAccuracy.toFixed(1)}%
                 </div>
                 <div className="accuracy-details">
-                  {stats.correct} correct out of {stats.correct + stats.partial + stats.incorrect} evaluated
-                  {stats.unevaluated > 0 && ` (${stats.unevaluated} pending)`}
-                  {stats.errors > 0 && ` (${stats.errors} errors excluded)`}
+                  Across {testRunAggregateStats.totalRuns} runs
                 </div>
               </div>
               <div className="accuracy-section">
-                <div className="accuracy-header">Total Answers</div>
-                <div className="accuracy-value total">{stats.total}</div>
+                <div className="accuracy-header">Latest Accuracy</div>
+                <div className={`accuracy-value ${testRunAggregateStats.latestAccuracy >= 80 ? '' : testRunAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}>
+                  {testRunAggregateStats.latestAccuracy.toFixed(1)}%
+                </div>
                 <div className="accuracy-details">
-                  {stats.correct + stats.partial + stats.incorrect} evaluated, {stats.unevaluated} pending
-                  {stats.errors > 0 && `, ${stats.errors} errors`}
+                  {testRunAggregateStats.trend !== 0 && (
+                    <span className={testRunAggregateStats.trend > 0 ? 'trend-up' : 'trend-down'}>
+                      {testRunAggregateStats.trend > 0 ? '\u2191' : '\u2193'} {Math.abs(testRunAggregateStats.trend).toFixed(1)}% vs previous
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="dashboard-stats">
-              <h3>Evaluation Summary</h3>
-              <PieChart stats={stats} />
+              <div className="accuracy-section">
+                <div className="accuracy-header">Total Questions</div>
+                <div className="accuracy-value total">{testRunAggregateStats.totalQuestions}</div>
+                <div className="accuracy-details">
+                  {testRunAggregateStats.totalRuns} test runs
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Full width issues section */}
-          <div className="dashboard-issues">
-            {errorResults.length > 0 && (
-              <div className="dashboard-errors">
-                <h3>API Errors ({errorResults.length})</h3>
-                <div className="problems-list">
-                  {errorResults.map((result) => (
-                    <div key={result.id} className="problem-card error">
-                      <div className="problem-header">
-                        <span className="status-badge error">ERROR</span>
-                      </div>
-                      <div className="problem-question">
-                        <strong>Question:</strong> {result.question}
-                      </div>
-                      <div className="problem-answer error-text">
-                        <strong>Error:</strong> {result.errorMessage || result.answer}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="dashboard-problems">
-              <h3>Problem Questions ({problemResults.length})</h3>
-              {problemResults.length === 0 ? (
-                <div className="problems-empty">
-                  <p>No incorrect or partial answers found. All evaluated answers are correct.</p>
-                </div>
-              ) : (
-                <div className="problems-list">
-                  {problemResults.map((result) => (
-                    <div
-                      key={result.id}
-                      className={`problem-card ${result.humanEvaluation}`}
-                    >
-                      <div className="problem-header">
-                        <span className={`status-badge ${result.humanEvaluation}`}>
-                          {result.humanEvaluation}
-                        </span>
-                        {result.humanEvaluation === 'incorrect' && result.severity && (
-                          <span className={`severity-badge ${result.severity}`}>
-                            {result.severity}
-                          </span>
-                        )}
-                        {result.executionId && (
-                          <span className="execution-id">ID: {result.executionId}</span>
-                        )}
-                      </div>
-                      <div className="problem-question">
-                        <strong>Question:</strong> {result.question}
-                      </div>
-                      <div className="problem-answer">
-                        <strong>Answer:</strong> {result.answer}
-                      </div>
-                      {result.expectedAnswer && (
-                        <div className="problem-expected">
-                          <strong>Expected:</strong> {result.expectedAnswer}
-                        </div>
-                      )}
-                      {result.humanEvaluationDescription && (
-                        <div className="problem-notes">
-                          <strong>Notes:</strong> {result.humanEvaluationDescription}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Charts */}
+          <div className="analytics-charts">
+            <div className="chart-card">
+              <h3>Accuracy Trend Over Time</h3>
+              <LineChart data={testRuns} />
             </div>
+            <div className="chart-card">
+              <h3>Accuracy by Run</h3>
+              <BarChart data={testRuns} />
+            </div>
+          </div>
+
+          {/* Runs table */}
+          <div className="analytics-table">
+            <h3>Run History</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Accuracy</th>
+                  <th>Correct</th>
+                  <th>Partial</th>
+                  <th>Incorrect</th>
+                  <th>Errors</th>
+                  <th>Total</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...testRuns]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((run) => (
+                    <tr key={run.id}>
+                      <td>{new Date(run.date).toLocaleString()}</td>
+                      <td className={run.accuracy >= 80 ? 'good' : run.accuracy >= 50 ? 'medium' : 'bad'}>
+                        {run.accuracy.toFixed(1)}%
+                      </td>
+                      <td className="correct">{run.correct}</td>
+                      <td className="partial">{run.partial}</td>
+                      <td className="incorrect">{run.incorrect}</td>
+                      <td className="errors">{run.errors}</td>
+                      <td>{run.total}</td>
+                      <td>
+                        <button
+                          className="view-btn"
+                          onClick={() => navigate(`/runs/${run.id}`)}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-          {!stats && (
-            <div className="dashboard-empty">
-              <p>Select an evaluation or upload a JSON file to view the dashboard.</p>
-            </div>
-          )}
-        </>
+      {selectedTestId && testRuns.length === 0 && (
+        <div className="dashboard-empty">
+          <p>No completed runs found for this test. Run the test first to see analytics.</p>
+        </div>
       )}
 
-      {activeTab === 'analytics' && (
-        <>
-          <div className="dashboard-controls">
-            <div className="control-group">
-              <label>Select Flow:</label>
-              <select
-                value={selectedFlowId}
-                onChange={(e) => handleFlowSelect(e.target.value)}
-              >
-                <option value="">Choose a flow configuration...</option>
-                {flowConfigs.map((fc) => (
-                  <option key={fc.id} value={fc.flowId}>
-                    {fc.name} ({fc.flowId})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="control-group">
-              <label>Filter by Question Set:</label>
-              <select
-                value={selectedQuestionSetId}
-                onChange={(e) => handleQuestionSetSelect(e.target.value)}
-              >
-                <option value="">All question sets</option>
-                {questionSets.map((qs) => (
-                  <option key={qs.id} value={qs.id}>
-                    {qs.name} ({qs.questions.length} questions)
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {selectedFlowId && flowEvaluations.length > 0 && flowAggregateStats && (
-            <div className="dashboard-content">
-              {/* Top row: KPI cards */}
-              <div className="dashboard-top-row">
-                <div className="dashboard-accuracy">
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Average Accuracy</div>
-                    <div className="accuracy-value">
-                      {flowAggregateStats.avgAccuracy.toFixed(1)}%
-                    </div>
-                    <div className="accuracy-details">
-                      Across {flowAggregateStats.totalEvaluations} evaluations
-                    </div>
-                  </div>
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Latest Accuracy</div>
-                    <div className={`accuracy-value ${flowAggregateStats.latestAccuracy >= 80 ? '' : flowAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}>
-                      {flowAggregateStats.latestAccuracy.toFixed(1)}%
-                    </div>
-                    <div className="accuracy-details">
-                      {flowAggregateStats.trend !== 0 && (
-                        <span className={flowAggregateStats.trend > 0 ? 'trend-up' : 'trend-down'}>
-                          {flowAggregateStats.trend > 0 ? '↑' : '↓'} {Math.abs(flowAggregateStats.trend).toFixed(1)}% vs previous
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="accuracy-section">
-                    <div className="accuracy-header">Total Questions</div>
-                    <div className="accuracy-value total">{flowAggregateStats.totalQuestions}</div>
-                    <div className="accuracy-details">
-                      {flowAggregateStats.totalEvaluations} evaluation runs
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Charts */}
-              <div className="analytics-charts">
-                <div className="chart-card">
-                  <h3>Accuracy Trend Over Time</h3>
-                  <LineChart data={flowEvaluations} />
-                </div>
-                <div className="chart-card">
-                  <h3>Accuracy by Evaluation</h3>
-                  <BarChart data={flowEvaluations} />
-                </div>
-              </div>
-
-              {/* Evaluations table */}
-              <div className="analytics-table">
-                <h3>Evaluation History</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Date</th>
-                      <th>Accuracy</th>
-                      <th>Correct</th>
-                      <th>Partial</th>
-                      <th>Incorrect</th>
-                      <th>Errors</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...flowEvaluations]
-                      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                      .map((ev) => (
-                        <tr key={ev.id}>
-                          <td>{ev.name}</td>
-                          <td>{new Date(ev.date).toLocaleDateString()}</td>
-                          <td className={ev.accuracy >= 80 ? 'good' : ev.accuracy >= 50 ? 'medium' : 'bad'}>
-                            {ev.accuracy.toFixed(1)}%
-                          </td>
-                          <td className="correct">{ev.correct}</td>
-                          <td className="partial">{ev.partial}</td>
-                          <td className="incorrect">{ev.incorrect}</td>
-                          <td className="errors">{ev.errors}</td>
-                          <td>{ev.total}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {selectedFlowId && flowEvaluations.length === 0 && (
-            <div className="dashboard-empty">
-              <p>No evaluations found for this flow. Run some evaluations first.</p>
-            </div>
-          )}
-
-          {!selectedFlowId && (
-            <div className="dashboard-empty">
-              <p>Select a flow configuration to view analytics.</p>
-            </div>
-          )}
-        </>
+      {!selectedTestId && (
+        <div className="dashboard-empty">
+          <p>Select a test to view analytics. Create tests from the Tests page.</p>
+        </div>
       )}
     </div>
   );

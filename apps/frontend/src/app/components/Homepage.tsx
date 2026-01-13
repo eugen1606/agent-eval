@@ -14,10 +14,10 @@ export function Homepage() {
       </p>
 
       <div className="homepage-cards">
-        <Link to="/evaluate" className="homepage-card">
+        <Link to="/tests" className="homepage-card">
           <div className="card-icon">&#9654;</div>
-          <h3>Evaluate</h3>
-          <p>Execute flows against questions and evaluate responses</p>
+          <h3>Run Tests</h3>
+          <p>Create and execute test configurations against AI flows</p>
         </Link>
 
         <Link to="/dashboard" className="homepage-card">

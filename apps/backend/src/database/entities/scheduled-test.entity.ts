@@ -8,12 +8,13 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
+import { Test } from './test.entity';
 
-export type ScheduledEvaluationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ScheduledTestStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ScheduleType = 'once' | 'cron';
 
 @Entity('scheduled_evaluations')
-export class ScheduledEvaluation {
+export class ScheduledTest {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -24,21 +25,32 @@ export class ScheduledEvaluation {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column()
+  // Reference to test (new model)
+  @Column({ nullable: true })
+  testId: string;
+
+  @ManyToOne(() => Test, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'testId' })
+  test: Test;
+
+  // Legacy fields (kept for backward compatibility, nullable)
+  @Column({ nullable: true })
   name: string;
 
   @Column({ nullable: true })
   description: string;
 
-  // References to stored configurations
-  @Column()
+  @Column({ nullable: true })
   accessTokenId: string;
 
-  @Column()
+  @Column({ nullable: true })
   flowConfigId: string;
 
-  @Column()
+  @Column({ nullable: true })
   questionSetId: string;
+
+  @Column({ nullable: true, default: false })
+  multiStepEvaluation: boolean;
 
   // Scheduling
   @Column({ default: 'once' })
@@ -50,12 +62,9 @@ export class ScheduledEvaluation {
   @Column({ nullable: true })
   cronExpression: string;
 
-  @Column({ default: false })
-  multiStepEvaluation: boolean;
-
   // Status tracking
   @Column({ default: 'pending' })
-  status: ScheduledEvaluationStatus;
+  status: ScheduledTestStatus;
 
   @Column({ nullable: true })
   lastRunAt: Date;
@@ -63,9 +72,9 @@ export class ScheduledEvaluation {
   @Column({ nullable: true })
   errorMessage: string;
 
-  // Result - links to the evaluation created after execution
+  // Result - links to the run created after execution
   @Column({ nullable: true })
-  resultEvaluationId: string;
+  resultRunId: string;
 
   @CreateDateColumn()
   createdAt: Date;

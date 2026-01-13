@@ -4,14 +4,9 @@ import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import {
-  ConfigurationForm,
-  EvaluationResults,
-  FlowExecutor,
   AccessTokensManager,
   QuestionSetsManager,
   FlowConfigsManager,
-  EvaluationsManager,
-  ScheduledEvaluationsManager,
   WebhooksManager,
   Dashboard,
   Homepage,
@@ -23,28 +18,13 @@ import {
   TestsPage,
   RunsPage,
   RunDetailPage,
+  ScheduledTestsPage,
 } from './components';
 import './app.css';
 
-function EvaluationPage() {
-  return (
-    <div className="evaluation-page">
-      <div className="main-content">
-        <div className="left-panel">
-          <ConfigurationForm />
-          <FlowExecutor />
-        </div>
-        <div className="right-panel">
-          <EvaluationResults />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'evaluations' | 'scheduled' | 'webhooks'
+    'tokens' | 'questions' | 'flows' | 'webhooks'
   >('tokens');
 
   return (
@@ -69,18 +49,6 @@ function SettingsPage() {
           Flow Configs
         </button>
         <button
-          className={activeTab === 'evaluations' ? 'active' : ''}
-          onClick={() => setActiveTab('evaluations')}
-        >
-          Evaluations
-        </button>
-        <button
-          className={activeTab === 'scheduled' ? 'active' : ''}
-          onClick={() => setActiveTab('scheduled')}
-        >
-          Scheduled
-        </button>
-        <button
           className={activeTab === 'webhooks' ? 'active' : ''}
           onClick={() => setActiveTab('webhooks')}
         >
@@ -92,8 +60,6 @@ function SettingsPage() {
         {activeTab === 'tokens' && <AccessTokensManager />}
         {activeTab === 'questions' && <QuestionSetsManager />}
         {activeTab === 'flows' && <FlowConfigsManager />}
-        {activeTab === 'evaluations' && <EvaluationsManager />}
-        {activeTab === 'scheduled' && <ScheduledEvaluationsManager />}
         {activeTab === 'webhooks' && <WebhooksManager />}
       </div>
     </div>
@@ -184,6 +150,12 @@ function AppContent() {
               Runs
             </Link>
             <Link
+              to="/scheduled"
+              className={location.pathname === '/scheduled' ? 'active' : ''}
+            >
+              Scheduled
+            </Link>
+            <Link
               to="/dashboard"
               className={
                 location.pathname.startsWith('/dashboard') ? 'active' : ''
@@ -236,10 +208,10 @@ function AppContent() {
               }
             />
             <Route
-              path="/evaluate"
+              path="/scheduled"
               element={
                 <ProtectedRoute>
-                  <EvaluationPage />
+                  <ScheduledTestsPage />
                 </ProtectedRoute>
               }
             />

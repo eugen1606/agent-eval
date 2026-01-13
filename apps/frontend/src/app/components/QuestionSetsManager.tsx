@@ -21,6 +21,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   });
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,10 +31,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   }, []);
 
   const loadQuestionSets = async () => {
+    setIsLoading(true);
     const response = await apiClient.getQuestionSets();
     if (response.success && response.data) {
       setQuestionSets(response.data);
     }
+    setIsLoading(false);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -232,7 +235,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       </Modal>
 
       <div className="manager-list">
-        {questionSets.length === 0 ? (
+        {isLoading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading question sets...</span>
+          </div>
+        ) : questionSets.length === 0 ? (
           <p className="empty-message">No question sets stored</p>
         ) : (
           questionSets.map((qs) => (

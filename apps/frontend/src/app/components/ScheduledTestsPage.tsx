@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  StoredScheduledEvaluation,
-  StoredAccessToken,
-  StoredQuestionSet,
-  StoredFlowConfig,
-  ScheduleType,
-} from '@agent-eval/shared';
+import { StoredScheduledTest, StoredTest, ScheduleType } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
+import { SearchableSelect } from './SearchableSelect';
 import { useNavigate } from 'react-router-dom';
 
 const apiClient = new AgentEvalClient();
@@ -26,27 +21,21 @@ const CRON_PRESETS = [
   { label: 'Custom', value: 'custom' },
 ];
 
-export function ScheduledEvaluationsManager() {
+export function ScheduledTestsPage() {
   const navigate = useNavigate();
-  const [scheduledEvaluations, setScheduledEvaluations] = useState<StoredScheduledEvaluation[]>([]);
-  const [accessTokens, setAccessTokens] = useState<StoredAccessToken[]>([]);
-  const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
-  const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
+  const [scheduledTests, setScheduledTests] = useState<StoredScheduledTest[]>([]);
+  const [tests, setTests] = useState<StoredTest[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    accessTokenId: '',
-    flowConfigId: '',
-    questionSetId: '',
+    testId: '',
     scheduleType: 'once' as ScheduleType,
     scheduledAt: '',
     cronPreset: '0 0 * * *',
     cronExpression: '',
-    multiStepEvaluation: false,
   });
   const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({
     open: false,
     id: null,
@@ -57,34 +46,24 @@ export function ScheduledEvaluationsManager() {
   }, []);
 
   const loadData = async () => {
-    const [scheduledRes, tokensRes, questionsRes, flowsRes] = await Promise.all([
-      apiClient.getScheduledEvaluations(),
-      apiClient.getAccessTokens(),
-      apiClient.getQuestionSets(),
-      apiClient.getFlowConfigs(),
+    setIsLoading(true);
+    const [scheduledRes, testsRes] = await Promise.all([
+      apiClient.getScheduledTests(),
+      apiClient.getTests({ limit: 100 }),
     ]);
 
     if (scheduledRes.success && scheduledRes.data) {
-      setScheduledEvaluations(scheduledRes.data);
+      setScheduledTests(scheduledRes.data);
     }
-    if (tokensRes.success && tokensRes.data) {
-      setAccessTokens(tokensRes.data);
+    if (testsRes.success && testsRes.data) {
+      setTests(testsRes.data.data);
     }
-    if (questionsRes.success && questionsRes.data) {
-      setQuestionSets(questionsRes.data);
-    }
-    if (flowsRes.success && flowsRes.data) {
-      setFlowConfigs(flowsRes.data);
-    }
+    setIsLoading(false);
   };
 
   const isFormValid = () => {
-    if (!formData.name || !formData.accessTokenId || !formData.flowConfigId || !formData.questionSetId) {
-      return false;
-    }
-    if (formData.scheduleType === 'once' && !formData.scheduledAt) {
-      return false;
-    }
+    if (!formData.testId) return false;
+    if (formData.scheduleType === 'once' && !formData.scheduledAt) return false;
     if (formData.scheduleType === 'cron') {
       const cron = formData.cronPreset === 'custom' ? formData.cronExpression : formData.cronPreset;
       if (!cron) return false;
@@ -103,22 +82,17 @@ export function ScheduledEvaluationsManager() {
       : undefined;
 
     const payload = {
-      name: formData.name,
-      description: formData.description || undefined,
-      accessTokenId: formData.accessTokenId,
-      flowConfigId: formData.flowConfigId,
-      questionSetId: formData.questionSetId,
+      testId: formData.testId,
       scheduleType: formData.scheduleType,
       scheduledAt: formData.scheduleType === 'once' ? formData.scheduledAt : undefined,
       cronExpression,
-      multiStepEvaluation: formData.multiStepEvaluation,
     };
 
     let response;
     if (editingId) {
-      response = await apiClient.updateScheduledEvaluation(editingId, payload);
+      response = await apiClient.updateScheduledTest(editingId, payload);
     } else {
-      response = await apiClient.createScheduledEvaluation(payload);
+      response = await apiClient.createScheduledTest(payload);
     }
 
     if (response.success) {
@@ -128,10 +102,9 @@ export function ScheduledEvaluationsManager() {
     setLoading(false);
   };
 
-  const handleEdit = (scheduled: StoredScheduledEvaluation) => {
+  const handleEdit = (scheduled: StoredScheduledTest) => {
     setEditingId(scheduled.id);
 
-    // Determine cron preset
     let cronPreset = '0 0 * * *';
     if (scheduled.cronExpression) {
       const found = CRON_PRESETS.find(p => p.value === scheduled.cronExpression);
@@ -139,32 +112,22 @@ export function ScheduledEvaluationsManager() {
     }
 
     setFormData({
-      name: scheduled.name,
-      description: scheduled.description || '',
-      accessTokenId: scheduled.accessTokenId,
-      flowConfigId: scheduled.flowConfigId,
-      questionSetId: scheduled.questionSetId,
+      testId: scheduled.testId,
       scheduleType: scheduled.scheduleType || 'once',
       scheduledAt: scheduled.scheduledAt ? scheduled.scheduledAt.slice(0, 16) : '',
       cronPreset,
       cronExpression: cronPreset === 'custom' ? (scheduled.cronExpression || '') : '',
-      multiStepEvaluation: scheduled.multiStepEvaluation,
     });
     setShowForm(true);
   };
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      description: '',
-      accessTokenId: '',
-      flowConfigId: '',
-      questionSetId: '',
+      testId: '',
       scheduleType: 'once',
       scheduledAt: '',
       cronPreset: '0 0 * * *',
       cronExpression: '',
-      multiStepEvaluation: false,
     });
     setShowForm(false);
     setEditingId(null);
@@ -172,37 +135,43 @@ export function ScheduledEvaluationsManager() {
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteScheduledEvaluation(deleteConfirm.id);
+    await apiClient.deleteScheduledTest(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
     loadData();
   };
 
   const handleExecuteNow = async (id: string) => {
     setLoading(true);
-    const result = await apiClient.executeScheduledEvaluationNow(id);
+    const result = await apiClient.executeScheduledTestNow(id);
     if (result.success) {
       setTimeout(() => loadData(), 1000);
     }
     setLoading(false);
   };
 
-  const handleViewResult = (evaluationId: string) => {
-    navigate(`/dashboard?id=${evaluationId}`);
+  const handleViewResult = (runId: string) => {
+    navigate(`/runs/${runId}`);
   };
 
   const getStatusBadge = (status: string) => {
     const statusClasses: Record<string, string> = {
-      pending: 'status-pending',
-      running: 'status-running',
-      completed: 'status-completed',
-      failed: 'status-failed',
+      pending: 'badge-pending',
+      running: 'badge-running',
+      completed: 'badge-completed',
+      failed: 'badge-failed',
     };
     return <span className={`status-badge ${statusClasses[status] || ''}`}>{status}</span>;
   };
 
-  const getTokenName = (id: string) => accessTokens.find(t => t.id === id)?.name || 'Unknown';
-  const getQuestionSetName = (id: string) => questionSets.find(q => q.id === id)?.name || 'Unknown';
-  const getFlowConfigName = (id: string) => flowConfigs.find(f => f.id === id)?.name || 'Unknown';
+  const getTestName = (testId: string) => {
+    const test = tests.find(t => t.id === testId);
+    return test ? test.name : 'Unknown';
+  };
+
+  const getTestDetails = (testId: string) => {
+    const test = tests.find(t => t.id === testId);
+    return test ? `${test.flowId}` : '';
+  };
 
   const openNewForm = () => {
     const now = new Date();
@@ -216,10 +185,10 @@ export function ScheduledEvaluationsManager() {
     setShowForm(true);
   };
 
-  const getScheduleDisplay = (scheduled: StoredScheduledEvaluation) => {
+  const getScheduleDisplay = (scheduled: StoredScheduledTest) => {
     if (scheduled.scheduleType === 'cron' && scheduled.cronExpression) {
       const preset = CRON_PRESETS.find(p => p.value === scheduled.cronExpression);
-      return `Cron: ${preset ? preset.label : scheduled.cronExpression}`;
+      return `Recurring: ${preset ? preset.label : scheduled.cronExpression}`;
     }
     if (scheduled.scheduledAt) {
       return `Once: ${new Date(scheduled.scheduledAt).toLocaleString()}`;
@@ -228,17 +197,19 @@ export function ScheduledEvaluationsManager() {
   };
 
   return (
-    <div className="manager-section">
-      <div className="manager-header">
-        <h3>Scheduled Evaluations</h3>
-        <button onClick={openNewForm}>+ Schedule Evaluation</button>
+    <div className="scheduled-tests-page">
+      <div className="page-header">
+        <h2>Scheduled Tests</h2>
+        <button onClick={openNewForm} className="primary-btn">
+          + Schedule Test
+        </button>
       </div>
 
       <Modal
         isOpen={showForm}
         onClose={resetForm}
         onSubmit={handleSubmit}
-        title={editingId ? 'Edit Scheduled Evaluation' : 'Schedule New Evaluation'}
+        title={editingId ? 'Edit Scheduled Test' : 'Schedule New Test'}
         footer={
           <>
             <button className="modal-btn cancel" onClick={resetForm}>
@@ -256,58 +227,18 @@ export function ScheduledEvaluationsManager() {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Name</label>
-            <input
-              type="text"
-              placeholder="Enter evaluation name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            <label>Test</label>
+            <SearchableSelect
+              value={formData.testId}
+              onChange={(value) => setFormData({ ...formData, testId: value })}
+              options={tests.map((test) => ({
+                value: test.id,
+                label: test.name,
+                sublabel: test.flowId,
+              }))}
+              placeholder="Search tests..."
+              allOptionLabel="Select a test..."
             />
-          </div>
-
-          <div className="form-group">
-            <label>Access Token</label>
-            <select
-              value={formData.accessTokenId}
-              onChange={(e) => setFormData({ ...formData, accessTokenId: e.target.value })}
-            >
-              <option value="">Select access token...</option>
-              {accessTokens.map((token) => (
-                <option key={token.id} value={token.id}>
-                  {token.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Flow Configuration</label>
-            <select
-              value={formData.flowConfigId}
-              onChange={(e) => setFormData({ ...formData, flowConfigId: e.target.value })}
-            >
-              <option value="">Select flow config...</option>
-              {flowConfigs.map((config) => (
-                <option key={config.id} value={config.id}>
-                  {config.name} ({config.flowId})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Question Set</label>
-            <select
-              value={formData.questionSetId}
-              onChange={(e) => setFormData({ ...formData, questionSetId: e.target.value })}
-            >
-              <option value="">Select question set...</option>
-              {questionSets.map((qs) => (
-                <option key={qs.id} value={qs.id}>
-                  {qs.name} ({qs.questions.length} questions)
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="form-group">
@@ -325,7 +256,7 @@ export function ScheduledEvaluationsManager() {
                 className={formData.scheduleType === 'cron' ? 'active' : ''}
                 onClick={() => setFormData({ ...formData, scheduleType: 'cron' })}
               >
-                Recurring (Cron)
+                Recurring
               </button>
             </div>
           </div>
@@ -370,80 +301,67 @@ export function ScheduledEvaluationsManager() {
               )}
             </>
           )}
-
-          <div className="form-group checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={formData.multiStepEvaluation}
-                onChange={(e) => setFormData({ ...formData, multiStepEvaluation: e.target.checked })}
-              />
-              Multi-step Evaluation
-            </label>
-            <span className="checkbox-hint">Use same session for all questions</span>
-          </div>
-
-          <div className="form-group">
-            <label>Description (optional)</label>
-            <input
-              type="text"
-              placeholder="Enter description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
         </form>
       </Modal>
 
-      <div className="manager-list">
-        {scheduledEvaluations.length === 0 ? (
-          <p className="empty-message">No scheduled evaluations</p>
+      <div className="scheduled-list">
+        {isLoading ? (
+          <div className="loading-container">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading scheduled tests...</span>
+          </div>
+        ) : scheduledTests.length === 0 ? (
+          <div className="empty-state">
+            <p>No scheduled tests</p>
+            <p className="empty-hint">Schedule a test to run automatically at a specific time</p>
+          </div>
         ) : (
-          scheduledEvaluations.map((scheduled) => (
-            <div key={scheduled.id} className="manager-item scheduled-item">
-              <div className="item-info">
-                <div className="item-header">
-                  <strong>{scheduled.name}</strong>
+          scheduledTests.map((scheduled) => (
+            <div key={scheduled.id} className="scheduled-card">
+              <div className="scheduled-header">
+                <div className="scheduled-info">
+                  <h3>{getTestName(scheduled.testId)}</h3>
+                  <span className="scheduled-flow">{getTestDetails(scheduled.testId)}</span>
+                </div>
+                <div className="scheduled-badges">
                   {getStatusBadge(scheduled.status)}
                   {scheduled.scheduleType === 'cron' && (
                     <span className="cron-badge">Recurring</span>
                   )}
                 </div>
-                <div className="item-details">
-                  <span>Token: {getTokenName(scheduled.accessTokenId)}</span>
-                  <span>Flow: {getFlowConfigName(scheduled.flowConfigId)}</span>
-                  <span>Questions: {getQuestionSetName(scheduled.questionSetId)}</span>
+              </div>
+              <div className="scheduled-details">
+                <div className="detail-row">
+                  <span className="detail-label">Schedule:</span>
+                  <span className="detail-value">{getScheduleDisplay(scheduled)}</span>
                 </div>
-                <div className="item-meta">
-                  <span>{getScheduleDisplay(scheduled)}</span>
-                  {scheduled.lastRunAt && (
-                    <span>Last run: {new Date(scheduled.lastRunAt).toLocaleString()}</span>
-                  )}
-                  {scheduled.multiStepEvaluation && (
-                    <span className="multi-step-badge">Multi-step</span>
-                  )}
-                </div>
-                {scheduled.errorMessage && (
-                  <div className="item-error">Error: {scheduled.errorMessage}</div>
+                {scheduled.lastRunAt && (
+                  <div className="detail-row">
+                    <span className="detail-label">Last run:</span>
+                    <span className="detail-value">{new Date(scheduled.lastRunAt).toLocaleString()}</span>
+                  </div>
                 )}
-                {scheduled.description && (
-                  <span className="item-desc">{scheduled.description}</span>
+                {scheduled.errorMessage && (
+                  <div className="detail-row error">
+                    <span className="detail-label">Error:</span>
+                    <span className="detail-value">{scheduled.errorMessage}</span>
+                  </div>
                 )}
               </div>
-              <div className="item-actions">
+              <div className="scheduled-actions">
                 {(scheduled.status === 'pending' || scheduled.scheduleType === 'cron') && (
                   <button
                     onClick={() => handleExecuteNow(scheduled.id)}
-                    className="execute-now-btn"
+                    className="run-now-btn"
                     disabled={loading || scheduled.status === 'running'}
                   >
                     Run Now
                   </button>
                 )}
-                {scheduled.status === 'completed' && scheduled.resultEvaluationId && (
+                {scheduled.status === 'completed' && scheduled.resultRunId && (
                   <button
-                    onClick={() => handleViewResult(scheduled.resultEvaluationId!)}
-                    className="view-result-btn"
+                    onClick={() => handleViewResult(scheduled.resultRunId!)}
+                    className="view-btn"
                   >
                     View Result
                   </button>
@@ -467,8 +385,8 @@ export function ScheduledEvaluationsManager() {
         isOpen={deleteConfirm.open}
         onClose={() => setDeleteConfirm({ open: false, id: null })}
         onConfirm={handleDelete}
-        title="Delete Scheduled Evaluation"
-        message="Are you sure you want to delete this scheduled evaluation? This action cannot be undone."
+        title="Delete Scheduled Test"
+        message="Are you sure you want to delete this scheduled test? This action cannot be undone."
         confirmText="Delete"
         variant="danger"
       />

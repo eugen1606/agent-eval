@@ -12,6 +12,7 @@ export interface UpdateRunDto {
   status?: RunStatus;
   errorMessage?: string;
   completedQuestions?: number;
+  startedAt?: Date;
   completedAt?: Date;
 }
 
@@ -22,6 +23,24 @@ export interface UpdateResultEvaluationDto {
   severity?: 'critical' | 'major' | 'minor';
   llmJudgeScore?: number;
   llmJudgeReasoning?: string;
+}
+
+export interface RunsFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: RunStatus;
+  testId?: string;
+}
+
+export interface PaginatedRuns {
+  data: Run[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 @Injectable()
@@ -42,16 +61,52 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
-  async findAll(userId: string, testId?: string): Promise<Run[]> {
-    const where: { userId: string; testId?: string } = { userId };
-    if (testId) {
-      where.testId = testId;
+  async findAll(userId: string, filters: RunsFilterDto = {}): Promise<PaginatedRuns> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.runRepository
+      .createQueryBuilder('run')
+      .leftJoinAndSelect('run.test', 'test')
+      .where('run.userId = :userId', { userId });
+
+    // Apply testId filter
+    if (filters.testId) {
+      queryBuilder.andWhere('run.testId = :testId', { testId: filters.testId });
     }
-    return this.runRepository.find({
-      where,
-      relations: ['test'],
-      order: { createdAt: 'DESC' },
-    });
+
+    // Apply status filter
+    if (filters.status) {
+      queryBuilder.andWhere('run.status = :status', { status: filters.status });
+    }
+
+    // Apply search filter (search by test name)
+    if (filters.search) {
+      queryBuilder.andWhere('test.name ILIKE :search', {
+        search: `%${filters.search}%`,
+      });
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination and ordering
+    const data = await queryBuilder
+      .orderBy('run.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Run> {
@@ -94,6 +149,17 @@ export class RunsService {
     const run = await this.findOne(id, userId);
     run.status = 'failed';
     run.errorMessage = errorMessage;
+    run.completedAt = new Date();
+    return this.runRepository.save(run);
+  }
+
+  async cancel(id: string, userId: string): Promise<Run> {
+    const run = await this.findOne(id, userId);
+    if (run.status !== 'running' && run.status !== 'pending') {
+      return run;
+    }
+    run.status = 'canceled';
+    run.errorMessage = 'Canceled by user';
     run.completedAt = new Date();
     return this.runRepository.save(run);
   }
@@ -150,13 +216,6 @@ export class RunsService {
     }
 
     return this.runRepository.save(run);
-  }
-
-  async delete(id: string, userId: string): Promise<void> {
-    const result = await this.runRepository.delete({ id, userId });
-    if (result.affected === 0) {
-      throw new NotFoundException(`Run not found: ${id}`);
-    }
   }
 
   async getStats(id: string, userId: string): Promise<{

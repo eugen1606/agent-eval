@@ -6,13 +6,14 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Sse,
   MessageEvent,
   BadRequestException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { TestsService, CreateTestDto } from './tests.service';
+import { TestsService, CreateTestDto, PaginatedTests } from './tests.service';
 import { Test } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -41,9 +42,22 @@ export class TestsController {
 
   @Get()
   async findAll(
-    @CurrentUser() user: { userId: string; email: string },
-  ): Promise<Test[]> {
-    return this.testsService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('questionSetId') questionSetId?: string,
+    @Query('multiStep') multiStep?: string,
+    @Query('flowId') flowId?: string,
+    @CurrentUser() user?: { userId: string; email: string },
+  ): Promise<PaginatedTests> {
+    return this.testsService.findAll(user!.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      questionSetId,
+      multiStep: multiStep !== undefined ? multiStep === 'true' : undefined,
+      flowId,
+    });
   }
 
   @Get(':id')
@@ -129,12 +143,33 @@ export class TestsController {
             questions,
             user.userId,
           )) {
+            // Check if run was canceled before adding result
+            const currentRun = await this.runsService.findOne(run.id, user.userId);
+            if (currentRun.status === 'canceled') {
+              // Run was canceled, stop processing
+              subscriber.next({
+                data: JSON.stringify({ type: 'canceled', runId: run.id }),
+              });
+              subscriber.complete();
+              return;
+            }
+
             // Add result to the run
             await this.runsService.addResult(run.id, result, user.userId);
 
             subscriber.next({
               data: JSON.stringify({ type: 'result', result }),
             });
+          }
+
+          // Check if run was canceled before completing
+          const finalRun = await this.runsService.findOne(run.id, user.userId);
+          if (finalRun.status === 'canceled') {
+            subscriber.next({
+              data: JSON.stringify({ type: 'canceled', runId: run.id }),
+            });
+            subscriber.complete();
+            return;
           }
 
           // Complete the run

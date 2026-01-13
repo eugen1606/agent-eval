@@ -206,39 +206,30 @@ export interface AccountStats {
   };
 }
 
-// Scheduled Evaluation Types
-export type ScheduledEvaluationStatus = 'pending' | 'running' | 'completed' | 'failed';
+// Scheduled Test Types
+export type ScheduledTestStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ScheduleType = 'once' | 'cron';
 
-export interface StoredScheduledEvaluation {
+export interface StoredScheduledTest {
   id: string;
-  name: string;
-  description?: string;
-  accessTokenId: string;
-  flowConfigId: string;
-  questionSetId: string;
+  testId: string;
+  test?: StoredTest;
   scheduleType: ScheduleType;
   scheduledAt?: string;
   cronExpression?: string;
-  multiStepEvaluation: boolean;
-  status: ScheduledEvaluationStatus;
+  status: ScheduledTestStatus;
   lastRunAt?: string;
   errorMessage?: string;
-  resultEvaluationId?: string;
+  resultRunId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateScheduledEvaluationRequest {
-  name: string;
-  description?: string;
-  accessTokenId: string;
-  flowConfigId: string;
-  questionSetId: string;
-  scheduleType?: ScheduleType;
+export interface CreateScheduledTestRequest {
+  testId: string;
+  scheduleType: ScheduleType;
   scheduledAt?: string;
   cronExpression?: string;
-  multiStepEvaluation?: boolean;
 }
 
 // Webhook Types
@@ -290,7 +281,7 @@ export interface CreateTestRequest {
 }
 
 // Run Types (new model - replaces Evaluation for new workflow)
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type RunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
 
 export interface RunResult {
   id: string;
@@ -351,4 +342,35 @@ export interface RunStats {
   incorrect: number;
   errors: number;
   accuracy: number | null;
+}
+
+// Pagination Types
+export interface PaginationParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// Tests Filter Params
+export interface TestsFilterParams extends PaginationParams {
+  search?: string;
+  questionSetId?: string;
+  multiStep?: boolean;
+  flowId?: string;
+}
+
+// Runs Filter Params
+export interface RunsFilterParams extends PaginationParams {
+  search?: string;
+  status?: RunStatus;
+  testId?: string;
 }
