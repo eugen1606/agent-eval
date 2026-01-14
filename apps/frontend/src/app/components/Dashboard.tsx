@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useNavigate } from 'react-router-dom';
+
+type SortColumn = 'date' | 'accuracy' | 'correct' | 'partial' | 'incorrect' | 'errors' | 'total';
+type SortDirection = 'asc' | 'desc';
 
 const apiClient = new AgentEvalClient();
 
@@ -156,6 +159,12 @@ export function Dashboard() {
   const [selectedTestId, setSelectedTestId] = useState<string>('');
   const [testRuns, setTestRuns] = useState<TestRunData[]>([]);
 
+  // Pagination and sorting state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortColumn, setSortColumn] = useState<SortColumn>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   useEffect(() => {
     loadTests();
     loadRuns();
@@ -256,6 +265,62 @@ export function Dashboard() {
       : 0,
   } : null;
 
+  // Reset pagination when test changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTestId]);
+
+  // Sort and paginate runs
+  const sortedAndPaginatedRuns = useMemo(() => {
+    const sorted = [...testRuns].sort((a, b) => {
+      let comparison = 0;
+      switch (sortColumn) {
+        case 'date':
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'accuracy':
+          comparison = a.accuracy - b.accuracy;
+          break;
+        case 'correct':
+          comparison = a.correct - b.correct;
+          break;
+        case 'partial':
+          comparison = a.partial - b.partial;
+          break;
+        case 'incorrect':
+          comparison = a.incorrect - b.incorrect;
+          break;
+        case 'errors':
+          comparison = a.errors - b.errors;
+          break;
+        case 'total':
+          comparison = a.total - b.total;
+          break;
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    const startIndex = (currentPage - 1) * pageSize;
+    return sorted.slice(startIndex, startIndex + pageSize);
+  }, [testRuns, sortColumn, sortDirection, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(testRuns.length / pageSize);
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIndicator = (column: SortColumn) => {
+    if (sortColumn !== column) return null;
+    return sortDirection === 'asc' ? ' \u25B2' : ' \u25BC';
+  };
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
@@ -330,46 +395,110 @@ export function Dashboard() {
 
           {/* Runs table */}
           <div className="analytics-table">
-            <h3>Run History</h3>
+            <div className="table-header">
+              <h3>Run History</h3>
+              <div className="page-size-selector">
+                <label>Show:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Accuracy</th>
-                  <th>Correct</th>
-                  <th>Partial</th>
-                  <th>Incorrect</th>
-                  <th>Errors</th>
-                  <th>Total</th>
+                  <th className="sortable" onClick={() => handleSort('date')}>
+                    Date{getSortIndicator('date')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('accuracy')}>
+                    Accuracy{getSortIndicator('accuracy')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('correct')}>
+                    Correct{getSortIndicator('correct')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('partial')}>
+                    Partial{getSortIndicator('partial')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('incorrect')}>
+                    Incorrect{getSortIndicator('incorrect')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('errors')}>
+                    Errors{getSortIndicator('errors')}
+                  </th>
+                  <th className="sortable" onClick={() => handleSort('total')}>
+                    Total{getSortIndicator('total')}
+                  </th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {[...testRuns]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((run) => (
-                    <tr key={run.id}>
-                      <td>{new Date(run.date).toLocaleString()}</td>
-                      <td className={run.accuracy >= 80 ? 'good' : run.accuracy >= 50 ? 'medium' : 'bad'}>
-                        {run.accuracy.toFixed(1)}%
-                      </td>
-                      <td className="correct">{run.correct}</td>
-                      <td className="partial">{run.partial}</td>
-                      <td className="incorrect">{run.incorrect}</td>
-                      <td className="errors">{run.errors}</td>
-                      <td>{run.total}</td>
-                      <td>
-                        <button
-                          className="view-btn"
-                          onClick={() => navigate(`/runs/${run.id}`)}
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                {sortedAndPaginatedRuns.map((run) => (
+                  <tr key={run.id}>
+                    <td>{new Date(run.date).toLocaleString()}</td>
+                    <td className={run.accuracy >= 80 ? 'good' : run.accuracy >= 50 ? 'medium' : 'bad'}>
+                      {run.accuracy.toFixed(1)}%
+                    </td>
+                    <td className="correct">{run.correct}</td>
+                    <td className="partial">{run.partial}</td>
+                    <td className="incorrect">{run.incorrect}</td>
+                    <td className="errors">{run.errors}</td>
+                    <td>{run.total}</td>
+                    <td>
+                      <button
+                        className="view-btn"
+                        onClick={() => navigate(`/runs/${run.id}`)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  Previous
+                </button>
+                <span className="pagination-info">
+                  Page {currentPage} of {totalPages} ({testRuns.length} runs)
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  Last
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -10,7 +10,6 @@ import { FlowModule } from '../flow/flow.module';
 import { EvaluationModule } from '../evaluation/evaluation.module';
 import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 import { QuestionsModule } from '../questions/questions.module';
-import { EvaluationsModule } from '../evaluations/evaluations.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 import { ScheduledTestsModule } from '../scheduled-tests/scheduled-tests.module';
 import { HealthModule } from '../health/health.module';
@@ -29,7 +28,6 @@ import { RunsModule } from '../runs/runs.module';
     EvaluationModule,
     AccessTokensModule,
     QuestionsModule,
-    EvaluationsModule,
     FlowConfigsModule,
     ScheduledTestsModule,
     HealthModule,

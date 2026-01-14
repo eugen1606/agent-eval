@@ -180,7 +180,7 @@ describe('Auth Endpoints', () => {
       const data = await response.json();
       expect(data.user).toBeDefined();
       expect(data.stats).toBeDefined();
-      expect(data.stats.evaluationsCount).toBeGreaterThanOrEqual(0);
+      expect(data.stats.runsCount).toBeGreaterThanOrEqual(0);
       expect(data.stats.questionSetsCount).toBeGreaterThanOrEqual(0);
       expect(data.stats.flowConfigsCount).toBeGreaterThanOrEqual(0);
       expect(data.stats.accessTokensCount).toBeGreaterThanOrEqual(0);

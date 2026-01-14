@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import {
@@ -126,9 +125,8 @@ function AppContent() {
   }
 
   return (
-    <AppProvider>
-      <div className="app">
-        <header className="app-header">
+    <div className="app">
+      <header className="app-header">
           <Link to="/" className="logo-link">
             <h1>
               <span className="logo-bench">Bench</span>
@@ -242,7 +240,6 @@ function AppContent() {
           </Routes>
         </main>
       </div>
-    </AppProvider>
   );
 }
 

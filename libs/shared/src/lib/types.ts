@@ -13,47 +13,11 @@ export interface QuestionInput {
   expectedAnswer?: string;
 }
 
-// Evaluation Types
+// Human Evaluation Types
 export type HumanEvaluationStatus = 'correct' | 'incorrect' | 'partial';
 export type IncorrectSeverity = 'critical' | 'major' | 'minor';
 
-export interface EvaluationResult {
-  id: string;
-  question: string;
-  answer: string;
-  expectedAnswer?: string;
-  executionId?: string;
-  isCorrect?: boolean;
-  llmJudgeScore?: number;
-  llmJudgeReasoning?: string;
-  humanEvaluation?: HumanEvaluationStatus;
-  humanEvaluationDescription?: string;
-  severity?: IncorrectSeverity;
-  isError?: boolean;
-  errorMessage?: string;
-  timestamp: string;
-}
-
-export interface EvaluationSession {
-  id: string;
-  flowName: string;
-  flowConfig: FlowConfig;
-  results: EvaluationResult[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-// API Request/Response Types
-export interface ExecuteFlowRequest {
-  config: FlowConfig;
-  questions: QuestionInput[];
-}
-
-export interface ExecuteFlowResponse {
-  sessionId: string;
-  results: EvaluationResult[];
-}
-
+// LLM Judge Types
 export interface LLMJudgeRequest {
   question: string;
   answer: string;
@@ -66,14 +30,10 @@ export interface LLMJudgeResponse {
   isCorrect: boolean;
 }
 
-// Database/Storage Types
-export interface SaveSessionRequest {
-  flowName: string;
-  session: EvaluationSession;
-}
-
-export interface ExportFormat {
-  type: 'json' | 'csv';
+// Flow Execution Types
+export interface ExecuteFlowRequest {
+  config: FlowConfig;
+  questions: QuestionInput[];
 }
 
 // API Response wrapper
@@ -130,27 +90,6 @@ export interface CreateFlowConfigRequest {
   description?: string;
 }
 
-export interface StoredEvaluation {
-  id: string;
-  name: string;
-  finalOutput: Record<string, unknown>;
-  flowExport?: Record<string, unknown>;
-  flowId?: string;
-  questionSetId?: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateEvaluationRequest {
-  name: string;
-  finalOutput: Record<string, unknown>;
-  flowExport?: Record<string, unknown>;
-  flowId?: string;
-  questionSetId?: string;
-  description?: string;
-}
-
 // Auth Types
 export interface User {
   id: string;
@@ -199,7 +138,7 @@ export interface AccountStats {
     createdAt: string;
   };
   stats: {
-    evaluationsCount: number;
+    runsCount: number;
     questionSetsCount: number;
     flowConfigsCount: number;
     accessTokensCount: number;
@@ -212,6 +151,7 @@ export type ScheduleType = 'once' | 'cron';
 
 export interface StoredScheduledTest {
   id: string;
+  name: string;
   testId: string;
   test?: StoredTest;
   scheduleType: ScheduleType;
@@ -226,6 +166,7 @@ export interface StoredScheduledTest {
 }
 
 export interface CreateScheduledTestRequest {
+  name: string;
   testId: string;
   scheduleType: ScheduleType;
   scheduledAt?: string;
@@ -373,4 +314,11 @@ export interface RunsFilterParams extends PaginationParams {
   search?: string;
   status?: RunStatus;
   testId?: string;
+}
+
+// Scheduled Tests Filter Params
+export interface ScheduledTestsFilterParams extends PaginationParams {
+  search?: string;
+  testId?: string;
+  status?: ScheduledTestStatus;
 }

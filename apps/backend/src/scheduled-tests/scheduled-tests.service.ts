@@ -1,20 +1,46 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, In } from 'typeorm';
-import { ScheduledTest, ScheduleType } from '../database/entities/scheduled-test.entity';
+import {
+  ScheduledTest,
+  ScheduleType,
+  ScheduledTestStatus,
+} from '../database/entities/scheduled-test.entity';
 import { Test } from '../database/entities/test.entity';
 import { TestsService } from '../tests/tests.service';
 import { RunsService } from '../runs/runs.service';
 import { FlowService } from '../flow/flow.service';
 import { QuestionsService } from '../questions/questions.service';
-import { FlowConfig as SharedFlowConfig, QuestionInput } from '@agent-eval/shared';
+import {
+  FlowConfig as SharedFlowConfig,
+  QuestionInput,
+} from '@agent-eval/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface CreateScheduledTestDto {
+  name: string;
   testId: string;
   scheduleType: ScheduleType;
   scheduledAt?: string;
   cronExpression?: string;
+}
+
+export interface ScheduledTestsFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  testId?: string;
+  status?: ScheduledTestStatus;
+}
+
+export interface PaginatedScheduledTests {
+  data: ScheduledTest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 @Injectable()
@@ -32,11 +58,15 @@ export class ScheduledTestsService {
     private questionsService: QuestionsService,
   ) {}
 
-  async create(dto: CreateScheduledTestDto, userId: string): Promise<ScheduledTest> {
+  async create(
+    dto: CreateScheduledTestDto,
+    userId: string,
+  ): Promise<ScheduledTest> {
     // Verify the test exists and belongs to the user
     await this.testsService.findOne(dto.testId, userId);
 
     const scheduledTest = this.scheduledTestRepository.create({
+      name: dto.name,
       testId: dto.testId,
       scheduleType: dto.scheduleType,
       scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
@@ -47,12 +77,60 @@ export class ScheduledTestsService {
     return this.scheduledTestRepository.save(scheduledTest);
   }
 
-  async findAll(userId: string): Promise<ScheduledTest[]> {
-    return this.scheduledTestRepository.find({
-      where: { userId },
-      relations: ['test'],
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(
+    userId: string,
+    filters: ScheduledTestsFilterDto = {},
+  ): Promise<PaginatedScheduledTests> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.scheduledTestRepository
+      .createQueryBuilder('scheduled')
+      .leftJoinAndSelect('scheduled.test', 'test')
+      .where('scheduled.userId = :userId', { userId });
+
+    // Apply testId filter
+    if (filters.testId) {
+      queryBuilder.andWhere('scheduled.testId = :testId', {
+        testId: filters.testId,
+      });
+    }
+
+    // Apply status filter
+    if (filters.status) {
+      queryBuilder.andWhere('scheduled.status = :status', {
+        status: filters.status,
+      });
+    }
+
+    // Apply search filter (search by scheduled test name or test name)
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(scheduled.name ILIKE :search OR test.name ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination and ordering
+    const data = await queryBuilder
+      .orderBy('scheduled.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<ScheduledTest> {
@@ -69,17 +147,20 @@ export class ScheduledTestsService {
   async update(
     id: string,
     dto: Partial<CreateScheduledTestDto>,
-    userId: string
+    userId: string,
   ): Promise<ScheduledTest> {
     const scheduled = await this.findOne(id, userId);
 
+    if (dto.name !== undefined) scheduled.name = dto.name;
     if (dto.testId) {
       await this.testsService.findOne(dto.testId, userId);
       scheduled.testId = dto.testId;
     }
     if (dto.scheduleType) scheduled.scheduleType = dto.scheduleType;
     if (dto.scheduledAt !== undefined) {
-      scheduled.scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
+      scheduled.scheduledAt = dto.scheduledAt
+        ? new Date(dto.scheduledAt)
+        : null;
     }
     if (dto.cronExpression !== undefined) {
       scheduled.cronExpression = dto.cronExpression;
@@ -120,47 +201,157 @@ export class ScheduledTestsService {
     });
   }
 
-  private shouldCronRun(cronExpression: string, lastRunAt: Date | null): boolean {
+  /**
+   * Check if a cron field matches the current value
+   * Supports: *, specific number, interval
+   */
+  private cronFieldMatches(
+    field: string,
+    currentValue: number,
+    maxValue: number,
+  ): boolean {
+    if (field === '*') return true;
+
+    // Handle */interval
+    if (field.startsWith('*/')) {
+      const interval = parseInt(field.slice(2), 10);
+      if (isNaN(interval) || interval <= 0) return false;
+      return currentValue % interval === 0;
+    }
+
+    // Handle specific number
+    const num = parseInt(field, 10);
+    if (!isNaN(num)) {
+      return currentValue === num;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if the current time matches the cron expression
+   */
+  private cronMatchesNow(cronExpression: string): boolean {
     const now = new Date();
+    const parts = cronExpression.trim().split(/\s+/);
 
-    if (!lastRunAt) return true;
+    if (parts.length < 5) return false;
 
-    const timeSinceLastRun = now.getTime() - lastRunAt.getTime();
+    const [
+      minuteField,
+      hourField,
+      dayOfMonthField,
+      monthField,
+      dayOfWeekField,
+    ] = parts;
+
+    const currentMinute = now.getMinutes();
+    const currentHour = now.getHours();
+    const currentDayOfMonth = now.getDate();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDayOfWeek = now.getDay(); // 0-6, Sunday = 0
+
+    return (
+      this.cronFieldMatches(minuteField, currentMinute, 59) &&
+      this.cronFieldMatches(hourField, currentHour, 23) &&
+      this.cronFieldMatches(dayOfMonthField, currentDayOfMonth, 31) &&
+      this.cronFieldMatches(monthField, currentMonth, 12) &&
+      this.cronFieldMatches(dayOfWeekField, currentDayOfWeek, 6)
+    );
+  }
+
+  /**
+   * Get the minimum interval in milliseconds for a cron expression
+   */
+  private getCronIntervalMs(cronExpression: string): number {
     const oneMinute = 60 * 1000;
     const oneHour = 60 * oneMinute;
     const oneDay = 24 * oneHour;
 
     const parts = cronExpression.trim().split(/\s+/);
 
-    if (cronExpression === '* * * * *') {
-      return timeSinceLastRun >= oneMinute;
-    }
-    if (cronExpression === '0 * * * *' || cronExpression === '@hourly') {
-      return timeSinceLastRun >= oneHour;
-    }
-    if (cronExpression === '0 0 * * *' || cronExpression === '@daily') {
-      return timeSinceLastRun >= oneDay;
-    }
-    if (cronExpression === '0 0 * * 0' || cronExpression === '@weekly') {
-      return timeSinceLastRun >= 7 * oneDay;
-    }
+    // Handle special expressions
+    if (cronExpression === '* * * * *') return oneMinute;
+    if (cronExpression === '@hourly' || cronExpression === '0 * * * *')
+      return oneHour;
+    if (cronExpression === '@daily' || cronExpression === '0 0 * * *')
+      return oneDay;
+    if (cronExpression === '@weekly' || cronExpression === '0 0 * * 0')
+      return 7 * oneDay;
 
     if (parts.length >= 5) {
-      const minute = parts[0];
-      const hour = parts[1];
+      const [minuteField, hourField] = parts;
 
-      if (minute.startsWith('*/')) {
-        const interval = parseInt(minute.slice(2), 10);
-        return timeSinceLastRun >= interval * oneMinute;
+      // */N minutes
+      if (minuteField.startsWith('*/')) {
+        const interval = parseInt(minuteField.slice(2), 10);
+        if (!isNaN(interval) && interval > 0) return interval * oneMinute;
       }
 
-      if (minute === '0' && hour.startsWith('*/')) {
-        const interval = parseInt(hour.slice(2), 10);
-        return timeSinceLastRun >= interval * oneHour;
+      // 0 */N (every N hours)
+      if (minuteField === '0' && hourField.startsWith('*/')) {
+        const interval = parseInt(hourField.slice(2), 10);
+        if (!isNaN(interval) && interval > 0) return interval * oneHour;
+      }
+
+      // Specific minute each hour (e.g., "30 * * * *")
+      if (/^\d+$/.test(minuteField) && hourField === '*') {
+        return oneHour;
+      }
+
+      // Specific time each day (e.g., "0 9 * * *")
+      if (/^\d+$/.test(minuteField) && /^\d+$/.test(hourField)) {
+        return oneDay;
       }
     }
 
-    return timeSinceLastRun >= oneMinute;
+    // Default to 1 minute for unknown patterns
+    return oneMinute;
+  }
+
+  private shouldCronRun(
+    cronExpression: string,
+    lastRunAt: Date | null,
+    createdAt: Date,
+  ): boolean {
+    const now = new Date();
+    const intervalMs = this.getCronIntervalMs(cronExpression);
+
+    // For first run (lastRunAt is null), check if current time matches cron schedule
+    // AND if at least one interval has passed since creation
+    if (!lastRunAt) {
+      const timeSinceCreation = now.getTime() - createdAt.getTime();
+
+      // Don't run if created less than the interval ago - wait for next occurrence
+      // But also check if current time matches the cron pattern
+      if (timeSinceCreation < intervalMs) {
+        // Exception: if current time exactly matches the cron schedule, allow it
+        // but only if we're in a new minute window (not re-checking same minute)
+        if (this.cronMatchesNow(cronExpression)) {
+          // Check if we're at the start of a matching window (within first 59 seconds)
+          const secondsIntoMinute = now.getSeconds();
+          if (secondsIntoMinute < 59) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      // Enough time has passed, check if current time matches cron
+      return this.cronMatchesNow(cronExpression);
+    }
+
+    // For subsequent runs, check if enough time has passed AND current time matches
+    const timeSinceLastRun = now.getTime() - lastRunAt.getTime();
+
+    // Must have at least the interval time passed
+    if (timeSinceLastRun < intervalMs - 30000) {
+      // 30 second buffer for timing
+      return false;
+    }
+
+    // Check if current time matches the cron pattern
+    return this.cronMatchesNow(cronExpression);
   }
 
   async executeScheduledTest(id: string): Promise<void> {
@@ -187,13 +378,19 @@ export class ScheduledTestsService {
 
     try {
       // Get the question set
-      const questionSet = await this.questionsService.findOne(test.questionSetId, userId);
+      const questionSet = await this.questionsService.findOne(
+        test.questionSetId,
+        userId,
+      );
 
       // Create a run for this test
-      const run = await this.runsService.create({
-        testId: test.id,
-        totalQuestions: questionSet.questions.length,
-      }, userId);
+      const run = await this.runsService.create(
+        {
+          testId: test.id,
+          totalQuestions: questionSet.questions.length,
+        },
+        userId,
+      );
 
       // Build flow config for execution
       const config: SharedFlowConfig = {
@@ -205,42 +402,62 @@ export class ScheduledTestsService {
       };
 
       // Map questions
-      const questions: QuestionInput[] = questionSet.questions.map(q => ({
+      const questions: QuestionInput[] = questionSet.questions.map((q) => ({
         id: uuidv4(),
         question: q.question,
         expectedAnswer: q.expectedAnswer,
       }));
 
       // Update run to running
-      await this.runsService.update(run.id, {
-        status: 'running',
-        startedAt: new Date(),
-      }, userId);
+      await this.runsService.update(
+        run.id,
+        {
+          status: 'running',
+          startedAt: new Date(),
+        },
+        userId,
+      );
 
       // Execute the flow and collect results
       let completedCount = 0;
-      for await (const result of this.flowService.executeFlowStream(config, questions, userId)) {
+      for await (const result of this.flowService.executeFlowStream(
+        config,
+        questions,
+        userId,
+      )) {
         completedCount++;
-        await this.runsService.addResult(run.id, {
-          id: result.id || uuidv4(),
-          question: result.question,
-          answer: result.answer,
-          expectedAnswer: result.expectedAnswer,
-          isError: result.isError,
-          errorMessage: result.errorMessage,
-          timestamp: new Date().toISOString(),
-        }, userId);
+        await this.runsService.addResult(
+          run.id,
+          {
+            id: result.id || uuidv4(),
+            question: result.question,
+            answer: result.answer,
+            expectedAnswer: result.expectedAnswer,
+            isError: result.isError,
+            errorMessage: result.errorMessage,
+            timestamp: new Date().toISOString(),
+          },
+          userId,
+        );
 
-        await this.runsService.update(run.id, {
-          completedQuestions: completedCount,
-        }, userId);
+        await this.runsService.update(
+          run.id,
+          {
+            completedQuestions: completedCount,
+          },
+          userId,
+        );
       }
 
       // Mark run as completed
-      await this.runsService.update(run.id, {
-        status: 'completed',
-        completedAt: new Date(),
-      }, userId);
+      await this.runsService.update(
+        run.id,
+        {
+          status: 'completed',
+          completedAt: new Date(),
+        },
+        userId,
+      );
 
       // Update scheduled test with result
       scheduled.status = 'completed';
@@ -248,17 +465,27 @@ export class ScheduledTestsService {
       scheduled.errorMessage = null;
       await this.scheduledTestRepository.save(scheduled);
 
-      this.logger.log(`Scheduled test ${id} completed successfully, run: ${run.id}`);
+      this.logger.log(
+        `Scheduled test ${id} completed successfully, run: ${run.id}`,
+      );
     } catch (error) {
       scheduled.status = 'failed';
-      scheduled.errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      scheduled.errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       await this.scheduledTestRepository.save(scheduled);
 
-      this.logger.error(`Scheduled test ${id} failed: ${scheduled.errorMessage}`, error);
+      this.logger.error(
+        `Scheduled test ${id} failed: ${scheduled.errorMessage}`,
+        error,
+      );
     }
   }
 
-  async resetToPending(id: string, userId: string, newScheduledAt?: string): Promise<ScheduledTest> {
+  async resetToPending(
+    id: string,
+    userId: string,
+    newScheduledAt?: string,
+  ): Promise<ScheduledTest> {
     const scheduled = await this.findOne(id, userId);
 
     scheduled.status = 'pending';
@@ -273,8 +500,10 @@ export class ScheduledTestsService {
 
   async getCronJobsDue(): Promise<ScheduledTest[]> {
     const cronJobs = await this.findCronPending();
-    return cronJobs.filter(job =>
-      job.cronExpression && this.shouldCronRun(job.cronExpression, job.lastRunAt)
+    return cronJobs.filter(
+      (job) =>
+        job.cronExpression &&
+        this.shouldCronRun(job.cronExpression, job.lastRunAt, job.createdAt),
     );
   }
 }

@@ -6,10 +6,15 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { ScheduledTestsService, CreateScheduledTestDto } from './scheduled-tests.service';
-import { ScheduledTest } from '../database/entities/scheduled-test.entity';
+import {
+  ScheduledTestsService,
+  CreateScheduledTestDto,
+  PaginatedScheduledTests,
+} from './scheduled-tests.service';
+import { ScheduledTest, ScheduledTestStatus } from '../database/entities/scheduled-test.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -28,9 +33,20 @@ export class ScheduledTestsController {
 
   @Get()
   async findAll(
-    @CurrentUser() user: { userId: string; email: string }
-  ): Promise<ScheduledTest[]> {
-    return this.scheduledTestsService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('testId') testId?: string,
+    @Query('status') status?: ScheduledTestStatus,
+    @CurrentUser() user?: { userId: string; email: string }
+  ): Promise<PaginatedScheduledTests> {
+    return this.scheduledTestsService.findAll(user!.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      testId,
+      status,
+    });
   }
 
   @Get(':id')

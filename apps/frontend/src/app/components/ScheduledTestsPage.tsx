@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { StoredScheduledTest, StoredTest, ScheduleType } from '@agent-eval/shared';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StoredScheduledTest, StoredTest, ScheduleType, ScheduledTestStatus } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { SearchableSelect } from './SearchableSelect';
+import { Pagination } from './Pagination';
 import { useNavigate } from 'react-router-dom';
 
 const apiClient = new AgentEvalClient();
@@ -21,6 +22,14 @@ const CRON_PRESETS = [
   { label: 'Custom', value: 'custom' },
 ];
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'running', label: 'Running' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+];
+
 export function ScheduledTestsPage() {
   const navigate = useNavigate();
   const [scheduledTests, setScheduledTests] = useState<StoredScheduledTest[]>([]);
@@ -28,6 +37,7 @@ export function ScheduledTestsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    name: '',
     testId: '',
     scheduleType: 'once' as ScheduleType,
     scheduledAt: '',
@@ -41,27 +51,52 @@ export function ScheduledTestsPage() {
     id: null,
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTestId, setFilterTestId] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
-  const loadData = async () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     const [scheduledRes, testsRes] = await Promise.all([
-      apiClient.getScheduledTests(),
+      apiClient.getScheduledTests({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchQuery || undefined,
+        testId: filterTestId || undefined,
+        status: (filterStatus as ScheduledTestStatus) || undefined,
+      }),
       apiClient.getTests({ limit: 100 }),
     ]);
 
     if (scheduledRes.success && scheduledRes.data) {
-      setScheduledTests(scheduledRes.data);
+      setScheduledTests(scheduledRes.data.data);
+      setTotalPages(scheduledRes.data.pagination.totalPages);
+      setTotalItems(scheduledRes.data.pagination.total);
     }
     if (testsRes.success && testsRes.data) {
       setTests(testsRes.data.data);
     }
     setIsLoading(false);
-  };
+  }, [currentPage, itemsPerPage, searchQuery, filterTestId, filterStatus]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterTestId, filterStatus, itemsPerPage]);
 
   const isFormValid = () => {
+    if (!formData.name.trim()) return false;
     if (!formData.testId) return false;
     if (formData.scheduleType === 'once' && !formData.scheduledAt) return false;
     if (formData.scheduleType === 'cron') {
@@ -82,6 +117,7 @@ export function ScheduledTestsPage() {
       : undefined;
 
     const payload = {
+      name: formData.name.trim(),
       testId: formData.testId,
       scheduleType: formData.scheduleType,
       scheduledAt: formData.scheduleType === 'once' ? formData.scheduledAt : undefined,
@@ -112,6 +148,7 @@ export function ScheduledTestsPage() {
     }
 
     setFormData({
+      name: scheduled.name || '',
       testId: scheduled.testId,
       scheduleType: scheduled.scheduleType || 'once',
       scheduledAt: scheduled.scheduledAt ? scheduled.scheduledAt.slice(0, 16) : '',
@@ -123,6 +160,7 @@ export function ScheduledTestsPage() {
 
   const resetForm = () => {
     setFormData({
+      name: '',
       testId: '',
       scheduleType: 'once',
       scheduledAt: '',
@@ -179,6 +217,8 @@ export function ScheduledTestsPage() {
     const defaultTime = now.toISOString().slice(0, 16);
     setFormData({
       ...formData,
+      name: '',
+      testId: '',
       scheduledAt: defaultTime,
       scheduleType: 'once',
     });
@@ -196,6 +236,22 @@ export function ScheduledTestsPage() {
     return 'Not scheduled';
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterTestId('');
+    setFilterStatus('');
+  };
+
+  const hasActiveFilters = searchQuery || filterTestId || filterStatus;
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+  };
+
   return (
     <div className="scheduled-tests-page">
       <div className="page-header">
@@ -203,6 +259,49 @@ export function ScheduledTestsPage() {
         <button onClick={openNewForm} className="primary-btn">
           + Schedule Test
         </button>
+      </div>
+
+      <div className="filter-bar">
+        <div className="filter-group">
+          <input
+            type="text"
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="filter-input"
+          />
+        </div>
+        <div className="filter-group">
+          <SearchableSelect
+            value={filterTestId}
+            onChange={setFilterTestId}
+            options={tests.map((test) => ({
+              value: test.id,
+              label: test.name,
+              sublabel: test.flowId,
+            }))}
+            placeholder="Filter by test..."
+            allOptionLabel="All Tests"
+          />
+        </div>
+        <div className="filter-group">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="filter-select"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="filter-clear-btn">
+            Clear Filters
+          </button>
+        )}
       </div>
 
       <Modal
@@ -227,7 +326,18 @@ export function ScheduledTestsPage() {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Test</label>
+            <label>Name *</label>
+            <input
+              type="text"
+              placeholder="Give this scheduled test a name..."
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Test *</label>
             <SearchableSelect
               value={formData.testId}
               onChange={(value) => setFormData({ ...formData, testId: value })}
@@ -263,7 +373,7 @@ export function ScheduledTestsPage() {
 
           {formData.scheduleType === 'once' && (
             <div className="form-group">
-              <label>Scheduled Time</label>
+              <label>Scheduled Time *</label>
               <input
                 type="datetime-local"
                 value={formData.scheduledAt}
@@ -312,15 +422,20 @@ export function ScheduledTestsPage() {
           </div>
         ) : scheduledTests.length === 0 ? (
           <div className="empty-state">
-            <p>No scheduled tests</p>
-            <p className="empty-hint">Schedule a test to run automatically at a specific time</p>
+            <p>No scheduled tests{hasActiveFilters ? ' match your filters' : ''}</p>
+            <p className="empty-hint">
+              {hasActiveFilters
+                ? 'Try adjusting your filters or clear them'
+                : 'Schedule a test to run automatically at a specific time'}
+            </p>
           </div>
         ) : (
           scheduledTests.map((scheduled) => (
             <div key={scheduled.id} className="scheduled-card">
               <div className="scheduled-header">
                 <div className="scheduled-info">
-                  <h3>{getTestName(scheduled.testId)}</h3>
+                  <h3>{scheduled.name || 'Unnamed'}</h3>
+                  <span className="scheduled-test-name">Test: {getTestName(scheduled.testId)}</span>
                   <span className="scheduled-flow">{getTestDetails(scheduled.testId)}</span>
                 </div>
                 <div className="scheduled-badges">
@@ -380,6 +495,18 @@ export function ScheduledTestsPage() {
           ))
         )}
       </div>
+
+      {!isLoading && scheduledTests.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          itemName="scheduled tests"
+        />
+      )}
 
       <ConfirmDialog
         isOpen={deleteConfirm.open}

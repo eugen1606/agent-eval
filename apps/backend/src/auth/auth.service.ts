@@ -166,11 +166,11 @@ export class AuthService {
     }
 
     // Get counts from related tables
-    const evaluationsCount = await this.dataSource
+    const runsCount = await this.dataSource
       .createQueryBuilder()
       .select('COUNT(*)', 'count')
-      .from('evaluations', 'e')
-      .where('e."userId" = :userId', { userId })
+      .from('runs', 'r')
+      .where('r."userId" = :userId', { userId })
       .getRawOne();
 
     const questionSetsCount = await this.dataSource
@@ -202,7 +202,7 @@ export class AuthService {
         createdAt: user.createdAt,
       },
       stats: {
-        evaluationsCount: parseInt(evaluationsCount?.count || '0', 10),
+        runsCount: parseInt(runsCount?.count || '0', 10),
         questionSetsCount: parseInt(questionSetsCount?.count || '0', 10),
         flowConfigsCount: parseInt(flowConfigsCount?.count || '0', 10),
         accessTokensCount: parseInt(accessTokensCount?.count || '0', 10),

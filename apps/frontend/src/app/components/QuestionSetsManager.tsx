@@ -23,7 +23,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
-  const [importError, setImportError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<{ message: string; showSchema: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -124,7 +124,10 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         questions = data.questions;
         if (data.name) name = data.name;
       } else {
-        setImportError('Invalid JSON format. Expected an array of questions or an object with a "questions" array.');
+        setImportError({
+          message: 'Invalid JSON structure. The file must contain either an array of questions or an object with a "questions" array.',
+          showSchema: true
+        });
         return;
       }
 
@@ -137,13 +140,16 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       if (response.success) {
         loadQuestionSets();
       } else {
-        setImportError(response.error || 'Import failed');
+        setImportError({ message: response.error || 'Import failed', showSchema: false });
       }
     } catch (error) {
       if (error instanceof SyntaxError) {
-        setImportError('Invalid JSON file. Please ensure the file contains valid JSON.');
+        setImportError({
+          message: 'Invalid JSON syntax. The file does not contain valid JSON.',
+          showSchema: true
+        });
       } else {
-        setImportError(error instanceof Error ? error.message : 'Import failed');
+        setImportError({ message: error instanceof Error ? error.message : 'Import failed', showSchema: false });
       }
     } finally {
       if (fileInputRef.current) {
@@ -282,8 +288,51 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         isOpen={!!importError}
         onClose={() => setImportError(null)}
         title="Import Error"
-        message={importError || ''}
-      />
+        variant="error"
+      >
+        <div className="import-error-content">
+          <p className="error-message">{importError?.message}</p>
+          {importError?.showSchema && (
+            <div className="json-schema-help">
+              <p className="schema-intro">The JSON file must use one of these formats:</p>
+              <div className="schema-section">
+                <h4>Format 1: Simple array of questions</h4>
+                <pre className="json-example">{`[
+  {
+    "question": "What is 2+2?",
+    "expectedAnswer": "4"
+  },
+  {
+    "question": "Capital of France?",
+    "expectedAnswer": "Paris"
+  }
+]`}</pre>
+              </div>
+              <div className="schema-section">
+                <h4>Format 2: Object with questions array</h4>
+                <pre className="json-example">{`{
+  "name": "Math Questions",
+  "description": "Basic math test",
+  "questions": [
+    {
+      "question": "What is 2+2?",
+      "expectedAnswer": "4"
+    },
+    {
+      "question": "What is 10/2?",
+      "expectedAnswer": "5"
+    }
+  ]
+}`}</pre>
+              </div>
+              <p className="schema-note">
+                <strong>Note:</strong> Each question must have a "question" field.
+                The "expectedAnswer" field is optional.
+              </p>
+            </div>
+          )}
+        </div>
+      </AlertDialog>
     </div>
   );
 }

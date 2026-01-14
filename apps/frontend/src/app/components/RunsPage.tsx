@@ -130,6 +130,24 @@ export function RunsPage() {
     return new Date(dateStr).toLocaleString();
   };
 
+  const formatDuration = (startedAt?: string, completedAt?: string) => {
+    if (!startedAt || !completedAt) return null;
+    const start = new Date(startedAt).getTime();
+    const end = new Date(completedAt).getTime();
+    const durationMs = end - start;
+
+    if (durationMs < 1000) return `${durationMs}ms`;
+    if (durationMs < 60000) return `${(durationMs / 1000).toFixed(1)}s`;
+    if (durationMs < 3600000) {
+      const mins = Math.floor(durationMs / 60000);
+      const secs = Math.floor((durationMs % 60000) / 1000);
+      return `${mins}m ${secs}s`;
+    }
+    const hours = Math.floor(durationMs / 3600000);
+    const mins = Math.floor((durationMs % 3600000) / 60000);
+    return `${hours}h ${mins}m`;
+  };
+
   const getAccuracyDisplay = (run: StoredRun) => {
     if (run.status !== 'completed') return null;
     const evaluated = run.results.filter(
@@ -260,6 +278,22 @@ export function RunsPage() {
                       : formatDate(run.createdAt)}
                   </span>
                 </div>
+                {run.completedAt && (
+                  <div className="detail-row">
+                    <span className="detail-label">Ended:</span>
+                    <span className="detail-value">
+                      {formatDate(run.completedAt)}
+                    </span>
+                  </div>
+                )}
+                {formatDuration(run.startedAt, run.completedAt) && (
+                  <div className="detail-row">
+                    <span className="detail-label">Duration:</span>
+                    <span className="detail-value">
+                      {formatDuration(run.startedAt, run.completedAt)}
+                    </span>
+                  </div>
+                )}
                 <div className="detail-row">
                   <span className="detail-label">Questions:</span>
                   <span className="detail-value">

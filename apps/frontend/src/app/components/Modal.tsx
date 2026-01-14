@@ -117,7 +117,8 @@ interface AlertDialogProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  message: string;
+  message?: string;
+  children?: React.ReactNode;
   buttonText?: string;
   variant?: 'success' | 'error' | 'info';
 }
@@ -127,6 +128,7 @@ export function AlertDialog({
   onClose,
   title,
   message,
+  children,
   buttonText = 'OK',
   variant = 'info',
 }: AlertDialogProps) {
@@ -141,7 +143,7 @@ export function AlertDialog({
         </button>
       }
     >
-      <p>{message}</p>
+      {children ? children : <p>{message}</p>}
     </Modal>
   );
 }

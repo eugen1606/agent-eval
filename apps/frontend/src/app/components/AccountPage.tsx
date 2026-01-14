@@ -155,8 +155,8 @@ export function AccountPage() {
             <h3>Usage Statistics</h3>
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-value">{stats.stats.evaluationsCount}</div>
-                <div className="stat-label">Evaluations</div>
+                <div className="stat-value">{stats.stats.runsCount}</div>
+                <div className="stat-label">Runs</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value">

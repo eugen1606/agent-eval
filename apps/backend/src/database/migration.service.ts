@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import {
   AccessToken,
-  Evaluation,
   QuestionSet,
   FlowConfig,
 } from './entities';
@@ -17,8 +16,6 @@ export class MigrationService implements OnModuleInit {
     private authService: AuthService,
     @InjectRepository(AccessToken)
     private accessTokenRepository: Repository<AccessToken>,
-    @InjectRepository(Evaluation)
-    private evaluationRepository: Repository<Evaluation>,
     @InjectRepository(QuestionSet)
     private questionSetRepository: Repository<QuestionSet>,
     @InjectRepository(FlowConfig)
@@ -33,14 +30,13 @@ export class MigrationService implements OnModuleInit {
     // Count records without userId using QueryBuilder
     const orphanedCounts = await Promise.all([
       this.accessTokenRepository.createQueryBuilder('t').where('t.userId IS NULL').getCount(),
-      this.evaluationRepository.createQueryBuilder('t').where('t.userId IS NULL').getCount(),
       this.questionSetRepository.createQueryBuilder('t').where('t.userId IS NULL').getCount(),
       this.flowConfigRepository.createQueryBuilder('t').where('t.userId IS NULL').getCount(),
     ]);
 
     const totalOrphaned = orphanedCounts.reduce((a, b) => a + b, 0);
 
-    this.logger.log(`Orphaned data check: AccessTokens=${orphanedCounts[0]}, Evaluations=${orphanedCounts[1]}, QuestionSets=${orphanedCounts[2]}, FlowConfigs=${orphanedCounts[3]}`);
+    this.logger.log(`Orphaned data check: AccessTokens=${orphanedCounts[0]}, QuestionSets=${orphanedCounts[1]}, FlowConfigs=${orphanedCounts[2]}`);
 
     if (totalOrphaned === 0) {
       this.logger.log('No orphaned data found, skipping migration');
@@ -57,11 +53,6 @@ export class MigrationService implements OnModuleInit {
     const results = await Promise.all([
       this.accessTokenRepository.createQueryBuilder()
         .update(AccessToken)
-        .set({ userId: adminUser.id })
-        .where('userId IS NULL')
-        .execute(),
-      this.evaluationRepository.createQueryBuilder()
-        .update(Evaluation)
         .set({ userId: adminUser.id })
         .where('userId IS NULL')
         .execute(),

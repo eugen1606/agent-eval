@@ -12,7 +12,10 @@
 - [ ] implement notification service
 - [x] implement pagination in runs details
 - [ ] imporve webhooks
-- [ ] fix scheduled testing
+- [x] fix scheduled testing
+- [ ] when imported wrong json, show required fields
+- [ ] implement pagination on run history in dashboard
+- [x] user page should show runs not evaluations
 
 ---
 

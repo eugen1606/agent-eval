@@ -1939,6 +1939,66 @@ body {
   margin-top: -0.5rem;
 }
 
+/* Import error dialog with JSON schema */
+.import-error-content {
+  text-align: left;
+}
+
+.import-error-content .error-message {
+  color: var(--error);
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.json-schema-help {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.json-schema-help .schema-intro {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+}
+
+.json-schema-help .schema-section {
+  margin-bottom: 1rem;
+}
+
+.json-schema-help .schema-section:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.json-schema-help h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.json-schema-help .json-example {
+  background: var(--code-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.75rem;
+  margin: 0;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 0.8rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-primary);
+}
+
+.json-schema-help .schema-note {
+  margin: 1rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.json-schema-help .schema-note strong {
+  color: var(--text-secondary);
+}
+
 /* Homepage */
 .homepage {
   max-width: 900px;
@@ -2443,6 +2503,59 @@ body {
 
 .analytics-table td.errors {
   color: #8e44ad;
+}
+
+.analytics-table .table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.analytics-table .table-header h3 {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.analytics-table .page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.analytics-table .page-size-selector label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.analytics-table .page-size-selector select {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.analytics-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.analytics-table th.sortable:hover {
+  background: var(--bg-hover);
+}
+
+.analytics-table .pagination {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+  justify-content: center;
 }
 
 /* Trend indicators */

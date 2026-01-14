@@ -1,7 +1,4 @@
 import {
-  FlowConfig,
-  QuestionInput,
-  ExecuteFlowResponse,
   LLMJudgeResponse,
   ApiResponse,
   StoredAccessToken,
@@ -10,8 +7,6 @@ import {
   CreateQuestionSetRequest,
   StoredFlowConfig,
   CreateFlowConfigRequest,
-  StoredEvaluation,
-  CreateEvaluationRequest,
   StoredScheduledTest,
   CreateScheduledTestRequest,
   User,
@@ -35,6 +30,7 @@ import {
   PaginatedResponse,
   TestsFilterParams,
   RunsFilterParams,
+  ScheduledTestsFilterParams,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -230,17 +226,6 @@ export class AgentEvalClient {
     });
   }
 
-  // Flow Execution
-  async executeFlow(
-    config: FlowConfig,
-    questions: QuestionInput[]
-  ): Promise<ApiResponse<ExecuteFlowResponse>> {
-    return this.request<ExecuteFlowResponse>('/flow/execute', {
-      method: 'POST',
-      body: JSON.stringify({ config, questions }),
-    });
-  }
-
   // LLM Evaluation
   async evaluateWithLLM(
     question: string,
@@ -360,56 +345,6 @@ export class AgentEvalClient {
     return this.request<void>(`/flow-configs/${id}`, { method: 'DELETE' });
   }
 
-  // Evaluations (database)
-  async createEvaluation(
-    data: CreateEvaluationRequest
-  ): Promise<ApiResponse<StoredEvaluation>> {
-    return this.request<StoredEvaluation>('/evaluations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getEvaluations(): Promise<ApiResponse<StoredEvaluation[]>> {
-    return this.request<StoredEvaluation[]>('/evaluations');
-  }
-
-  async getEvaluation(id: string): Promise<ApiResponse<StoredEvaluation>> {
-    return this.request<StoredEvaluation>(`/evaluations/${id}`);
-  }
-
-  async updateEvaluation(
-    id: string,
-    data: Partial<CreateEvaluationRequest>
-  ): Promise<ApiResponse<StoredEvaluation>> {
-    return this.request<StoredEvaluation>(`/evaluations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteEvaluation(id: string): Promise<ApiResponse<void>> {
-    return this.request<void>(`/evaluations/${id}`, { method: 'DELETE' });
-  }
-
-  async exportEvaluation(id: string, format: 'json' | 'csv' = 'json'): Promise<Blob> {
-    const tokens = this.getTokens();
-    const headers: Record<string, string> = {};
-    if (tokens?.accessToken) {
-      headers['Authorization'] = `Bearer ${tokens.accessToken}`;
-    }
-
-    const response = await fetch(`${this.apiUrl}/evaluations/${id}/export?format=${format}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error('Export failed');
-    }
-
-    return response.blob();
-  }
-
   // Scheduled Tests
   async createScheduledTest(
     data: CreateScheduledTestRequest
@@ -420,8 +355,15 @@ export class AgentEvalClient {
     });
   }
 
-  async getScheduledTests(): Promise<ApiResponse<StoredScheduledTest[]>> {
-    return this.request<StoredScheduledTest[]>('/scheduled-tests');
+  async getScheduledTests(filters?: ScheduledTestsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredScheduledTest>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.testId) params.append('testId', filters.testId);
+    if (filters?.status) params.append('status', filters.status);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredScheduledTest>>(`/scheduled-tests${query ? `?${query}` : ''}`);
   }
 
   async getScheduledTest(id: string): Promise<ApiResponse<StoredScheduledTest>> {

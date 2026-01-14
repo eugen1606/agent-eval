@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import {
   FlowConfig,
   QuestionInput,
-  EvaluationResult,
+  RunResult,
 } from '@agent-eval/shared';
 import { v4 as uuidv4 } from 'uuid';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
@@ -17,7 +17,7 @@ export class FlowService {
     config: FlowConfig,
     questions: QuestionInput[],
     userId: string,
-  ): AsyncGenerator<EvaluationResult> {
+  ): AsyncGenerator<RunResult> {
     // Resolve access token - decrypt if it's a stored token ID
     let resolvedToken = config.accessToken;
     if (config.accessTokenId) {
