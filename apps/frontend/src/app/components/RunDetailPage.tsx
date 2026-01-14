@@ -9,12 +9,14 @@ import {
 } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Pagination } from './Pagination';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [run, setRun] = useState<StoredRun | null>(null);
   const [stats, setStats] = useState<RunStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,6 +142,9 @@ export function RunDetailPage() {
     if (response.success) {
       setPendingUpdates(new Map());
       loadRun(); // Reload to get fresh data
+      showNotification('success', 'Evaluations saved successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to save evaluations');
     }
     setSaving(false);
   };

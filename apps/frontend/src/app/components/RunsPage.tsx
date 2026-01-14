@@ -5,6 +5,7 @@ import { AgentEvalClient } from '@agent-eval/api-client';
 import { ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
 import { SearchableSelect } from './SearchableSelect';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -22,6 +23,7 @@ const STATUS_BADGES: RunStatusBadge = {
 
 export function RunsPage() {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [runs, setRuns] = useState<StoredRun[]>([]);
   const [tests, setTests] = useState<StoredTest[]>([]);
   const [cancelConfirm, setCancelConfirm] = useState<{
@@ -31,6 +33,7 @@ export function RunsPage() {
 
   // Filter and pagination state
   const [filterTestId, setFilterTestId] = useState('');
+  const [filterRunId, setFilterRunId] = useState('');
   const [filterStatus, setFilterStatus] = useState<RunStatus | ''>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -59,6 +62,7 @@ export function RunsPage() {
       page: currentPage,
       limit: itemsPerPage,
       testId: filterTestId || undefined,
+      runId: filterRunId || undefined,
       status: filterStatus || undefined,
     });
 
@@ -73,7 +77,7 @@ export function RunsPage() {
       );
     }
     setIsLoading(false);
-  }, [currentPage, itemsPerPage, filterTestId, filterStatus]);
+  }, [currentPage, itemsPerPage, filterTestId, filterRunId, filterStatus]);
 
   // Reload runs when filters or page changes
   useEffect(() => {
@@ -99,6 +103,11 @@ export function RunsPage() {
     setCurrentPage(1);
   };
 
+  const handleRunIdFilterChange = (value: string) => {
+    setFilterRunId(value);
+    setCurrentPage(1);
+  };
+
   const handleStatusFilterChange = (value: RunStatus | '') => {
     setFilterStatus(value);
     setCurrentPage(1);
@@ -106,6 +115,7 @@ export function RunsPage() {
 
   const clearFilters = () => {
     setFilterTestId('');
+    setFilterRunId('');
     setFilterStatus('');
     setCurrentPage(1);
   };
@@ -117,9 +127,14 @@ export function RunsPage() {
 
   const handleCancel = async () => {
     if (!cancelConfirm.id) return;
-    await apiClient.cancelRun(cancelConfirm.id);
+    const response = await apiClient.cancelRun(cancelConfirm.id);
     setCancelConfirm({ open: false, id: null });
-    loadRuns();
+    if (response.success) {
+      loadRuns();
+      showNotification('success', 'Run canceled successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to cancel run');
+    }
   };
 
   const handleViewRun = (runId: string) => {
@@ -173,7 +188,7 @@ export function RunsPage() {
     return <span className="accuracy-complete">{accuracy}% accuracy</span>;
   };
 
-  const hasActiveFilters = filterTestId || filterStatus;
+  const hasActiveFilters = filterTestId || filterRunId || filterStatus;
 
   return (
     <div className="runs-page">
@@ -193,6 +208,15 @@ export function RunsPage() {
             }))}
             placeholder="Search tests..."
             allOptionLabel="All Tests"
+          />
+        </div>
+        <div className="filter-group">
+          <input
+            type="text"
+            placeholder="Filter by Run ID..."
+            value={filterRunId}
+            onChange={(e) => handleRunIdFilterChange(e.target.value)}
+            className="filter-input"
           />
         </div>
         <div className="filter-group">
@@ -270,6 +294,10 @@ export function RunsPage() {
                 </div>
               </div>
               <div className="run-details">
+                <div className="detail-row">
+                  <span className="detail-label">Run ID:</span>
+                  <span className="detail-value run-id-value">{run.id}</span>
+                </div>
                 <div className="detail-row">
                   <span className="detail-label">Started:</span>
                   <span className="detail-value">

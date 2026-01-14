@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StoredAccessToken } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function AccessTokensManager({ onSelect, selectable }: Props) {
+  const { showNotification } = useNotification();
   const [tokens, setTokens] = useState<StoredAccessToken[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -21,10 +23,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
 
   const resetForm = () => {
     setFormData({ name: '', token: '', description: '' });
     setShowForm(false);
+    setFormSubmitAttempted(false);
   };
 
   useEffect(() => {
@@ -42,6 +46,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!formData.name || !formData.token) return;
 
     setLoading(true);
@@ -54,15 +59,23 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
     if (response.success) {
       resetForm();
       loadTokens();
+      showNotification('success', 'Access token created successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to create access token');
     }
     setLoading(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteAccessToken(deleteConfirm.id);
+    const response = await apiClient.deleteAccessToken(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadTokens();
+    if (response.success) {
+      loadTokens();
+      showNotification('success', 'Access token deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete access token');
+    }
   };
 
   return (
@@ -87,7 +100,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={loading || !formData.name || !formData.token}
+              disabled={loading}
             >
               {loading ? 'Saving...' : 'Save Token'}
             </button>
@@ -96,23 +109,31 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Token Name</label>
+            <label>Token Name *</label>
             <input
               type="text"
               placeholder="Enter token name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name && (
+              <span className="field-error">Token name is required</span>
+            )}
           </div>
           <div className="form-group">
-            <label>Bearer Token</label>
+            <label>Bearer Token *</label>
             <input
               type="password"
               placeholder="Enter bearer token (will be encrypted)"
               value={formData.token}
               onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+              className={formSubmitAttempted && !formData.token ? 'input-error' : ''}
             />
             <span className="form-hint">The bearer token used for API authentication</span>
+            {formSubmitAttempted && !formData.token && (
+              <span className="field-error">Bearer token is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Description (optional)</label>

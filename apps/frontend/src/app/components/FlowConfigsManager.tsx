@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StoredFlowConfig } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function FlowConfigsManager({ onSelect, selectable }: Props) {
+  const { showNotification } = useNotification();
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -23,6 +25,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
 
   useEffect(() => {
     loadFlowConfigs();
@@ -39,6 +42,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!formData.name || !formData.flowId) return;
 
     setLoading(true);
@@ -63,6 +67,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     if (response.success) {
       resetForm();
       loadFlowConfigs();
+      showNotification('success', editingId ? 'Flow config updated successfully' : 'Flow config created successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to save flow config');
     }
     setLoading(false);
   };
@@ -82,13 +89,19 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     setFormData({ name: '', flowId: '', basePath: '', description: '' });
     setShowForm(false);
     setEditingId(null);
+    setFormSubmitAttempted(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteFlowConfig(deleteConfirm.id);
+    const response = await apiClient.deleteFlowConfig(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadFlowConfigs();
+    if (response.success) {
+      loadFlowConfigs();
+      showNotification('success', 'Flow config deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete flow config');
+    }
   };
 
   return (
@@ -113,7 +126,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={loading || !formData.name || !formData.flowId}
+              disabled={loading}
             >
               {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
@@ -122,22 +135,30 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Config Name</label>
+            <label>Config Name *</label>
             <input
               type="text"
               placeholder="Enter config name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name && (
+              <span className="field-error">Config name is required</span>
+            )}
           </div>
           <div className="form-group">
-            <label>Flow ID</label>
+            <label>Flow ID *</label>
             <input
               type="text"
               placeholder="Enter flow ID"
               value={formData.flowId}
               onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
+              className={formSubmitAttempted && !formData.flowId ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.flowId && (
+              <span className="field-error">Flow ID is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Base Path (optional)</label>

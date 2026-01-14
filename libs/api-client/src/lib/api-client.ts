@@ -116,12 +116,15 @@ export class AgentEvalClient {
           });
 
           if (!retryResponse.ok) {
-            const data = await retryResponse.json();
+            const text = await retryResponse.text();
+            const data = text ? JSON.parse(text) : {};
             return { success: false, error: data.message || 'Request failed' };
           }
 
-          const data = await retryResponse.json();
-          return { success: true, data };
+          // Handle empty response (204 No Content)
+          const retryText = await retryResponse.text();
+          const retryData = retryText ? JSON.parse(retryText) : undefined;
+          return { success: true, data: retryData };
         } else {
           // Refresh failed, clear tokens
           this.saveTokens(null);
@@ -129,10 +132,12 @@ export class AgentEvalClient {
         }
       }
 
-      const data = await response.json();
+      // Handle empty response (204 No Content)
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : undefined;
 
       if (!response.ok) {
-        return { success: false, error: data.message || 'Request failed' };
+        return { success: false, error: data?.message || 'Request failed' };
       }
 
       return { success: true, data };
@@ -499,6 +504,7 @@ export class AgentEvalClient {
     if (filters?.search) params.append('search', filters.search);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.testId) params.append('testId', filters.testId);
+    if (filters?.runId) params.append('runId', filters.runId);
     const query = params.toString();
     return this.request<PaginatedResponse<StoredRun>>(`/runs${query ? `?${query}` : ''}`);
   }

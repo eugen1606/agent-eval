@@ -314,6 +314,7 @@ export interface RunsFilterParams extends PaginationParams {
   search?: string;
   status?: RunStatus;
   testId?: string;
+  runId?: string;
 }
 
 // Scheduled Tests Filter Params

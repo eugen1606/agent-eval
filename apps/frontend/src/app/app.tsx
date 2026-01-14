@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { NotificationProvider } from './context/NotificationContext';
 import {
   AccessTokensManager,
   QuestionSetsManager,
@@ -246,9 +247,11 @@ function AppContent() {
 export function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

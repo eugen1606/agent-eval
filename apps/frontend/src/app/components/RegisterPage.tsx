@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 export function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ export function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const { register, isLoading, error, clearError } = useAuth();
+  const { showNotification } = useNotification();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +30,7 @@ export function RegisterPage() {
 
     const success = await register({ email, password, displayName: displayName || undefined });
     if (success) {
+      showNotification('success', 'Account created successfully!');
       navigate('/', { replace: true });
     }
   };

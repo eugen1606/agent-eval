@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StoredWebhook, WebhookEvent } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog, AlertDialog } from './Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -12,6 +13,7 @@ const EVENT_LABELS: Record<WebhookEvent, string> = {
 };
 
 export function WebhooksManager() {
+  const { showNotification } = useNotification();
   const [webhooks, setWebhooks] = useState<StoredWebhook[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,6 +29,7 @@ export function WebhooksManager() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [testResult, setTestResult] = useState<{ open: boolean; success: boolean; message: string }>({ open: false, success: false, message: '' });
   const [formError, setFormError] = useState<string | null>(null);
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
 
   useEffect(() => {
     loadWebhooks();
@@ -43,8 +46,8 @@ export function WebhooksManager() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!formData.name || !formData.url || formData.events.length === 0) {
-      setFormError('Name, URL, and at least one event are required');
       return;
     }
 
@@ -74,6 +77,7 @@ export function WebhooksManager() {
       if (response.success) {
         resetForm();
         loadWebhooks();
+        showNotification('success', editingId ? 'Webhook updated successfully' : 'Webhook created successfully');
       } else {
         setFormError(response.error || 'Failed to save webhook');
       }
@@ -101,19 +105,28 @@ export function WebhooksManager() {
     setShowForm(false);
     setEditingId(null);
     setFormError(null);
+    setFormSubmitAttempted(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteWebhook(deleteConfirm.id);
+    const response = await apiClient.deleteWebhook(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadWebhooks();
+    if (response.success) {
+      loadWebhooks();
+      showNotification('success', 'Webhook deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete webhook');
+    }
   };
 
   const handleToggle = async (id: string) => {
     const response = await apiClient.toggleWebhook(id);
     if (response.success) {
       loadWebhooks();
+      showNotification('success', 'Webhook updated successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to update webhook');
     }
   };
 
@@ -157,7 +170,7 @@ export function WebhooksManager() {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={loading || !formData.name || !formData.url || formData.events.length === 0}
+              disabled={loading}
             >
               {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
@@ -166,25 +179,33 @@ export function WebhooksManager() {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Webhook Name</label>
+            <label>Webhook Name *</label>
             <input
               type="text"
               placeholder="My Integration"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name && (
+              <span className="field-error">Webhook name is required</span>
+            )}
           </div>
           <div className="form-group">
-            <label>Webhook URL</label>
+            <label>Webhook URL *</label>
             <input
               type="url"
               placeholder="https://example.com/webhook"
               value={formData.url}
               onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              className={formSubmitAttempted && !formData.url ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.url && (
+              <span className="field-error">Webhook URL is required</span>
+            )}
           </div>
           <div className="form-group">
-            <label>Events</label>
+            <label>Events *</label>
             <div className="events-list">
               {(Object.keys(EVENT_LABELS) as WebhookEvent[]).map((event) => (
                 <label key={event} className="event-checkbox">
@@ -197,6 +218,9 @@ export function WebhooksManager() {
                 </label>
               ))}
             </div>
+            {formSubmitAttempted && formData.events.length === 0 && (
+              <span className="field-error">At least one event must be selected</span>
+            )}
           </div>
           <div className="form-group">
             <label>Secret (optional)</label>

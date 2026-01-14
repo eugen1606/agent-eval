@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { StoredQuestionSet } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog, AlertDialog } from './Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function QuestionSetsManager({ onSelect, selectable }: Props) {
+  const { showNotification } = useNotification();
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -22,8 +24,15 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
-  const [importError, setImportError] = useState<{ message: string; showSchema: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    id: string | null;
+  }>({ open: false, id: null });
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+  const [importError, setImportError] = useState<{
+    message: string;
+    showSchema: boolean;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +50,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!formData.name || !formData.questionsJson) return;
 
     try {
@@ -70,6 +80,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       if (response.success) {
         resetForm();
         loadQuestionSets();
+        showNotification('success', editingId ? 'Question set updated successfully' : 'Question set created successfully');
+      } else {
+        showNotification('error', response.error || 'Failed to save question set');
       }
     } catch {
       setJsonError('Invalid JSON format');
@@ -93,13 +106,19 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     setShowForm(false);
     setEditingId(null);
     setJsonError(null);
+    setFormSubmitAttempted(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteQuestionSet(deleteConfirm.id);
+    const response = await apiClient.deleteQuestionSet(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadQuestionSets();
+    if (response.success) {
+      loadQuestionSets();
+      showNotification('success', 'Question set deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete question set');
+    }
   };
 
   const handleImportClick = () => {
@@ -125,8 +144,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         if (data.name) name = data.name;
       } else {
         setImportError({
-          message: 'Invalid JSON structure. The file must contain either an array of questions or an object with a "questions" array.',
-          showSchema: true
+          message:
+            'Invalid JSON structure. The file must contain either an array of questions or an object with a "questions" array.',
+          showSchema: true,
         });
         return;
       }
@@ -139,17 +159,24 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
 
       if (response.success) {
         loadQuestionSets();
+        showNotification('success', 'Question set imported successfully');
       } else {
-        setImportError({ message: response.error || 'Import failed', showSchema: false });
+        setImportError({
+          message: response.error || 'Import failed',
+          showSchema: false,
+        });
       }
     } catch (error) {
       if (error instanceof SyntaxError) {
         setImportError({
           message: 'Invalid JSON syntax. The file does not contain valid JSON.',
-          showSchema: true
+          showSchema: true,
         });
       } else {
-        setImportError({ message: error instanceof Error ? error.message : 'Import failed', showSchema: false });
+        setImportError({
+          message: error instanceof Error ? error.message : 'Import failed',
+          showSchema: false,
+        });
       }
     } finally {
       if (fileInputRef.current) {
@@ -179,9 +206,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           <button onClick={handleImportClick} className="import-btn">
             Import JSON
           </button>
-          <button onClick={() => setShowForm(true)}>
-            + Add Question Set
-          </button>
+          <button onClick={() => setShowForm(true)}>+ Add Question Set</button>
         </div>
       </div>
 
@@ -198,7 +223,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={loading || !formData.name || !formData.questionsJson}
+              disabled={loading}
             >
               {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
@@ -207,16 +232,22 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       >
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label>Question Set Name</label>
+            <label>Question Set Name *</label>
             <input
               type="text"
               placeholder="Enter question set name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name && (
+              <span className="field-error">Question set name is required</span>
+            )}
           </div>
           <div className="form-group">
-            <label>Questions (JSON)</label>
+            <label>Questions (JSON) *</label>
             <textarea
               placeholder={exampleJson}
               value={formData.questionsJson}
@@ -225,8 +256,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                 setJsonError(null);
               }}
               rows={6}
+              className={formSubmitAttempted && !formData.questionsJson ? 'input-error' : ''}
             />
             {jsonError && <span className="error">{jsonError}</span>}
+            {formSubmitAttempted && !formData.questionsJson && !jsonError && (
+              <span className="field-error">Questions JSON is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Description (optional)</label>
@@ -234,7 +269,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
             />
           </div>
         </form>
@@ -253,8 +290,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
             <div key={qs.id} className="manager-item">
               <div className="item-info">
                 <strong>{qs.name}</strong>
-                <span className="item-meta">{qs.questions.length} questions</span>
-                {qs.description && <span className="item-desc">{qs.description}</span>}
+                <span className="item-meta">
+                  {qs.questions.length} questions
+                </span>
+                {qs.description && (
+                  <span className="item-desc">{qs.description}</span>
+                )}
               </div>
               <div className="item-actions">
                 {selectable && onSelect && (
@@ -265,7 +306,10 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                 <button onClick={() => handleEdit(qs)} className="edit-btn">
                   Edit
                 </button>
-                <button onClick={() => setDeleteConfirm({ open: true, id: qs.id })} className="delete-btn">
+                <button
+                  onClick={() => setDeleteConfirm({ open: true, id: qs.id })}
+                  className="delete-btn"
+                >
                   Delete
                 </button>
               </div>
@@ -294,9 +338,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           <p className="error-message">{importError?.message}</p>
           {importError?.showSchema && (
             <div className="json-schema-help">
-              <p className="schema-intro">The JSON file must use one of these formats:</p>
+              <p className="schema-intro">The JSON file must this format:</p>
               <div className="schema-section">
-                <h4>Format 1: Simple array of questions</h4>
                 <pre className="json-example">{`[
   {
     "question": "What is 2+2?",
@@ -304,30 +347,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   },
   {
     "question": "Capital of France?",
-    "expectedAnswer": "Paris"
   }
 ]`}</pre>
               </div>
-              <div className="schema-section">
-                <h4>Format 2: Object with questions array</h4>
-                <pre className="json-example">{`{
-  "name": "Math Questions",
-  "description": "Basic math test",
-  "questions": [
-    {
-      "question": "What is 2+2?",
-      "expectedAnswer": "4"
-    },
-    {
-      "question": "What is 10/2?",
-      "expectedAnswer": "5"
-    }
-  ]
-}`}</pre>
-              </div>
               <p className="schema-note">
-                <strong>Note:</strong> Each question must have a "question" field.
-                The "expectedAnswer" field is optional.
+                <strong>Note:</strong> Each question must have a "question"
+                field. The "expectedAnswer" field is optional.
               </p>
             </div>
           )}

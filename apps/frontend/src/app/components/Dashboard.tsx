@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useNavigate } from 'react-router-dom';
+import { Pagination } from './Pagination';
 
 type SortColumn = 'date' | 'accuracy' | 'correct' | 'partial' | 'incorrect' | 'errors' | 'total';
 type SortDirection = 'asc' | 'desc';
@@ -161,7 +162,7 @@ export function Dashboard() {
 
   // Pagination and sorting state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortColumn, setSortColumn] = useState<SortColumn>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -300,11 +301,11 @@ export function Dashboard() {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
 
-    const startIndex = (currentPage - 1) * pageSize;
-    return sorted.slice(startIndex, startIndex + pageSize);
-  }, [testRuns, sortColumn, sortDirection, currentPage, pageSize]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sorted.slice(startIndex, startIndex + itemsPerPage);
+  }, [testRuns, sortColumn, sortDirection, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(testRuns.length / pageSize);
+  const totalPages = Math.ceil(testRuns.length / itemsPerPage);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -397,21 +398,6 @@ export function Dashboard() {
           <div className="analytics-table">
             <div className="table-header">
               <h3>Run History</h3>
-              <div className="page-size-selector">
-                <label>Show:</label>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
             </div>
             <table>
               <thead>
@@ -464,41 +450,18 @@ export function Dashboard() {
                 ))}
               </tbody>
             </table>
-            {totalPages > 1 && (
-              <div className="pagination">
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
-                >
-                  First
-                </button>
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="pagination-btn"
-                >
-                  Previous
-                </button>
-                <span className="pagination-info">
-                  Page {currentPage} of {totalPages} ({testRuns.length} runs)
-                </span>
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  Next
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="pagination-btn"
-                >
-                  Last
-                </button>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={testRuns.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(newItemsPerPage) => {
+                setItemsPerPage(newItemsPerPage);
+                setCurrentPage(1);
+              }}
+              itemName="runs"
+            />
           </div>
         </div>
       )}

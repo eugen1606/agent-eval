@@ -5,6 +5,7 @@ import { Modal, ConfirmDialog } from './Modal';
 import { SearchableSelect } from './SearchableSelect';
 import { Pagination } from './Pagination';
 import { useNavigate } from 'react-router-dom';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
@@ -32,6 +33,7 @@ const STATUS_OPTIONS = [
 
 export function ScheduledTestsPage() {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [scheduledTests, setScheduledTests] = useState<StoredScheduledTest[]>([]);
   const [tests, setTests] = useState<StoredTest[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -50,6 +52,7 @@ export function ScheduledTestsPage() {
     open: false,
     id: null,
   });
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,6 +111,7 @@ export function ScheduledTestsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!isFormValid()) return;
 
     setLoading(true);
@@ -134,6 +138,9 @@ export function ScheduledTestsPage() {
     if (response.success) {
       resetForm();
       loadData();
+      showNotification('success', editingId ? 'Scheduled test updated successfully' : 'Scheduled test created successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to save scheduled test');
     }
     setLoading(false);
   };
@@ -169,13 +176,19 @@ export function ScheduledTestsPage() {
     });
     setShowForm(false);
     setEditingId(null);
+    setFormSubmitAttempted(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteScheduledTest(deleteConfirm.id);
+    const response = await apiClient.deleteScheduledTest(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadData();
+    if (response.success) {
+      loadData();
+      showNotification('success', 'Scheduled test deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete scheduled test');
+    }
   };
 
   const handleExecuteNow = async (id: string) => {
@@ -183,6 +196,9 @@ export function ScheduledTestsPage() {
     const result = await apiClient.executeScheduledTestNow(id);
     if (result.success) {
       setTimeout(() => loadData(), 1000);
+      showNotification('success', 'Test execution started');
+    } else {
+      showNotification('error', result.error || 'Failed to execute test');
     }
     setLoading(false);
   };
@@ -204,11 +220,6 @@ export function ScheduledTestsPage() {
   const getTestName = (testId: string) => {
     const test = tests.find(t => t.id === testId);
     return test ? test.name : 'Unknown';
-  };
-
-  const getTestDetails = (testId: string) => {
-    const test = tests.find(t => t.id === testId);
-    return test ? `${test.flowId}` : '';
   };
 
   const openNewForm = () => {
@@ -317,7 +328,7 @@ export function ScheduledTestsPage() {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={loading || !isFormValid()}
+              disabled={loading}
             >
               {loading ? 'Saving...' : editingId ? 'Update' : 'Schedule'}
             </button>
@@ -332,8 +343,11 @@ export function ScheduledTestsPage() {
               placeholder="Give this scheduled test a name..."
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
+              className={formSubmitAttempted && !formData.name.trim() ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name.trim() && (
+              <span className="field-error">Name is required</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -349,6 +363,9 @@ export function ScheduledTestsPage() {
               placeholder="Search tests..."
               allOptionLabel="Select a test..."
             />
+            {formSubmitAttempted && !formData.testId && (
+              <span className="field-error">Please select a test</span>
+            )}
           </div>
 
           <div className="form-group">
@@ -378,7 +395,11 @@ export function ScheduledTestsPage() {
                 type="datetime-local"
                 value={formData.scheduledAt}
                 onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
+                className={formSubmitAttempted && !formData.scheduledAt ? 'input-error' : ''}
               />
+              {formSubmitAttempted && !formData.scheduledAt && (
+                <span className="field-error">Scheduled time is required</span>
+              )}
             </div>
           )}
 
@@ -399,14 +420,18 @@ export function ScheduledTestsPage() {
               </div>
               {formData.cronPreset === 'custom' && (
                 <div className="form-group">
-                  <label>Cron Expression</label>
+                  <label>Cron Expression *</label>
                   <input
                     type="text"
                     placeholder="* * * * * (min hour day month weekday)"
                     value={formData.cronExpression}
                     onChange={(e) => setFormData({ ...formData, cronExpression: e.target.value })}
+                    className={formSubmitAttempted && !formData.cronExpression ? 'input-error' : ''}
                   />
                   <span className="input-hint">Format: minute hour day month weekday</span>
+                  {formSubmitAttempted && !formData.cronExpression && (
+                    <span className="field-error">Cron expression is required</span>
+                  )}
                 </div>
               )}
             </>
@@ -435,8 +460,9 @@ export function ScheduledTestsPage() {
               <div className="scheduled-header">
                 <div className="scheduled-info">
                   <h3>{scheduled.name || 'Unnamed'}</h3>
-                  <span className="scheduled-test-name">Test: {getTestName(scheduled.testId)}</span>
-                  <span className="scheduled-flow">{getTestDetails(scheduled.testId)}</span>
+                  <span className="scheduled-test-name">
+                    <span className="scheduled-test-label">Test:</span> {getTestName(scheduled.testId)}
+                  </span>
                 </div>
                 <div className="scheduled-badges">
                   {getStatusBadge(scheduled.status)}

@@ -39,6 +39,7 @@ export class RunsController {
     @Query('search') search?: string,
     @Query('status') status?: RunStatus,
     @Query('testId') testId?: string,
+    @Query('runId') runId?: string,
     @CurrentUser() user?: { userId: string; email: string },
   ): Promise<PaginatedRuns> {
     return this.runsService.findAll(user!.userId, {
@@ -47,6 +48,7 @@ export class RunsController {
       search,
       status,
       testId,
+      runId,
     });
   }
 

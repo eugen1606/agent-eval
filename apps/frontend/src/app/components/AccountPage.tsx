@@ -4,12 +4,14 @@ import { AgentEvalClient } from '@agent-eval/api-client';
 import { AccountStats } from '@agent-eval/shared';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmDialog } from './Modal';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
 export function AccountPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { showNotification } = useNotification();
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,8 +70,10 @@ export function AccountPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      showNotification('success', 'Password changed successfully');
     } else {
       setPasswordError(response.error || 'Failed to change password');
+      showNotification('error', response.error || 'Failed to change password');
     }
     setChangingPassword(false);
   };
@@ -78,10 +82,12 @@ export function AccountPage() {
     setDeleting(true);
     const response = await apiClient.deleteAccount();
     if (response.success) {
+      showNotification('success', 'Account deleted successfully');
       logout();
       navigate('/login');
     } else {
       setError(response.error || 'Failed to delete account');
+      showNotification('error', response.error || 'Failed to delete account');
       setShowDeleteConfirm(false);
     }
     setDeleting(false);

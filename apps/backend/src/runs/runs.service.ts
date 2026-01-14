@@ -31,6 +31,7 @@ export interface RunsFilterDto {
   search?: string;
   status?: RunStatus;
   testId?: string;
+  runId?: string;
 }
 
 export interface PaginatedRuns {
@@ -47,7 +48,7 @@ export interface PaginatedRuns {
 export class RunsService {
   constructor(
     @InjectRepository(Run)
-    private runRepository: Repository<Run>
+    private runRepository: Repository<Run>,
   ) {}
 
   async create(dto: CreateRunDto, userId: string): Promise<Run> {
@@ -61,7 +62,10 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
-  async findAll(userId: string, filters: RunsFilterDto = {}): Promise<PaginatedRuns> {
+  async findAll(
+    userId: string,
+    filters: RunsFilterDto = {},
+  ): Promise<PaginatedRuns> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -76,6 +80,13 @@ export class RunsService {
       queryBuilder.andWhere('run.testId = :testId', { testId: filters.testId });
     }
 
+    // Apply runId filter (partial match - cast UUID to text)
+    if (filters.runId) {
+      queryBuilder.andWhere('run.id::text ILIKE :runId', {
+        runId: `%${filters.runId}%`,
+      });
+    }
+
     // Apply status filter
     if (filters.status) {
       queryBuilder.andWhere('run.status = :status', { status: filters.status });
@@ -86,6 +97,11 @@ export class RunsService {
       queryBuilder.andWhere('test.name ILIKE :search', {
         search: `%${filters.search}%`,
       });
+    }
+
+    // Debug: log the generated SQL
+    if (filters.runId) {
+      console.log('SQL query:', queryBuilder.getSql());
     }
 
     // Get total count before pagination
@@ -125,7 +141,8 @@ export class RunsService {
 
     if (dto.status !== undefined) run.status = dto.status;
     if (dto.errorMessage !== undefined) run.errorMessage = dto.errorMessage;
-    if (dto.completedQuestions !== undefined) run.completedQuestions = dto.completedQuestions;
+    if (dto.completedQuestions !== undefined)
+      run.completedQuestions = dto.completedQuestions;
     if (dto.completedAt !== undefined) run.completedAt = dto.completedAt;
 
     return this.runRepository.save(run);
@@ -164,7 +181,11 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
-  async addResult(id: string, result: Run['results'][0], userId: string): Promise<Run> {
+  async addResult(
+    id: string,
+    result: Run['results'][0],
+    userId: string,
+  ): Promise<Run> {
     const run = await this.findOne(id, userId);
     run.results.push(result);
     run.completedQuestions = run.results.length;
@@ -174,21 +195,25 @@ export class RunsService {
   async updateResultEvaluation(
     id: string,
     dto: UpdateResultEvaluationDto,
-    userId: string
+    userId: string,
   ): Promise<Run> {
     const run = await this.findOne(id, userId);
 
-    const resultIndex = run.results.findIndex(r => r.id === dto.resultId);
+    const resultIndex = run.results.findIndex((r) => r.id === dto.resultId);
     if (resultIndex === -1) {
       throw new NotFoundException(`Result not found: ${dto.resultId}`);
     }
 
     const result = run.results[resultIndex];
-    if (dto.humanEvaluation !== undefined) result.humanEvaluation = dto.humanEvaluation;
-    if (dto.humanEvaluationDescription !== undefined) result.humanEvaluationDescription = dto.humanEvaluationDescription;
+    if (dto.humanEvaluation !== undefined)
+      result.humanEvaluation = dto.humanEvaluation;
+    if (dto.humanEvaluationDescription !== undefined)
+      result.humanEvaluationDescription = dto.humanEvaluationDescription;
     if (dto.severity !== undefined) result.severity = dto.severity;
-    if (dto.llmJudgeScore !== undefined) result.llmJudgeScore = dto.llmJudgeScore;
-    if (dto.llmJudgeReasoning !== undefined) result.llmJudgeReasoning = dto.llmJudgeReasoning;
+    if (dto.llmJudgeScore !== undefined)
+      result.llmJudgeScore = dto.llmJudgeScore;
+    if (dto.llmJudgeReasoning !== undefined)
+      result.llmJudgeReasoning = dto.llmJudgeReasoning;
 
     run.results[resultIndex] = result;
     return this.runRepository.save(run);
@@ -197,20 +222,24 @@ export class RunsService {
   async bulkUpdateResultEvaluations(
     id: string,
     updates: UpdateResultEvaluationDto[],
-    userId: string
+    userId: string,
   ): Promise<Run> {
     const run = await this.findOne(id, userId);
 
     for (const dto of updates) {
-      const resultIndex = run.results.findIndex(r => r.id === dto.resultId);
+      const resultIndex = run.results.findIndex((r) => r.id === dto.resultId);
       if (resultIndex === -1) continue;
 
       const result = run.results[resultIndex];
-      if (dto.humanEvaluation !== undefined) result.humanEvaluation = dto.humanEvaluation;
-      if (dto.humanEvaluationDescription !== undefined) result.humanEvaluationDescription = dto.humanEvaluationDescription;
+      if (dto.humanEvaluation !== undefined)
+        result.humanEvaluation = dto.humanEvaluation;
+      if (dto.humanEvaluationDescription !== undefined)
+        result.humanEvaluationDescription = dto.humanEvaluationDescription;
       if (dto.severity !== undefined) result.severity = dto.severity;
-      if (dto.llmJudgeScore !== undefined) result.llmJudgeScore = dto.llmJudgeScore;
-      if (dto.llmJudgeReasoning !== undefined) result.llmJudgeReasoning = dto.llmJudgeReasoning;
+      if (dto.llmJudgeScore !== undefined)
+        result.llmJudgeScore = dto.llmJudgeScore;
+      if (dto.llmJudgeReasoning !== undefined)
+        result.llmJudgeReasoning = dto.llmJudgeReasoning;
 
       run.results[resultIndex] = result;
     }
@@ -218,7 +247,10 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
-  async getStats(id: string, userId: string): Promise<{
+  async getStats(
+    id: string,
+    userId: string,
+  ): Promise<{
     total: number;
     evaluated: number;
     correct: number;
@@ -230,16 +262,25 @@ export class RunsService {
     const run = await this.findOne(id, userId);
 
     const total = run.results.length;
-    const errors = run.results.filter(r => r.isError).length;
-    const evaluated = run.results.filter(r => r.humanEvaluation && !r.isError).length;
-    const correct = run.results.filter(r => r.humanEvaluation === 'correct').length;
-    const partial = run.results.filter(r => r.humanEvaluation === 'partial').length;
-    const incorrect = run.results.filter(r => r.humanEvaluation === 'incorrect').length;
+    const errors = run.results.filter((r) => r.isError).length;
+    const evaluated = run.results.filter(
+      (r) => r.humanEvaluation && !r.isError,
+    ).length;
+    const correct = run.results.filter(
+      (r) => r.humanEvaluation === 'correct',
+    ).length;
+    const partial = run.results.filter(
+      (r) => r.humanEvaluation === 'partial',
+    ).length;
+    const incorrect = run.results.filter(
+      (r) => r.humanEvaluation === 'incorrect',
+    ).length;
 
     const evaluatable = total - errors;
-    const accuracy = evaluatable > 0 && evaluated === evaluatable
-      ? Math.round((correct + partial * 0.5) / evaluatable * 100)
-      : null;
+    const accuracy =
+      evaluatable > 0 && evaluated === evaluatable
+        ? Math.round(((correct + partial * 0.5) / evaluatable) * 100)
+        : null;
 
     return { total, evaluated, correct, partial, incorrect, errors, accuracy };
   }

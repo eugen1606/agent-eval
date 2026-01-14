@@ -9,10 +9,12 @@ import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
 import { SearchableSelect } from './SearchableSelect';
+import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
 
 export function TestsPage() {
+  const { showNotification } = useNotification();
   const [tests, setTests] = useState<StoredTest[]>([]);
   const [accessTokens, setAccessTokens] = useState<StoredAccessToken[]>([]);
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
@@ -39,6 +41,7 @@ export function TestsPage() {
     open: boolean;
     testId: string | null;
   }>({ open: false, testId: null });
+  const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,6 +137,7 @@ export function TestsPage() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    setFormSubmitAttempted(true);
     if (!formData.name || !formData.flowId || !formData.basePath) return;
 
     setLoading(true);
@@ -158,6 +162,9 @@ export function TestsPage() {
     if (response.success) {
       resetForm();
       loadTests();
+      showNotification('success', editingId ? 'Test updated successfully' : 'Test created successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to save test');
     }
     setLoading(false);
   };
@@ -188,13 +195,19 @@ export function TestsPage() {
     });
     setShowForm(false);
     setEditingId(null);
+    setFormSubmitAttempted(false);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
-    await apiClient.deleteTest(deleteConfirm.id);
+    const response = await apiClient.deleteTest(deleteConfirm.id);
     setDeleteConfirm({ open: false, id: null });
-    loadTests();
+    if (response.success) {
+      loadTests();
+      showNotification('success', 'Test deleted successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to delete test');
+    }
   };
 
   const handleRun = async (testId: string) => {
@@ -278,13 +291,18 @@ export function TestsPage() {
     if (!cancelConfirm.testId) return;
     const runId = runningTests.get(cancelConfirm.testId);
     if (runId) {
-      await apiClient.cancelRun(runId);
+      const response = await apiClient.cancelRun(runId);
       setRunningTests((prev) => {
         const next = new Map(prev);
         next.delete(cancelConfirm.testId!);
         return next;
       });
-      loadTests();
+      if (response.success) {
+        loadTests();
+        showNotification('success', 'Test run canceled');
+      } else {
+        showNotification('error', response.error || 'Failed to cancel run');
+      }
     }
     setCancelConfirm({ open: false, testId: null });
   };
@@ -325,12 +343,7 @@ export function TestsPage() {
             <button
               className="modal-btn confirm"
               onClick={() => handleSubmit()}
-              disabled={
-                loading ||
-                !formData.name ||
-                !formData.flowId ||
-                !formData.basePath
-              }
+              disabled={loading}
             >
               {loading ? 'Saving...' : editingId ? 'Update' : 'Create'}
             </button>
@@ -347,7 +360,11 @@ export function TestsPage() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.name && (
+              <span className="field-error">Test name is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Description</label>
@@ -392,7 +409,11 @@ export function TestsPage() {
               onChange={(e) =>
                 setFormData({ ...formData, basePath: e.target.value })
               }
+              className={formSubmitAttempted && !formData.basePath ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.basePath && (
+              <span className="field-error">Base URL is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Flow ID *</label>
@@ -403,7 +424,11 @@ export function TestsPage() {
               onChange={(e) =>
                 setFormData({ ...formData, flowId: e.target.value })
               }
+              className={formSubmitAttempted && !formData.flowId ? 'input-error' : ''}
             />
+            {formSubmitAttempted && !formData.flowId && (
+              <span className="field-error">Flow ID is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Access Token</label>
