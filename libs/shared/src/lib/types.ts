@@ -174,7 +174,15 @@ export interface CreateScheduledTestRequest {
 }
 
 // Webhook Types
-export type WebhookEvent = 'evaluation.completed' | 'scheduled.completed' | 'scheduled.failed';
+export type WebhookEvent = 'run.running' | 'run.completed' | 'run.failed' | 'run.evaluated';
+export type WebhookMethod = 'POST' | 'PUT' | 'PATCH';
+
+export interface WebhookVariableDefinition {
+  name: string;
+  description: string;
+  example: string;
+  events: WebhookEvent[];
+}
 
 export interface StoredWebhook {
   id: string;
@@ -184,6 +192,10 @@ export interface StoredWebhook {
   events: WebhookEvent[];
   enabled: boolean;
   secret?: string;
+  method: WebhookMethod;
+  headers?: Record<string, string>;
+  queryParams?: Record<string, string>;
+  bodyTemplate?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }
@@ -194,6 +206,10 @@ export interface CreateWebhookRequest {
   description?: string;
   events: WebhookEvent[];
   secret?: string;
+  method: WebhookMethod;
+  headers?: Record<string, string>;
+  queryParams?: Record<string, string>;
+  bodyTemplate: Record<string, unknown>;
 }
 
 // Test Types (new model)
@@ -207,6 +223,8 @@ export interface StoredTest {
   questionSetId?: string;
   questionSet?: StoredQuestionSet;
   multiStepEvaluation: boolean;
+  webhookId?: string;
+  webhook?: StoredWebhook;
   createdAt: string;
   updatedAt: string;
 }
@@ -219,6 +237,7 @@ export interface CreateTestRequest {
   accessTokenId?: string;
   questionSetId?: string;
   multiStepEvaluation?: boolean;
+  webhookId?: string;
 }
 
 // Run Types (new model - replaces Evaluation for new workflow)
@@ -251,6 +270,8 @@ export interface StoredRun {
   completedQuestions: number;
   startedAt?: string;
   completedAt?: string;
+  isFullyEvaluated: boolean;
+  evaluatedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

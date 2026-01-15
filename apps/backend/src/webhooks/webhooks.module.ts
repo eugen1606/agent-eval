@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Webhook } from '../database/entities';
 import { WebhooksService } from './webhooks.service';
 import { WebhooksController } from './webhooks.controller';
+import { VariableResolverService } from './variable-resolver.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Webhook])],
   controllers: [WebhooksController],
-  providers: [WebhooksService],
+  providers: [WebhooksService, VariableResolverService],
   exports: [WebhooksService],
 })
 export class WebhooksModule {}

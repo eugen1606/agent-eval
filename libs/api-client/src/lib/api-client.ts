@@ -20,6 +20,7 @@ import {
   StoredWebhook,
   CreateWebhookRequest,
   WebhookEvent,
+  WebhookVariableDefinition,
   StoredTest,
   CreateTestRequest,
   StoredRun,
@@ -446,6 +447,10 @@ export class AgentEvalClient {
 
   async getWebhookEvents(): Promise<ApiResponse<{ events: WebhookEvent[] }>> {
     return this.request<{ events: WebhookEvent[] }>('/webhooks/events');
+  }
+
+  async getWebhookVariables(): Promise<ApiResponse<{ variables: WebhookVariableDefinition[] }>> {
+    return this.request<{ variables: WebhookVariableDefinition[] }>('/webhooks/variables');
   }
 
   // Tests

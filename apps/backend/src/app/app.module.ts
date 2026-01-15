@@ -17,6 +17,7 @@ import { AppThrottlerModule, CustomThrottlerGuard } from '../throttler';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { TestsModule } from '../tests/tests.module';
 import { RunsModule } from '../runs/runs.module';
+import { CleanupModule } from '../cleanup/cleanup.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { RunsModule } from '../runs/runs.module';
     WebhooksModule,
     TestsModule,
     RunsModule,
+    CleanupModule,
   ],
   controllers: [AppController],
   providers: [

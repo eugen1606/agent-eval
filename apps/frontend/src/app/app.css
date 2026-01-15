@@ -4049,3 +4049,237 @@ body {
     max-width: none;
   }
 }
+
+/* Modal Sizes */
+.modal-content.modal-large {
+  min-width: 600px;
+  max-width: 800px;
+}
+
+.modal-content.modal-xlarge {
+  min-width: 800px;
+  max-width: 1000px;
+}
+
+/* Webhook Form Improvements */
+.webhook-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+}
+
+.webhook-form-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.webhook-form-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+/* Key Value Editor */
+.key-value-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.key-value-header label {
+  margin-bottom: 0;
+}
+
+.add-kv-btn {
+  padding: 0.35rem 0.75rem;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.2s;
+}
+
+.add-kv-btn:hover {
+  background: var(--accent-secondary);
+}
+
+.key-value-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.key-value-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.key-input,
+.value-input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.key-input:focus,
+.value-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.remove-btn {
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-btn:hover {
+  opacity: 0.8;
+}
+
+.empty-kv-hint {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  border: 1px dashed var(--border-color);
+}
+
+/* Variable Helper */
+.variable-helper {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.variable-helper-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.variable-helper-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.variable-helper-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.variable-helper-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.variable-helper-empty p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.variable-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.variable-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.2s;
+}
+
+.variable-item:last-child {
+  border-bottom: none;
+}
+
+.variable-item:hover {
+  background: var(--bg-hover);
+}
+
+.variable-item-top {
+  margin-bottom: 0.25rem;
+}
+
+.variable-name {
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 0.85rem;
+  background: var(--code-bg);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  color: var(--accent-primary);
+}
+
+.variable-item-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.variable-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.variable-example {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Webhook form hint */
+.form-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Body template editor */
+.body-template-editor {
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .modal-content.modal-xlarge {
+    min-width: auto;
+    max-width: 90vw;
+  }
+
+  .webhook-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .webhook-form-sidebar {
+    order: -1;
+  }
+}

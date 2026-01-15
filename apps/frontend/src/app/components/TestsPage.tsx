@@ -4,6 +4,7 @@ import {
   StoredAccessToken,
   StoredQuestionSet,
   StoredFlowConfig,
+  StoredWebhook,
 } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
@@ -19,6 +20,7 @@ export function TestsPage() {
   const [accessTokens, setAccessTokens] = useState<StoredAccessToken[]>([]);
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
+  const [webhooks, setWebhooks] = useState<StoredWebhook[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -29,6 +31,7 @@ export function TestsPage() {
     accessTokenId: '',
     questionSetId: '',
     multiStepEvaluation: false,
+    webhookId: '',
   });
   const [loading, setLoading] = useState(false);
   // Map of testId -> runId for running tests
@@ -54,13 +57,14 @@ export function TestsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load supporting data (tokens, questions, configs) once
+  // Load supporting data (tokens, questions, configs, webhooks) once
   useEffect(() => {
     const loadSupportingData = async () => {
-      const [tokensRes, questionsRes, flowConfigsRes] = await Promise.all([
+      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes] = await Promise.all([
         apiClient.getAccessTokens(),
         apiClient.getQuestionSets(),
         apiClient.getFlowConfigs(),
+        apiClient.getWebhooks(),
       ]);
 
       if (tokensRes.success && tokensRes.data) {
@@ -71,6 +75,9 @@ export function TestsPage() {
       }
       if (flowConfigsRes.success && flowConfigsRes.data) {
         setFlowConfigs(flowConfigsRes.data);
+      }
+      if (webhooksRes.success && webhooksRes.data) {
+        setWebhooks(webhooksRes.data);
       }
     };
     loadSupportingData();
@@ -150,6 +157,7 @@ export function TestsPage() {
       accessTokenId: formData.accessTokenId || undefined,
       questionSetId: formData.questionSetId || undefined,
       multiStepEvaluation: formData.multiStepEvaluation,
+      webhookId: formData.webhookId || undefined,
     };
 
     let response;
@@ -179,6 +187,7 @@ export function TestsPage() {
       accessTokenId: test.accessTokenId || '',
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
+      webhookId: test.webhookId || '',
     });
     setShowForm(true);
   };
@@ -192,6 +201,7 @@ export function TestsPage() {
       accessTokenId: '',
       questionSetId: '',
       multiStepEvaluation: false,
+      webhookId: '',
     });
     setShowForm(false);
     setEditingId(null);
@@ -317,6 +327,12 @@ export function TestsPage() {
     if (!id) return 'None';
     const token = accessTokens.find((t) => t.id === id);
     return token?.name || 'Unknown';
+  };
+
+  const getWebhookName = (id?: string) => {
+    if (!id) return 'None';
+    const webhook = webhooks.find((w) => w.id === id);
+    return webhook?.name || 'Unknown';
   };
 
   const hasActiveFilters = searchTerm || filterQuestionSet || filterFlowId || filterMultiStep !== 'all';
@@ -461,6 +477,25 @@ export function TestsPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="form-group">
+            <label>Webhook</label>
+            <select
+              value={formData.webhookId}
+              onChange={(e) =>
+                setFormData({ ...formData, webhookId: e.target.value })
+              }
+            >
+              <option value="">No webhook</option>
+              {webhooks.filter(w => w.enabled).map((webhook) => (
+                <option key={webhook.id} value={webhook.id}>
+                  {webhook.name}
+                </option>
+              ))}
+            </select>
+            <span className="form-hint">
+              Trigger webhook on run events (running, completed, failed, evaluated)
+            </span>
           </div>
           <div className="form-group checkbox-group">
             <label>
@@ -612,6 +647,12 @@ export function TestsPage() {
                   <span className="detail-label">Token:</span>
                   <span className="detail-value">
                     {getAccessTokenName(test.accessTokenId)}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Webhook:</span>
+                  <span className="detail-value">
+                    {getWebhookName(test.webhookId)}
                   </span>
                 </div>
                 {test.multiStepEvaluation && (

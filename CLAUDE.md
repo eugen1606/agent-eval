@@ -86,6 +86,7 @@ libs/
 | `questions` | `/api/questions` | Question set management |
 | `flow-configs` | `/api/flow-configs` | Saved flow configurations (legacy) |
 | `evaluations` | `/api/evaluations` | Stored evaluation results (legacy) |
+| `webhooks` | `/api/webhooks` | Webhook management with dynamic variables |
 
 ### Database Entities
 
@@ -98,6 +99,7 @@ libs/
 | `QuestionSet` | Reusable question collections |
 | `FlowConfig` | Saved flow configurations (legacy) |
 | `Evaluation` | Stored evaluation results (legacy) |
+| `Webhook` | Webhook configurations with HTTP method, headers, query params, body template |
 
 ### Key Types (libs/shared)
 
@@ -121,6 +123,14 @@ RunResult {
   humanEvaluation?: 'correct' | 'partial' | 'incorrect',
   severity?: 'critical' | 'major' | 'minor',
   humanEvaluationDescription?, isError?, errorMessage?, timestamp?
+}
+
+// Webhook configuration
+StoredWebhook {
+  id, name, url, description?, events: WebhookEvent[],
+  enabled, secret?, method: 'POST' | 'PUT' | 'PATCH',
+  headers?: Record<string, string>, queryParams?: Record<string, string>,
+  bodyTemplate: Record<string, unknown>, createdAt, updatedAt
 }
 ```
 
@@ -225,6 +235,7 @@ describe('Feature Name', () => {
 | `evaluations.spec.ts` | Evaluations CRUD |
 | `data-isolation.spec.ts` | Multi-user data isolation |
 | `throttling.spec.ts` | Rate limiting |
+| `webhooks.spec.ts` | Webhooks CRUD, validation, variables endpoint |
 
 ## Git Conventions
 
@@ -241,6 +252,9 @@ describe('Feature Name', () => {
 - Flow service: `apps/backend/src/flow/flow.service.ts`
 - Encryption: `apps/backend/src/config/encryption.service.ts`
 - Rate limiting: `apps/backend/src/throttler/`
+- Webhooks module: `apps/backend/src/webhooks/`
+- Webhook entity: `apps/backend/src/database/entities/webhook.entity.ts`
+- Variable resolver: `apps/backend/src/webhooks/variable-resolver.service.ts`
 
 ### Frontend
 - Tests page: `apps/frontend/src/app/components/TestsPage.tsx`
@@ -249,6 +263,7 @@ describe('Feature Name', () => {
 - Dashboard: `apps/frontend/src/app/components/Dashboard.tsx`
 - Auth context: `apps/frontend/src/app/context/AuthContext.tsx`
 - App context: `apps/frontend/src/app/context/AppContext.tsx`
+- Webhooks manager: `apps/frontend/src/app/components/WebhooksManager.tsx`
 
 ### Shared
 - API client: `libs/api-client/src/lib/api-client.ts`

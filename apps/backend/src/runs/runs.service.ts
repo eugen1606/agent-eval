@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Run, RunStatus } from '../database/entities';
+import { Run, RunStatus, Test } from '../database/entities';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 export interface CreateRunDto {
   testId: string;
@@ -12,8 +13,8 @@ export interface UpdateRunDto {
   status?: RunStatus;
   errorMessage?: string;
   completedQuestions?: number;
-  startedAt?: Date;
-  completedAt?: Date;
+  startedAt?: Date | string;
+  completedAt?: Date | string;
 }
 
 export interface UpdateResultEvaluationDto {
@@ -49,6 +50,9 @@ export class RunsService {
   constructor(
     @InjectRepository(Run)
     private runRepository: Repository<Run>,
+    @InjectRepository(Test)
+    private testRepository: Repository<Test>,
+    private webhooksService: WebhooksService,
   ) {}
 
   async create(dto: CreateRunDto, userId: string): Promise<Run> {
@@ -143,9 +147,19 @@ export class RunsService {
     if (dto.errorMessage !== undefined) run.errorMessage = dto.errorMessage;
     if (dto.completedQuestions !== undefined)
       run.completedQuestions = dto.completedQuestions;
-    if (dto.completedAt !== undefined) run.completedAt = dto.completedAt;
+    if (dto.completedAt !== undefined) {
+      run.completedAt =
+        typeof dto.completedAt === 'string'
+          ? new Date(dto.completedAt)
+          : dto.completedAt;
+    }
 
     return this.runRepository.save(run);
+  }
+
+  async delete(id: string, userId: string): Promise<void> {
+    const run = await this.findOne(id, userId);
+    await this.runRepository.remove(run);
   }
 
   async start(id: string, userId: string): Promise<Run> {
@@ -192,6 +206,88 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
+  private isRunFullyEvaluated(run: Run): boolean {
+    const evaluatableResults = run.results.filter((r) => !r.isError);
+    if (evaluatableResults.length === 0) return false;
+    return evaluatableResults.every((r) => r.humanEvaluation !== undefined);
+  }
+
+  private async checkAndTriggerEvaluatedWebhook(
+    run: Run,
+    userId: string,
+  ): Promise<Run> {
+    // Skip if already evaluated
+    if (run.isFullyEvaluated) return run;
+
+    // Check if all evaluatable questions have been evaluated
+    if (!this.isRunFullyEvaluated(run)) return run;
+
+    // Mark as fully evaluated
+    run.isFullyEvaluated = true;
+    run.evaluatedAt = new Date();
+    const savedRun = await this.runRepository.save(run);
+
+    // Trigger webhook if test has one configured
+    if (run.testId) {
+      const test = await this.testRepository.findOne({
+        where: { id: run.testId },
+      });
+
+      if (test?.webhookId) {
+        const stats = this.calculateStats(savedRun);
+        this.webhooksService.triggerWebhooks(userId, 'run.evaluated', {
+          runId: savedRun.id,
+          runStatus: savedRun.status,
+          testId: test.id,
+          testName: test.name,
+          totalQuestions: savedRun.totalQuestions,
+          completedQuestions: savedRun.completedQuestions,
+          accuracy: stats.accuracy,
+          correctCount: stats.correct,
+          partialCount: stats.partial,
+          incorrectCount: stats.incorrect,
+          errorCount: stats.errors,
+          evaluatedCount: stats.evaluated,
+        });
+      }
+    }
+
+    return savedRun;
+  }
+
+  private calculateStats(run: Run): {
+    total: number;
+    evaluated: number;
+    correct: number;
+    partial: number;
+    incorrect: number;
+    errors: number;
+    accuracy: number | null;
+  } {
+    const total = run.results.length;
+    const errors = run.results.filter((r) => r.isError).length;
+    const evaluated = run.results.filter(
+      (r) => r.humanEvaluation && !r.isError,
+    ).length;
+    const correct = run.results.filter(
+      (r) => r.humanEvaluation === 'correct',
+    ).length;
+    const partial = run.results.filter(
+      (r) => r.humanEvaluation === 'partial',
+    ).length;
+    const incorrect = run.results.filter(
+      (r) => r.humanEvaluation === 'incorrect',
+    ).length;
+
+    const evaluatable = total - errors;
+    const accuracy =
+      evaluatable > 0 && evaluated === evaluatable
+        ? Math.round(((correct + partial * 0.5) / evaluatable) * 100)
+        : null;
+
+    return { total, evaluated, correct, partial, incorrect, errors, accuracy };
+  }
+
   async updateResultEvaluation(
     id: string,
     dto: UpdateResultEvaluationDto,
@@ -216,7 +312,10 @@ export class RunsService {
       result.llmJudgeReasoning = dto.llmJudgeReasoning;
 
     run.results[resultIndex] = result;
-    return this.runRepository.save(run);
+    const savedRun = await this.runRepository.save(run);
+
+    // Check if run is now fully evaluated and trigger webhook
+    return this.checkAndTriggerEvaluatedWebhook(savedRun, userId);
   }
 
   async bulkUpdateResultEvaluations(
@@ -244,7 +343,10 @@ export class RunsService {
       run.results[resultIndex] = result;
     }
 
-    return this.runRepository.save(run);
+    const savedRun = await this.runRepository.save(run);
+
+    // Check if run is now fully evaluated and trigger webhook
+    return this.checkAndTriggerEvaluatedWebhook(savedRun, userId);
   }
 
   async getStats(
@@ -260,28 +362,6 @@ export class RunsService {
     accuracy: number | null;
   }> {
     const run = await this.findOne(id, userId);
-
-    const total = run.results.length;
-    const errors = run.results.filter((r) => r.isError).length;
-    const evaluated = run.results.filter(
-      (r) => r.humanEvaluation && !r.isError,
-    ).length;
-    const correct = run.results.filter(
-      (r) => r.humanEvaluation === 'correct',
-    ).length;
-    const partial = run.results.filter(
-      (r) => r.humanEvaluation === 'partial',
-    ).length;
-    const incorrect = run.results.filter(
-      (r) => r.humanEvaluation === 'incorrect',
-    ).length;
-
-    const evaluatable = total - errors;
-    const accuracy =
-      evaluatable > 0 && evaluated === evaluatable
-        ? Math.round(((correct + partial * 0.5) / evaluatable) * 100)
-        : null;
-
-    return { total, evaluated, correct, partial, incorrect, errors, accuracy };
+    return this.calculateStats(run);
   }
 }

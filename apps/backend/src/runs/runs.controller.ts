@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -110,5 +111,14 @@ export class RunsController {
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Run> {
     return this.runsService.cancel(id, user.userId);
+  }
+
+  @Delete(':id')
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<{ success: boolean }> {
+    await this.runsService.delete(id, user.userId);
+    return { success: true };
   }
 }

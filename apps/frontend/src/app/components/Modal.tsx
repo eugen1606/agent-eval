@@ -7,9 +7,10 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: 'default' | 'large' | 'xlarge';
 }
 
-export function Modal({ isOpen, onClose, onSubmit, title, children, footer }: ModalProps) {
+export function Modal({ isOpen, onClose, onSubmit, title, children, footer, size = 'default' }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -45,9 +46,11 @@ export function Modal({ isOpen, onClose, onSubmit, title, children, footer }: Mo
 
   if (!isOpen) return null;
 
+  const sizeClass = size !== 'default' ? `modal-${size}` : '';
+
   return (
     <div className="modal-backdrop" ref={modalRef} onClick={handleBackdropClick}>
-      <div className="modal-content">
+      <div className={`modal-content ${sizeClass}`.trim()}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>

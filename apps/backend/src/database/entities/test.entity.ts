@@ -10,6 +10,7 @@ import {
 import { User } from './user.entity';
 import { AccessToken } from './access-token.entity';
 import { QuestionSet } from './question-set.entity';
+import { Webhook } from './webhook.entity';
 
 @Entity('tests')
 export class Test {
@@ -51,6 +52,13 @@ export class Test {
 
   @Column({ default: false })
   multiStepEvaluation: boolean;
+
+  @Column({ nullable: true })
+  webhookId: string;
+
+  @ManyToOne(() => Webhook, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'webhookId' })
+  webhook: Webhook;
 
   @CreateDateColumn()
   createdAt: Date;

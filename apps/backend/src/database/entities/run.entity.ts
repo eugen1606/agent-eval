@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Test } from './test.entity';
@@ -63,8 +64,15 @@ export class Run {
   @Column({ type: 'timestamp', nullable: true })
   startedAt: Date;
 
+  @Index()
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
+
+  @Column({ default: false })
+  isFullyEvaluated: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  evaluatedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;

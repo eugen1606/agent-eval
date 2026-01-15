@@ -20,6 +20,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { FlowService } from '../flow/flow.service';
 import { RunsService } from '../runs/runs.service';
 import { QuestionsService } from '../questions/questions.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Controller('tests')
@@ -30,6 +31,7 @@ export class TestsController {
     private readonly flowService: FlowService,
     private readonly runsService: RunsService,
     private readonly questionsService: QuestionsService,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   @Post()
@@ -94,10 +96,11 @@ export class TestsController {
     return new Observable((subscriber) => {
       (async () => {
         let runId: string | null = null;
+        let test: Test | null = null;
 
         try {
           // Get the test configuration
-          const test = await this.testsService.findOne(id, user.userId);
+          test = await this.testsService.findOne(id, user.userId);
 
           if (!test.questionSetId) {
             throw new BadRequestException('Test has no question set configured');
@@ -115,6 +118,16 @@ export class TestsController {
 
           // Start the run
           await this.runsService.start(run.id, user.userId);
+
+          // Trigger run.running webhook if test has a webhook configured
+          if (test.webhookId) {
+            this.webhooksService.triggerWebhooks(user.userId, 'run.running', {
+              runId: run.id,
+              runStatus: 'running',
+              testId: test.id,
+              testName: test.name,
+            });
+          }
 
           // Send run start event
           subscriber.next({
@@ -173,7 +186,19 @@ export class TestsController {
           }
 
           // Complete the run
-          await this.runsService.complete(run.id, user.userId);
+          const completedRun = await this.runsService.complete(run.id, user.userId);
+
+          // Trigger run.completed webhook if test has a webhook configured
+          if (test.webhookId) {
+            this.webhooksService.triggerWebhooks(user.userId, 'run.completed', {
+              runId: completedRun.id,
+              runStatus: 'completed',
+              testId: test.id,
+              testName: test.name,
+              totalQuestions: completedRun.totalQuestions,
+              completedQuestions: completedRun.completedQuestions,
+            });
+          }
 
           // Send completion event
           subscriber.next({
@@ -186,7 +211,20 @@ export class TestsController {
           // Mark the run as failed if it was created
           if (runId) {
             try {
-              await this.runsService.fail(runId, errorMessage, user.userId);
+              const failedRun = await this.runsService.fail(runId, errorMessage, user.userId);
+
+              // Trigger run.failed webhook if test has a webhook configured
+              if (test?.webhookId) {
+                this.webhooksService.triggerWebhooks(user.userId, 'run.failed', {
+                  runId: failedRun.id,
+                  runStatus: 'failed',
+                  testId: test.id,
+                  testName: test.name,
+                  totalQuestions: failedRun.totalQuestions,
+                  completedQuestions: failedRun.completedQuestions,
+                  errorMessage,
+                });
+              }
             } catch {
               // Ignore errors when trying to mark run as failed
             }

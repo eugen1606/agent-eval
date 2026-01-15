@@ -11,6 +11,7 @@ export interface CreateTestDto {
   accessTokenId?: string;
   questionSetId?: string;
   multiStepEvaluation?: boolean;
+  webhookId?: string;
 }
 
 export interface TestsFilterDto {
@@ -48,6 +49,7 @@ export class TestsService {
       accessTokenId: dto.accessTokenId,
       questionSetId: dto.questionSetId,
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
+      webhookId: dto.webhookId,
       userId,
     });
     return this.testRepository.save(test);
@@ -116,7 +118,7 @@ export class TestsService {
   async findOne(id: string, userId: string): Promise<Test> {
     const test = await this.testRepository.findOne({
       where: { id, userId },
-      relations: ['questionSet', 'accessToken'],
+      relations: ['questionSet', 'accessToken', 'webhook'],
     });
     if (!test) {
       throw new NotFoundException(`Test not found: ${id}`);
@@ -134,6 +136,7 @@ export class TestsService {
     if (dto.accessTokenId !== undefined) test.accessTokenId = dto.accessTokenId;
     if (dto.questionSetId !== undefined) test.questionSetId = dto.questionSetId;
     if (dto.multiStepEvaluation !== undefined) test.multiStepEvaluation = dto.multiStepEvaluation;
+    if (dto.webhookId !== undefined) test.webhookId = dto.webhookId || undefined;
 
     return this.testRepository.save(test);
   }
