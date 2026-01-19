@@ -58,6 +58,46 @@ yarn nx e2e backend-e2e    # E2E tests (requires running backend)
 docker-compose -f docker-compose.prod.yml up --build
 ```
 
+## Database Migrations
+
+Schema changes are managed through TypeORM migrations (not `synchronize`).
+
+### Migration Commands
+
+```bash
+# Generate migration from entity changes
+yarn migration:generate apps/backend/src/database/migrations/MigrationName
+
+# Run pending migrations (also runs automatically on app startup)
+yarn migration:run
+
+# Rollback last migration
+yarn migration:revert
+
+# Show migration status
+yarn migration:show
+```
+
+### Workflow for Schema Changes
+
+1. Modify entity file (e.g., add column to `apps/backend/src/database/entities/user.entity.ts`)
+2. Generate migration: `yarn migration:generate apps/backend/src/database/migrations/AddDisplayNameToUser`
+3. Review generated migration in `apps/backend/src/database/migrations/`
+4. Commit both entity change and migration file together
+5. On deployment, migrations run automatically on app startup
+
+### Key Files
+
+- `apps/backend/src/database/data-source.ts` - TypeORM CLI config (uses dotenv, not ConfigService, because CLI runs outside NestJS)
+- `apps/backend/src/database/migrations/` - Migration files
+- `apps/backend/src/database/database.module.ts` - Runtime config with `migrationsRun: true`
+
+### Notes
+
+- Never use `synchronize: true` in production
+- Migrations are tracked in `typeorm_migrations` table
+- Always test migrations on a copy of production data before deploying
+
 ## Architecture
 
 Nx monorepo structure:
@@ -255,6 +295,8 @@ describe('Feature Name', () => {
 - Webhooks module: `apps/backend/src/webhooks/`
 - Webhook entity: `apps/backend/src/database/entities/webhook.entity.ts`
 - Variable resolver: `apps/backend/src/webhooks/variable-resolver.service.ts`
+- Migrations: `apps/backend/src/database/migrations/`
+- Migration CLI config: `apps/backend/src/database/data-source.ts`
 
 ### Frontend
 - Tests page: `apps/frontend/src/app/components/TestsPage.tsx`

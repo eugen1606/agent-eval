@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as path from 'path';
 import { AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run } from './entities';
 
 @Module({
@@ -21,7 +22,9 @@ import { AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Tes
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
           entities: [AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run],
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
+          migrationsRun: true,
+          migrationsTableName: 'typeorm_migrations',
           logging: enableTypeOrmLogging,
           // Connection pool settings
           extra: {

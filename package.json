@@ -4,6 +4,12 @@
   "license": "MIT",
   "packageManager": "yarn@4.9.1",
   "private": true,
+  "scripts": {
+    "migration:generate": "ts-node -r tsconfig-paths/register --project apps/backend/tsconfig.app.json ./node_modules/typeorm/cli.js migration:generate -d apps/backend/src/database/data-source.ts",
+    "migration:run": "ts-node -r tsconfig-paths/register --project apps/backend/tsconfig.app.json ./node_modules/typeorm/cli.js migration:run -d apps/backend/src/database/data-source.ts",
+    "migration:revert": "ts-node -r tsconfig-paths/register --project apps/backend/tsconfig.app.json ./node_modules/typeorm/cli.js migration:revert -d apps/backend/src/database/data-source.ts",
+    "migration:show": "ts-node -r tsconfig-paths/register --project apps/backend/tsconfig.app.json ./node_modules/typeorm/cli.js migration:show -d apps/backend/src/database/data-source.ts"
+  },
   "devDependencies": {
     "@eslint/js": "^9.8.0",
     "@nestjs/schematics": "^11.0.0",
@@ -34,6 +40,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.2.0",
     "@vitest/ui": "^4.0.0",
+    "dotenv": "^17.2.3",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "jest": "^30.0.2",
@@ -46,6 +53,7 @@
     "prettier": "~3.6.2",
     "ts-jest": "^29.4.0",
     "ts-node": "10.9.1",
+    "tsconfig-paths": "^4.2.0",
     "tslib": "^2.3.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.40.0",
