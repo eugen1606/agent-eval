@@ -10,11 +10,9 @@ import {
   StoredScheduledTest,
   CreateScheduledTestRequest,
   User,
-  AuthTokens,
   LoginRequest,
   RegisterRequest,
   AuthResponse,
-  RefreshTokenRequest,
   ChangePasswordRequest,
   AccountStats,
   StoredWebhook,
@@ -35,52 +33,59 @@ import {
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
-const TOKEN_STORAGE_KEY = 'auth_tokens';
+const CSRF_COOKIE_NAME = 'csrf_token';
 
+/**
+ * Cookie-based authentication API client.
+ * Uses httpOnly cookies for JWT tokens and CSRF tokens for protection.
+ */
 export class AgentEvalClient {
   private apiUrl: string;
   private onAuthChange?: (isAuthenticated: boolean) => void;
+  private csrfToken: string | null = null;
 
   constructor(apiUrl: string = DEFAULT_API_URL) {
     this.apiUrl = apiUrl;
+    // Load CSRF token from cookie on initialization
+    this.loadCsrfTokenFromCookie();
   }
 
-  // Token Management - always read fresh from localStorage
-  private getTokens(): AuthTokens | null {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          return null;
-        }
-      }
+  /**
+   * Load CSRF token from cookie (not httpOnly, readable by JS)
+   */
+  private loadCsrfTokenFromCookie(): void {
+    if (typeof document !== 'undefined') {
+      const match = document.cookie.match(new RegExp(`${CSRF_COOKIE_NAME}=([^;]+)`));
+      this.csrfToken = match ? match[1] : null;
     }
-    return null;
   }
 
-  private saveTokens(tokens: AuthTokens | null): void {
-    if (typeof window !== 'undefined') {
-      if (tokens) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
-      } else {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-      }
-    }
-    this.onAuthChange?.(!!tokens);
+  /**
+   * Set CSRF token (received from login/register response)
+   */
+  private setCsrfToken(token: string | null): void {
+    this.csrfToken = token;
   }
 
   public setOnAuthChange(callback: (isAuthenticated: boolean) => void): void {
     this.onAuthChange = callback;
   }
 
+  /**
+   * Check if user is authenticated by verifying CSRF token presence.
+   * (JWT cookie is httpOnly and can't be checked directly)
+   */
   public isAuthenticated(): boolean {
-    return !!this.getTokens()?.accessToken;
+    this.loadCsrfTokenFromCookie();
+    return !!this.csrfToken;
   }
 
+  /**
+   * Get CSRF token for SSE endpoints that need it in header
+   */
   public getAuthToken(): string | null {
-    return this.getTokens()?.accessToken || null;
+    this.loadCsrfTokenFromCookie();
+    return this.csrfToken;
   }
 
   private async request<T>(
@@ -94,26 +99,32 @@ export class AgentEvalClient {
         ...(options.headers as Record<string, string>),
       };
 
-      const tokens = this.getTokens();
-      if (requireAuth && tokens?.accessToken) {
-        headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+      // Add CSRF token for state-changing requests
+      const method = options.method?.toUpperCase() || 'GET';
+      if (requireAuth && this.csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        headers['X-CSRF-Token'] = this.csrfToken;
       }
 
       const response = await fetch(`${this.apiUrl}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // Include cookies in request
       });
 
       // Handle 401 - try to refresh token
-      if (response.status === 401 && requireAuth && tokens?.refreshToken) {
+      if (response.status === 401 && requireAuth) {
         const refreshed = await this.refreshTokens();
         if (refreshed) {
-          // Retry the original request with new token
-          const newTokens = this.getTokens();
-          headers['Authorization'] = `Bearer ${newTokens?.accessToken}`;
+          // Update CSRF token after refresh
+          this.loadCsrfTokenFromCookie();
+          if (this.csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+            headers['X-CSRF-Token'] = this.csrfToken;
+          }
+
           const retryResponse = await fetch(`${this.apiUrl}${endpoint}`, {
             ...options,
             headers,
+            credentials: 'include',
           });
 
           if (!retryResponse.ok) {
@@ -122,13 +133,13 @@ export class AgentEvalClient {
             return { success: false, error: data.message || 'Request failed' };
           }
 
-          // Handle empty response (204 No Content)
           const retryText = await retryResponse.text();
           const retryData = retryText ? JSON.parse(retryText) : undefined;
           return { success: true, data: retryData };
         } else {
-          // Refresh failed, clear tokens
-          this.saveTokens(null);
+          // Refresh failed
+          this.setCsrfToken(null);
+          this.onAuthChange?.(false);
           return { success: false, error: 'Session expired. Please login again.' };
         }
       }
@@ -152,7 +163,7 @@ export class AgentEvalClient {
 
   // Auth Methods
   async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const result = await this.request<AuthResponse>(
+    const result = await this.request<AuthResponse & { csrfToken?: string }>(
       '/auth/login',
       {
         method: 'POST',
@@ -162,14 +173,18 @@ export class AgentEvalClient {
     );
 
     if (result.success && result.data) {
-      this.saveTokens(result.data.tokens);
+      // CSRF token is returned in body for initial setup
+      if (result.data.csrfToken) {
+        this.setCsrfToken(result.data.csrfToken);
+      }
+      this.onAuthChange?.(true);
     }
 
     return result;
   }
 
   async register(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    const result = await this.request<AuthResponse>(
+    const result = await this.request<AuthResponse & { csrfToken?: string }>(
       '/auth/register',
       {
         method: 'POST',
@@ -179,27 +194,29 @@ export class AgentEvalClient {
     );
 
     if (result.success && result.data) {
-      this.saveTokens(result.data.tokens);
+      if (result.data.csrfToken) {
+        this.setCsrfToken(result.data.csrfToken);
+      }
+      this.onAuthChange?.(true);
     }
 
     return result;
   }
 
   private async refreshTokens(): Promise<boolean> {
-    const tokens = this.getTokens();
-    if (!tokens?.refreshToken) return false;
-
     try {
       const response = await fetch(`${this.apiUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: tokens.refreshToken } as RefreshTokenRequest),
+        credentials: 'include',
       });
 
       if (!response.ok) return false;
 
-      const data: AuthTokens = await response.json();
-      this.saveTokens(data);
+      const data = await response.json();
+      if (data.csrfToken) {
+        this.setCsrfToken(data.csrfToken);
+      }
       return true;
     } catch {
       return false;
@@ -210,8 +227,18 @@ export class AgentEvalClient {
     return this.request<User>('/auth/me');
   }
 
-  logout(): void {
-    this.saveTokens(null);
+  async logout(): Promise<void> {
+    try {
+      // Call logout endpoint to clear cookies
+      await fetch(`${this.apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Ignore errors
+    }
+    this.setCsrfToken(null);
+    this.onAuthChange?.(false);
   }
 
   // Account Management
@@ -220,16 +247,31 @@ export class AgentEvalClient {
   }
 
   async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>('/auth/account/change-password', {
+    const result = await this.request<{ message: string }>('/auth/account/change-password', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+
+    // Password change clears cookies, user needs to re-login
+    if (result.success) {
+      this.setCsrfToken(null);
+      this.onAuthChange?.(false);
+    }
+
+    return result;
   }
 
   async deleteAccount(): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>('/auth/account', {
+    const result = await this.request<{ message: string }>('/auth/account', {
       method: 'DELETE',
     });
+
+    if (result.success) {
+      this.setCsrfToken(null);
+      this.onAuthChange?.(false);
+    }
+
+    return result;
   }
 
   // LLM Evaluation
@@ -527,6 +569,10 @@ export class AgentEvalClient {
 
   async cancelRun(id: string): Promise<ApiResponse<StoredRun>> {
     return this.request<StoredRun>(`/runs/${id}/cancel`, { method: 'POST' });
+  }
+
+  async deleteRun(id: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request<{ success: boolean }>(`/runs/${id}`, { method: 'DELETE' });
   }
 
   async getRunStats(id: string): Promise<ApiResponse<RunStats>> {

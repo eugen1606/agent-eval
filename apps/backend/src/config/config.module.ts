@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
 import * as path from 'path';
+import { validate } from './config.validation';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import * as path from 'path';
         path.join(process.cwd(), '.env'),
         path.join(process.cwd(), '.env.local'),
       ],
+      validate,
     }),
   ],
 })

@@ -21,6 +21,10 @@ RUN yarn nx build backend --configuration=production
 # Production stage
 FROM node:20-alpine AS production
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 -G nodejs
+
 WORKDIR /app
 
 # Enable corepack for yarn
@@ -35,12 +39,16 @@ RUN yarn workspaces focus --production
 # Copy built application
 COPY --from=builder /app/dist/apps/backend ./dist
 
-# Create data directory
-RUN mkdir -p /app/data/sessions
+# Create data directory with proper ownership
+RUN mkdir -p /app/data/sessions && \
+    chown -R nodejs:nodejs /app
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
+
+# Switch to non-root user
+USER nodejs
 
 EXPOSE 3000
 

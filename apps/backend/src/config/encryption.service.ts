@@ -11,15 +11,29 @@ export class EncryptionService {
   constructor(private configService: ConfigService) {
     const encryptionKey = this.configService.get<string>('ENCRYPTION_KEY');
 
-    if (!encryptionKey || encryptionKey.length !== 64) {
-      this.logger.warn(
-        'ENCRYPTION_KEY not set or invalid. Generating temporary key. ' +
-          'Set a 64-character hex key in production!',
+    if (!encryptionKey) {
+      throw new Error(
+        'CRITICAL: ENCRYPTION_KEY environment variable is not set. ' +
+        'Application cannot start without an encryption key. ' +
+        'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
       );
-      this.key = crypto.randomBytes(32);
-    } else {
-      this.key = Buffer.from(encryptionKey, 'hex');
     }
+
+    if (encryptionKey.length !== 64) {
+      throw new Error(
+        `CRITICAL: ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes). ` +
+        `Current length: ${encryptionKey.length}. ` +
+        'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      );
+    }
+
+    if (!/^[a-fA-F0-9]+$/.test(encryptionKey)) {
+      throw new Error(
+        'CRITICAL: ENCRYPTION_KEY must contain only hexadecimal characters (0-9, a-f, A-F).'
+      );
+    }
+
+    this.key = Buffer.from(encryptionKey, 'hex');
   }
 
   encrypt(plaintext: string): {

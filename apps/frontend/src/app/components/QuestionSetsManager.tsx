@@ -80,9 +80,17 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       if (response.success) {
         resetForm();
         loadQuestionSets();
-        showNotification('success', editingId ? 'Question set updated successfully' : 'Question set created successfully');
+        showNotification(
+          'success',
+          editingId
+            ? 'Question set updated successfully'
+            : 'Question set created successfully',
+        );
       } else {
-        showNotification('error', response.error || 'Failed to save question set');
+        showNotification(
+          'error',
+          response.error || 'Failed to save question set',
+        );
       }
     } catch {
       setJsonError('Invalid JSON format');
@@ -117,7 +125,10 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       loadQuestionSets();
       showNotification('success', 'Question set deleted successfully');
     } else {
-      showNotification('error', response.error || 'Failed to delete question set');
+      showNotification(
+        'error',
+        response.error || 'Failed to delete question set',
+      );
     }
   };
 
@@ -240,7 +251,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
+              className={
+                formSubmitAttempted && !formData.name ? 'input-error' : ''
+              }
             />
             {formSubmitAttempted && !formData.name && (
               <span className="field-error">Question set name is required</span>
@@ -256,7 +269,11 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                 setJsonError(null);
               }}
               rows={6}
-              className={formSubmitAttempted && !formData.questionsJson ? 'input-error' : ''}
+              className={
+                formSubmitAttempted && !formData.questionsJson
+                  ? 'input-error'
+                  : ''
+              }
             />
             {jsonError && <span className="error">{jsonError}</span>}
             {formSubmitAttempted && !formData.questionsJson && !jsonError && (
@@ -338,7 +355,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           <p className="error-message">{importError?.message}</p>
           {importError?.showSchema && (
             <div className="json-schema-help">
-              <p className="schema-intro">The JSON file must this format:</p>
+              <p className="schema-intro">
+                The JSON file must use this format:
+              </p>
               <div className="schema-section">
                 <pre className="json-example">{`[
   {

@@ -21,6 +21,7 @@ import { FlowService } from '../flow/flow.service';
 import { RunsService } from '../runs/runs.service';
 import { QuestionsService } from '../questions/questions.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { UrlValidationService } from '../common/validators/url-validation.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Controller('tests')
@@ -32,13 +33,27 @@ export class TestsController {
     private readonly runsService: RunsService,
     private readonly questionsService: QuestionsService,
     private readonly webhooksService: WebhooksService,
+    private readonly urlValidationService: UrlValidationService,
   ) {}
+
+  private validateBasePath(basePath: string): void {
+    // Validate basePath URL for SSRF protection
+    // skipDnsCheck=true for input validation (fast check)
+    // Full DNS check happens at execution time in FlowService
+    this.urlValidationService.validateUrlSync(basePath, {
+      context: 'Base path',
+    });
+  }
 
   @Post()
   async create(
     @Body() dto: CreateTestDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Test> {
+    // Validate basePath for SSRF protection
+    if (dto.basePath) {
+      this.validateBasePath(dto.basePath);
+    }
     return this.testsService.create(dto, user.userId);
   }
 
@@ -76,6 +91,10 @@ export class TestsController {
     @Body() dto: Partial<CreateTestDto>,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Test> {
+    // Validate basePath for SSRF protection if provided
+    if (dto.basePath) {
+      this.validateBasePath(dto.basePath);
+    }
     return this.testsService.update(id, dto, user.userId);
   }
 

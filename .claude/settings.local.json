@@ -9,7 +9,9 @@
       "Bash(yarn nx e2e:*)",
       "Bash(cat:*)",
       "Bash(yarn nx lint:*)",
-      "Bash(yarn nx test:*)"
+      "Bash(yarn nx test:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)"
     ]
   }
 }

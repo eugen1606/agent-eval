@@ -36,7 +36,15 @@ export class AuthService {
     private configService: ConfigService,
     private dataSource: DataSource,
   ) {
-    this.jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET') || 'default-refresh-secret-change-me';
+    const refreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+    if (!refreshSecret) {
+      throw new Error(
+        'CRITICAL: JWT_REFRESH_SECRET environment variable is not configured. ' +
+        'Application cannot start without a secure refresh token secret. ' +
+        'Generate with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+      );
+    }
+    this.jwtRefreshSecret = refreshSecret;
     this.jwtRefreshExpiration = configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d';
   }
 

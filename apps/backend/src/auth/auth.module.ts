@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CsrfGuard } from './guards/csrf.guard';
 
 @Module({
   imports: [
@@ -17,16 +18,25 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-jwt-secret-change-me',
-        signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRATION') || '15m') as `${number}${'s' | 'm' | 'h' | 'd'}`,
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const jwtSecret = configService.get<string>('JWT_SECRET');
+        if (!jwtSecret) {
+          throw new Error(
+            'CRITICAL: JWT_SECRET environment variable is not configured. ' +
+            'Application cannot start without a secure JWT secret.'
+          );
+        }
+        return {
+          secret: jwtSecret,
+          signOptions: {
+            expiresIn: (configService.get<string>('JWT_EXPIRATION') || '15m') as `${number}${'s' | 'm' | 'h' | 'd'}`,
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, JwtAuthGuard],
-  exports: [AuthService, JwtModule, JwtAuthGuard],
+  providers: [AuthService, JwtStrategy, LocalStrategy, JwtAuthGuard, CsrfGuard],
+  exports: [AuthService, JwtModule, JwtAuthGuard, CsrfGuard],
 })
 export class AuthModule {}

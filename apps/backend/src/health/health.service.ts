@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { ThrottlerStorageRedisService } from '../throttler/throttler-storage-redis.service';
 
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy';
@@ -8,13 +9,16 @@ export interface HealthStatus {
   version: string;
 }
 
+export interface HealthCheck {
+  status: 'up' | 'down';
+  responseTime?: number;
+  error?: string;
+}
+
 export interface ReadinessStatus extends HealthStatus {
   checks: {
-    database: {
-      status: 'up' | 'down';
-      responseTime?: number;
-      error?: string;
-    };
+    database: HealthCheck;
+    redis: HealthCheck;
   };
 }
 
@@ -23,7 +27,10 @@ export class HealthService {
   private readonly startTime = Date.now();
   private readonly version = process.env.npm_package_version || '1.0.0';
 
-  constructor(private dataSource: DataSource) {}
+  constructor(
+    private dataSource: DataSource,
+    private throttlerStorage: ThrottlerStorageRedisService,
+  ) {}
 
   getHealth(): HealthStatus {
     return {
@@ -35,9 +42,12 @@ export class HealthService {
   }
 
   async getReadiness(): Promise<ReadinessStatus> {
-    const dbCheck = await this.checkDatabase();
+    const [dbCheck, redisCheck] = await Promise.all([
+      this.checkDatabase(),
+      this.throttlerStorage.checkHealth(),
+    ]);
 
-    const allHealthy = dbCheck.status === 'up';
+    const allHealthy = dbCheck.status === 'up' && redisCheck.status === 'up';
 
     return {
       status: allHealthy ? 'healthy' : 'unhealthy',
@@ -46,6 +56,7 @@ export class HealthService {
       version: this.version,
       checks: {
         database: dbCheck,
+        redis: redisCheck,
       },
     };
   }
@@ -59,7 +70,7 @@ export class HealthService {
     };
   }
 
-  private async checkDatabase(): Promise<ReadinessStatus['checks']['database']> {
+  private async checkDatabase(): Promise<HealthCheck> {
     const start = Date.now();
     try {
       await this.dataSource.query('SELECT 1');

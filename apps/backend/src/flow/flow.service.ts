@@ -6,12 +6,16 @@ import {
 } from '@agent-eval/shared';
 import { v4 as uuidv4 } from 'uuid';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
+import { UrlValidationService } from '../common/validators/url-validation.service';
 
 @Injectable()
 export class FlowService {
   private readonly logger = new Logger(FlowService.name);
 
-  constructor(private readonly accessTokensService: AccessTokensService) {}
+  constructor(
+    private readonly accessTokensService: AccessTokensService,
+    private readonly urlValidationService: UrlValidationService,
+  ) {}
 
   async *executeFlowStream(
     config: FlowConfig,
@@ -75,6 +79,12 @@ export class FlowService {
     sharedSessionId: string | null,
   ): Promise<{ answer: string; executionId?: string }> {
     const url = `${config.basePath}/api/lflow-engine/${config.flowId}/run`;
+
+    // Validate URL for SSRF protection (with DNS resolution check)
+    await this.urlValidationService.validateUrl(url, {
+      context: 'Flow endpoint URL',
+      skipDnsCheck: false, // Perform DNS check at execution time
+    });
 
     // Use shared session ID for multi-step, or generate new one for single-step
     const sessionId = sharedSessionId || uuidv4();

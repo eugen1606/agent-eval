@@ -6,6 +6,8 @@ import {
   VariableResolverService,
   WebhookContext,
 } from './variable-resolver.service';
+import { WebhookRetryService } from './webhook-retry.service';
+import { UrlValidationService } from '../common/validators/url-validation.service';
 
 export interface CreateWebhookDto {
   name: string;
@@ -27,6 +29,8 @@ export class WebhooksService {
     @InjectRepository(Webhook)
     private webhookRepository: Repository<Webhook>,
     private variableResolver: VariableResolverService,
+    private webhookRetryService: WebhookRetryService,
+    private urlValidationService: UrlValidationService,
   ) {}
 
   async create(dto: CreateWebhookDto, userId: string): Promise<Webhook> {
@@ -129,6 +133,20 @@ export class WebhooksService {
       resolvedQueryParams,
     );
 
+    // Validate URL for SSRF protection (with DNS resolution check)
+    try {
+      await this.urlValidationService.validateUrl(finalUrl, {
+        context: 'Webhook URL',
+        skipDnsCheck: false, // Perform DNS check at execution time
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Webhook ${webhook.id} blocked by SSRF protection: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      // Don't queue for retry - this is a configuration issue, not a transient failure
+      return;
+    }
+
     // Build headers (always include Content-Type)
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -145,16 +163,8 @@ export class WebhooksService {
       headers['X-Webhook-Signature'] = signature;
     }
 
-    console.log(
-      JSON.stringify(
-        {
-          method: webhook.method || 'POST',
-          headers,
-          body: resolvedBody,
-        },
-        null,
-        2,
-      ),
+    this.logger.debug(
+      `Webhook payload: ${JSON.stringify({ method: webhook.method || 'POST', headers, body: resolvedBody })}`,
     );
 
     try {
@@ -175,15 +185,26 @@ export class WebhooksService {
 
       if (!response.ok) {
         const responseText = await response.text().catch(() => '');
-        this.logger.warn(
-          `Webhook ${webhook.id} returned status ${response.status}: ${responseText}`,
+        const errorMsg = `HTTP ${response.status}: ${responseText.substring(0, 200)}`;
+        this.logger.warn(`Webhook ${webhook.id} returned status ${response.status}: ${responseText}`);
+
+        // Queue for retry on non-2xx responses
+        await this.webhookRetryService.queueForRetry(
+          webhook,
+          finalUrl,
+          resolvedHeaders,
+          resolvedBody,
+          errorMsg,
         );
       } else {
         this.logger.log(`Webhook ${webhook.id} delivered successfully`);
       }
     } catch (error) {
+      let errorMsg = 'Unknown error';
+
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
+          errorMsg = 'Request timed out after 30 seconds';
           this.logger.error(`Webhook ${webhook.id} timed out after 30 seconds`);
         } else {
           // Get the underlying cause if available (Node.js fetch wraps errors)
@@ -192,9 +213,9 @@ export class WebhooksService {
           const causeCode = (cause as Error & { code?: string })?.code;
           const codeMessage = causeCode ? ` (${causeCode})` : '';
 
-          this.logger.error(
-            `Webhook ${webhook.id} failed: ${error.message}${causeMessage}${codeMessage}`,
-          );
+          errorMsg = `${error.message}${causeMessage}${codeMessage}`;
+          this.logger.error(`Webhook ${webhook.id} failed: ${errorMsg}`);
+
           if (cause?.stack) {
             this.logger.debug(`Cause stack: ${cause.stack}`);
           }
@@ -202,6 +223,15 @@ export class WebhooksService {
       } else {
         this.logger.error(`Webhook ${webhook.id} failed: Unknown error`);
       }
+
+      // Queue for retry on network/timeout errors
+      await this.webhookRetryService.queueForRetry(
+        webhook,
+        finalUrl,
+        resolvedHeaders,
+        resolvedBody,
+        errorMsg,
+      );
     }
   }
 

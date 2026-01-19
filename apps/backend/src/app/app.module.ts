@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { CorrelationIdMiddleware } from '../common/middleware';
+import { CommonModule } from '../common/common.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from '../config/config.module';
@@ -18,10 +20,12 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
 import { TestsModule } from '../tests/tests.module';
 import { RunsModule } from '../runs/runs.module';
 import { CleanupModule } from '../cleanup/cleanup.module';
+import { MetricsModule } from '../metrics';
 
 @Module({
   imports: [
     AppConfigModule,
+    CommonModule,
     DatabaseModule,
     AuthModule,
     MigrationModule,
@@ -37,6 +41,7 @@ import { CleanupModule } from '../cleanup/cleanup.module';
     TestsModule,
     RunsModule,
     CleanupModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -47,4 +52,9 @@ import { CleanupModule } from '../cleanup/cleanup.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply correlation ID middleware to all routes
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*path');
+  }
+}

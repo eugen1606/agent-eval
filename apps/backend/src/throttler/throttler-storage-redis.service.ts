@@ -56,6 +56,38 @@ export class ThrottlerStorageRedisService implements ThrottlerStorage, OnModuleD
     await this.redis.quit();
   }
 
+  /**
+   * Check if Redis is connected and responsive.
+   * Used by health check endpoint.
+   */
+  async checkHealth(): Promise<{ status: 'up' | 'down'; responseTime?: number; error?: string }> {
+    if (!this.isConnected) {
+      return { status: 'down', error: 'Not connected' };
+    }
+
+    const start = Date.now();
+    try {
+      await this.redis.ping();
+      return {
+        status: 'up',
+        responseTime: Date.now() - start,
+      };
+    } catch (error) {
+      return {
+        status: 'down',
+        responseTime: Date.now() - start,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Returns whether Redis is currently connected.
+   */
+  getConnectionStatus(): boolean {
+    return this.isConnected;
+  }
+
   async clearAllThrottleKeys(): Promise<number> {
     if (!this.isConnected) {
       return 0;

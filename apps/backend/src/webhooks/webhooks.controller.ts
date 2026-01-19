@@ -14,6 +14,7 @@ import { Webhook, WebhookEvent, WebhookMethod } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WebhookVariableDefinition } from '@agent-eval/shared';
+import { UrlValidationService } from '../common/validators/url-validation.service';
 
 const VALID_EVENTS: WebhookEvent[] = ['run.running', 'run.completed', 'run.failed', 'run.evaluated'];
 const VALID_METHODS: WebhookMethod[] = ['POST', 'PUT', 'PATCH'];
@@ -21,7 +22,10 @@ const VALID_METHODS: WebhookMethod[] = ['POST', 'PUT', 'PATCH'];
 @Controller('webhooks')
 @UseGuards(JwtAuthGuard)
 export class WebhooksController {
-  constructor(private readonly webhooksService: WebhooksService) {}
+  constructor(
+    private readonly webhooksService: WebhooksService,
+    private readonly urlValidationService: UrlValidationService,
+  ) {}
 
   @Post()
   async create(
@@ -145,17 +149,12 @@ export class WebhooksController {
   }
 
   private validateUrl(url: string): void {
-    if (!url) {
-      throw new BadRequestException('URL is required');
-    }
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        throw new BadRequestException('URL must use HTTP or HTTPS protocol');
-      }
-    } catch {
-      throw new BadRequestException('Invalid URL format');
-    }
+    // Use centralized URL validation with SSRF protection
+    // skipDnsCheck=true for input validation (fast check)
+    // Full DNS check happens at execution time in the service
+    this.urlValidationService.validateUrlSync(url, {
+      context: 'Webhook URL',
+    });
   }
 
   private validateEvents(events: WebhookEvent[]): void {
