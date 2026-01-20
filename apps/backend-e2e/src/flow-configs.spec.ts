@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('Flow Configs CRUD', () => {
   let accessToken: string;
@@ -6,6 +6,10 @@ describe('Flow Configs CRUD', () => {
   beforeAll(async () => {
     const auth = await createTestUser('-flow-configs');
     accessToken = auth.accessToken;
+  });
+
+  afterAll(async () => {
+    await deleteTestUser(accessToken);
   });
 
   describe('POST /api/flow-configs', () => {

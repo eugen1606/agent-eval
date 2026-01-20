@@ -1,6 +1,11 @@
-import { API_URL, authenticatedRequest, createTestUser } from './support/test-setup';
+import { API_URL, authenticatedRequest, createTestUser, cleanupAllTestUsers } from './support/test-setup';
 
 describe('Auth Endpoints', () => {
+  afterAll(async () => {
+    // Clean up all test users created via createTestUser
+    await cleanupAllTestUsers();
+  });
+
   describe('POST /api/auth/register', () => {
     it('should register a new user', async () => {
       const email = `register-test-${Date.now()}@e2e-test.local`;

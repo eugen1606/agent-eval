@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('Runs CRUD', () => {
   let accessToken: string;
@@ -19,6 +19,10 @@ describe('Runs CRUD', () => {
     }, accessToken);
     const testData = await testRes.json();
     testId = testData.id;
+  });
+
+  afterAll(async () => {
+    await deleteTestUser(accessToken);
   });
 
   describe('POST /api/runs', () => {

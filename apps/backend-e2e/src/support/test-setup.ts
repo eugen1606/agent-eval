@@ -2,6 +2,9 @@
 
 export const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
+// Track created test users for cleanup
+const createdTestUsers: Array<{ accessToken: string; email: string }> = [];
+
 // Clear throttle keys before tests
 export async function clearThrottleKeys(): Promise<void> {
   try {
@@ -47,11 +50,37 @@ export async function createTestUser(suffix = ''): Promise<{
   }
 
   const data = await response.json();
+
+  // Track for cleanup
+  createdTestUsers.push({ accessToken: data.tokens.accessToken, email });
+
   return {
     user: data.user,
     accessToken: data.tokens.accessToken,
     refreshToken: data.tokens.refreshToken,
   };
+}
+
+// Helper to delete a test user (cascade deletes all their data)
+export async function deleteTestUser(accessToken: string): Promise<void> {
+  try {
+    await fetch(`${API_URL}/auth/account`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch {
+    // Ignore errors - user may already be deleted
+  }
+}
+
+// Cleanup all tracked test users
+export async function cleanupAllTestUsers(): Promise<void> {
+  const promises = createdTestUsers.map(({ accessToken }) => deleteTestUser(accessToken));
+  await Promise.all(promises);
+  createdTestUsers.length = 0; // Clear the array
 }
 
 // Helper to login

@@ -250,26 +250,4 @@ export class AuthService {
     // Delete user - cascading deletes will handle related data
     await this.userRepository.delete({ id: userId });
   }
-
-  // Method to create admin user if none exists (for data migration)
-  async ensureAdminUser(): Promise<User> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL') || 'admin@benchmark.local';
-    const adminPassword = this.configService.get<string>('ADMIN_PASSWORD') || 'admin123';
-
-    let adminUser = await this.userRepository.findOne({ where: { email: adminEmail } });
-
-    if (!adminUser) {
-      const saltRounds = 10;
-      const passwordHash = await bcrypt.hash(adminPassword, saltRounds);
-
-      adminUser = this.userRepository.create({
-        email: adminEmail,
-        passwordHash,
-        displayName: 'Admin',
-      });
-      await this.userRepository.save(adminUser);
-    }
-
-    return adminUser;
-  }
 }

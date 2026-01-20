@@ -1,4 +1,4 @@
-import { API_URL, createTestUser, authenticatedRequest, clearThrottleKeys } from './support/test-setup';
+import { API_URL, createTestUser, authenticatedRequest, clearThrottleKeys, cleanupAllTestUsers } from './support/test-setup';
 
 // Helper to check if rate limiting is enabled (Redis connected)
 async function isRateLimitingEnabled(): Promise<boolean> {
@@ -33,6 +33,11 @@ describe('Rate Limiting (Throttling)', () => {
     }
     // Clear throttle keys after the check so other tests aren't affected
     await clearThrottleKeys();
+  });
+
+  afterAll(async () => {
+    // Clean up all test users created during throttling tests
+    await cleanupAllTestUsers();
   });
 
   describe('Health endpoints - should never be throttled', () => {

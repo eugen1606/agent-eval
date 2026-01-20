@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('SSRF Protection', () => {
   let accessToken: string;
@@ -6,6 +6,10 @@ describe('SSRF Protection', () => {
   beforeAll(async () => {
     const auth = await createTestUser('-ssrf');
     accessToken = auth.accessToken;
+  });
+
+  afterAll(async () => {
+    await deleteTestUser(accessToken);
   });
 
   describe('Tests endpoint - basePath validation', () => {

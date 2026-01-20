@@ -8,7 +8,7 @@ export class EvaluationService {
   async evaluateWithLLM(
     question: string,
     answer: string,
-    expectedAnswer?: string
+    expectedAnswer?: string,
   ): Promise<LLMJudgeResponse> {
     // This is a placeholder for the actual LLM integration
     // You would integrate with OpenAI, Anthropic, or another LLM provider here
@@ -33,7 +33,7 @@ export class EvaluationService {
   private buildEvaluationPrompt(
     question: string,
     answer: string,
-    expectedAnswer?: string
+    expectedAnswer?: string,
   ): string {
     let prompt = `You are an expert evaluator. Please evaluate the following answer to a question.
 
@@ -83,7 +83,8 @@ Respond in JSON format:
     return JSON.stringify({
       score: 75,
       isCorrect: true,
-      reasoning: 'Mock evaluation - configure OPENAI_API_KEY or ANTHROPIC_API_KEY for real evaluations',
+      reasoning:
+        'Mock evaluation - configure OPENAI_API_KEY or ANTHROPIC_API_KEY for real evaluations',
     });
   }
 
@@ -92,7 +93,7 @@ Respond in JSON format:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4',

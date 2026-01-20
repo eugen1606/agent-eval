@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('Webhooks CRUD', () => {
   let accessToken: string;
@@ -18,6 +18,10 @@ describe('Webhooks CRUD', () => {
   beforeAll(async () => {
     const auth = await createTestUser('-webhooks');
     accessToken = auth.accessToken;
+  });
+
+  afterAll(async () => {
+    await deleteTestUser(accessToken);
   });
 
   describe('POST /api/webhooks', () => {

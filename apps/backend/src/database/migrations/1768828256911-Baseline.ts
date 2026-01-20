@@ -158,37 +158,6 @@ export class Baseline1768828256911 implements MigrationInterface {
       )
     `);
 
-    // Create evaluations table (legacy)
-    await queryRunner.query(`
-      CREATE TABLE "evaluations" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "userId" uuid,
-        "name" character varying NOT NULL,
-        "finalOutput" jsonb NOT NULL,
-        "flowExport" jsonb,
-        "flowId" character varying,
-        "description" character varying,
-        "questionSetId" character varying,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_f683b433eba0e6dae7e19b29e29" PRIMARY KEY ("id")
-      )
-    `);
-
-    // Create sessions table (legacy)
-    await queryRunner.query(`
-      CREATE TABLE "sessions" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-        "userId" uuid,
-        "flowName" character varying NOT NULL,
-        "flowConfig" jsonb NOT NULL,
-        "results" jsonb NOT NULL,
-        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
-        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT "PK_3238ef96f18b355b671619111bc" PRIMARY KEY ("id")
-      )
-    `);
-
     // Create index on runs.completedAt
     await queryRunner.query(`
       CREATE INDEX "IDX_c262aaceae3f740eee361a8dbe" ON "runs" ("completedAt")
@@ -260,28 +229,10 @@ export class Baseline1768828256911 implements MigrationInterface {
       ADD CONSTRAINT "FK_b61ff171fae9c67b85a9b6bee72"
       FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
     `);
-
-    await queryRunner.query(`
-      ALTER TABLE "evaluations"
-      ADD CONSTRAINT "FK_f079d95b69f82262b74ee478825"
-      FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
-    `);
-
-    await queryRunner.query(`
-      ALTER TABLE "sessions"
-      ADD CONSTRAINT "FK_57de40bc620f456c7311aa3a1e6"
-      FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE
-    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop foreign key constraints
-    await queryRunner.query(
-      `ALTER TABLE "sessions" DROP CONSTRAINT "FK_57de40bc620f456c7311aa3a1e6"`
-    );
-    await queryRunner.query(
-      `ALTER TABLE "evaluations" DROP CONSTRAINT "FK_f079d95b69f82262b74ee478825"`
-    );
     await queryRunner.query(
       `ALTER TABLE "flow_configs" DROP CONSTRAINT "FK_b61ff171fae9c67b85a9b6bee72"`
     );
@@ -320,8 +271,6 @@ export class Baseline1768828256911 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX "IDX_c262aaceae3f740eee361a8dbe"`);
 
     // Drop tables in reverse order
-    await queryRunner.query(`DROP TABLE "sessions"`);
-    await queryRunner.query(`DROP TABLE "evaluations"`);
     await queryRunner.query(`DROP TABLE "flow_configs"`);
     await queryRunner.query(`DROP TABLE "scheduled_evaluations"`);
     await queryRunner.query(`DROP TABLE "runs"`);

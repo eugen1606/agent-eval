@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('Question Sets CRUD', () => {
   let accessToken: string;
@@ -6,6 +6,10 @@ describe('Question Sets CRUD', () => {
   beforeAll(async () => {
     const auth = await createTestUser('-questions');
     accessToken = auth.accessToken;
+  });
+
+  afterAll(async () => {
+    await deleteTestUser(accessToken);
   });
 
   describe('POST /api/questions', () => {

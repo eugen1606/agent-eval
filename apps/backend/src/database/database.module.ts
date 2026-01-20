@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as path from 'path';
 import { AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run } from './entities';
+import * as migrations from './migrations';
 
 @Module({
   imports: [
@@ -22,7 +22,7 @@ import { AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Tes
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
           entities: [AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run],
-          migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
+          migrations: Object.values(migrations),
           migrationsRun: true,
           migrationsTableName: 'typeorm_migrations',
           logging: enableTypeOrmLogging,

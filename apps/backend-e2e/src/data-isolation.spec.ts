@@ -1,4 +1,4 @@
-import { authenticatedRequest, createTestUser } from './support/test-setup';
+import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
 
 describe('Data Isolation', () => {
   let user1Token: string;
@@ -9,6 +9,13 @@ describe('Data Isolation', () => {
     const auth2 = await createTestUser('-isolation-user2');
     user1Token = auth1.accessToken;
     user2Token = auth2.accessToken;
+  });
+
+  afterAll(async () => {
+    await Promise.all([
+      deleteTestUser(user1Token),
+      deleteTestUser(user2Token),
+    ]);
   });
 
   describe('Question Sets Isolation', () => {
@@ -149,78 +156,6 @@ describe('Data Isolation', () => {
 
       const getRes = await authenticatedRequest(`/access-tokens/${created.id}`, {}, user2Token);
       expect(getRes.status).toBe(404);
-    });
-  });
-
-  describe('Evaluations Isolation', () => {
-    it('should not allow user2 to see user1 evaluations', async () => {
-      const createRes = await authenticatedRequest('/evaluations', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'User1 Private Evaluation',
-          finalOutput: { results: [] },
-        }),
-      }, user1Token);
-      const created = await createRes.json();
-
-      const listRes = await authenticatedRequest('/evaluations', {}, user2Token);
-      const list = await listRes.json();
-
-      const found = list.find((e: { id: string }) => e.id === created.id);
-      expect(found).toBeUndefined();
-    });
-
-    it('should not allow user2 to access user1 evaluation by id', async () => {
-      const createRes = await authenticatedRequest('/evaluations', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'User1 Private Evaluation 2',
-          finalOutput: { results: [] },
-        }),
-      }, user1Token);
-      const created = await createRes.json();
-
-      const getRes = await authenticatedRequest(`/evaluations/${created.id}`, {}, user2Token);
-      expect(getRes.status).toBe(404);
-    });
-
-    it('should not allow user2 to update user1 evaluation', async () => {
-      const createRes = await authenticatedRequest('/evaluations', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'User1 Evaluation For Update',
-          finalOutput: { results: [] },
-        }),
-      }, user1Token);
-      const created = await createRes.json();
-
-      const updateRes = await authenticatedRequest(`/evaluations/${created.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name: 'Hacked Evaluation' }),
-      }, user2Token);
-
-      expect(updateRes.status).toBe(404);
-    });
-
-    it('should not allow user2 to delete user1 evaluation', async () => {
-      const createRes = await authenticatedRequest('/evaluations', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'User1 Evaluation For Delete',
-          finalOutput: { results: [] },
-        }),
-      }, user1Token);
-      const created = await createRes.json();
-
-      const deleteRes = await authenticatedRequest(`/evaluations/${created.id}`, {
-        method: 'DELETE',
-      }, user2Token);
-
-      expect(deleteRes.status).toBe(404);
-
-      // Verify user1 can still access it
-      const getRes = await authenticatedRequest(`/evaluations/${created.id}`, {}, user1Token);
-      expect(getRes.status).toBe(200);
     });
   });
 
