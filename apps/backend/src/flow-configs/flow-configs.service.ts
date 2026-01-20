@@ -10,6 +10,27 @@ export interface CreateFlowConfigDto {
   description?: string;
 }
 
+export type FlowConfigsSortField = 'name' | 'createdAt' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
+
+export interface FlowConfigsFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: FlowConfigsSortField;
+  sortDirection?: SortDirection;
+}
+
+export interface PaginatedFlowConfigs {
+  data: FlowConfig[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 @Injectable()
 export class FlowConfigsService {
   constructor(
@@ -28,11 +49,47 @@ export class FlowConfigsService {
     return this.flowConfigRepository.save(flowConfig);
   }
 
-  async findAll(userId: string): Promise<FlowConfig[]> {
-    return this.flowConfigRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(
+    userId: string,
+    filters: FlowConfigsFilterDto = {},
+  ): Promise<PaginatedFlowConfigs> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.flowConfigRepository
+      .createQueryBuilder('flowConfig')
+      .where('flowConfig.userId = :userId', { userId });
+
+    // Apply search filter
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(flowConfig.name ILIKE :search OR flowConfig.description ILIKE :search OR flowConfig.flowId ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection =
+      (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`flowConfig.${sortField}`, sortDirection);
+
+    // Apply pagination
+    const data = await queryBuilder.skip(skip).take(limit).getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<FlowConfig> {

@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { StoredTest, StoredRun } from '@agent-eval/shared';
+import { StoredTest, StoredRun, StoredQuestionSet } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from './Pagination';
 
-type SortColumn = 'date' | 'accuracy' | 'correct' | 'partial' | 'incorrect' | 'errors' | 'total';
+type SortColumn =
+  | 'date'
+  | 'accuracy'
+  | 'correct'
+  | 'partial'
+  | 'incorrect'
+  | 'errors'
+  | 'total';
 type SortDirection = 'asc' | 'desc';
 
 const apiClient = new AgentEvalClient();
@@ -41,7 +48,9 @@ function LineChart({ data }: { data: TestRunData[] }) {
   const chartHeight = height - padding * 2;
 
   // Sort by date
-  const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sortedData = [...data].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
 
   const points = sortedData.map((d, i) => {
     const x = padding + (i / Math.max(sortedData.length - 1, 1)) * chartWidth;
@@ -49,7 +58,9 @@ function LineChart({ data }: { data: TestRunData[] }) {
     return { x, y, ...d };
   });
 
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
 
   return (
     <div className="line-chart-container">
@@ -59,8 +70,23 @@ function LineChart({ data }: { data: TestRunData[] }) {
           const y = padding + chartHeight - (val / maxAccuracy) * chartHeight;
           return (
             <g key={val}>
-              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
-              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}%</text>
+              <line
+                x1={padding}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                stroke="#eee"
+                strokeWidth="1"
+              />
+              <text
+                x={padding - 5}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="#888"
+              >
+                {val}%
+              </text>
             </g>
           );
         })}
@@ -72,23 +98,30 @@ function LineChart({ data }: { data: TestRunData[] }) {
         {points.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="5" fill="#667eea" />
-            <title>{p.name}: {p.accuracy.toFixed(1)}% ({new Date(p.date).toLocaleDateString()})</title>
+            <title>
+              {p.name}: {p.accuracy.toFixed(1)}% (
+              {new Date(p.date).toLocaleDateString()})
+            </title>
           </g>
         ))}
 
         {/* X-axis labels */}
-        {points.length <= 10 && points.map((p, i) => (
-          <text
-            key={i}
-            x={p.x}
-            y={height - 10}
-            textAnchor="middle"
-            fontSize="9"
-            fill="#888"
-          >
-            {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </text>
-        ))}
+        {points.length <= 10 &&
+          points.map((p, i) => (
+            <text
+              key={i}
+              x={p.x}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#888"
+            >
+              {new Date(p.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </text>
+          ))}
       </svg>
     </div>
   );
@@ -108,8 +141,8 @@ function BarChart({ data }: { data: TestRunData[] }) {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(-10);
 
-  const barWidth = chartWidth / sortedData.length * 0.7;
-  const gap = chartWidth / sortedData.length * 0.3;
+  const barWidth = (chartWidth / sortedData.length) * 0.7;
+  const gap = (chartWidth / sortedData.length) * 0.3;
 
   return (
     <div className="bar-chart-container">
@@ -119,8 +152,23 @@ function BarChart({ data }: { data: TestRunData[] }) {
           const y = padding + chartHeight - (val / 100) * chartHeight;
           return (
             <g key={val}>
-              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
-              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}%</text>
+              <line
+                x1={padding}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                stroke="#eee"
+                strokeWidth="1"
+              />
+              <text
+                x={padding - 5}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="#888"
+              >
+                {val}%
+              </text>
             </g>
           );
         })}
@@ -130,11 +178,23 @@ function BarChart({ data }: { data: TestRunData[] }) {
           const x = padding + i * (barWidth + gap) + gap / 2;
           const barHeight = (d.accuracy / 100) * chartHeight;
           const y = padding + chartHeight - barHeight;
-          const color = d.accuracy >= 80 ? '#27ae60' : d.accuracy >= 50 ? '#f39c12' : '#e74c3c';
+          const color =
+            d.accuracy >= 80
+              ? '#27ae60'
+              : d.accuracy >= 50
+                ? '#f39c12'
+                : '#e74c3c';
 
           return (
             <g key={i}>
-              <rect x={x} y={y} width={barWidth} height={barHeight} fill={color} rx="2" />
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                fill={color}
+                rx="2"
+              />
               <text
                 x={x + barWidth / 2}
                 y={height - 10}
@@ -142,9 +202,14 @@ function BarChart({ data }: { data: TestRunData[] }) {
                 fontSize="9"
                 fill="#888"
               >
-                {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(d.date).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                })}
               </text>
-              <title>{d.name}: {d.accuracy.toFixed(1)}%</title>
+              <title>
+                {d.name}: {d.accuracy.toFixed(1)}%
+              </title>
             </g>
           );
         })}
@@ -156,8 +221,11 @@ function BarChart({ data }: { data: TestRunData[] }) {
 export function Dashboard() {
   const navigate = useNavigate();
   const [tests, setTests] = useState<StoredTest[]>([]);
+  const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [runs, setRuns] = useState<StoredRun[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string>('');
+  const [selectedQuestionSetId, setSelectedQuestionSetId] =
+    useState<string>('');
   const [testRuns, setTestRuns] = useState<TestRunData[]>([]);
 
   // Pagination and sorting state
@@ -168,6 +236,7 @@ export function Dashboard() {
 
   useEffect(() => {
     loadTests();
+    loadQuestionSets();
     loadRuns();
   }, []);
 
@@ -175,6 +244,13 @@ export function Dashboard() {
     const response = await apiClient.getTests({ limit: 100 });
     if (response.success && response.data) {
       setTests(response.data.data);
+    }
+  };
+
+  const loadQuestionSets = async () => {
+    const response = await apiClient.getQuestionSets();
+    if (response.success && response.data) {
+      setQuestionSets(response.data.data);
     }
   };
 
@@ -187,18 +263,46 @@ export function Dashboard() {
 
   const handleTestSelect = (testId: string) => {
     setSelectedTestId(testId);
+    setSelectedQuestionSetId(''); // Reset question set filter when test changes
   };
 
-  // Update test runs when test selection changes
+  const handleQuestionSetSelect = (questionSetId: string) => {
+    setSelectedQuestionSetId(questionSetId);
+  };
+
+  // Get unique question set IDs used in runs for the selected test
+  const availableQuestionSets = useMemo(() => {
+    if (!selectedTestId) return [];
+    const uniqueIds = new Set<string>();
+    runs
+      .filter((run) => run.testId === selectedTestId && run.questionSetId)
+      .forEach((run) => uniqueIds.add(run.questionSetId!));
+    return Array.from(uniqueIds).map((id) => {
+      const qs = questionSets.find((q) => q.id === id);
+      return { id, name: qs?.name || 'Unknown Question Set' };
+    });
+  }, [selectedTestId, runs, questionSets]);
+
+  // Update test runs when test or question set selection changes
   useEffect(() => {
     if (!selectedTestId) {
       setTestRuns([]);
       return;
     }
 
-    // Filter runs by testId and compute stats
+    // Filter runs by testId, questionSetId, and compute stats
     const testRunData = runs
-      .filter((run) => run.testId === selectedTestId && run.status === 'completed')
+      .filter((run) => {
+        if (run.testId !== selectedTestId) return false;
+        if (run.status !== 'completed') return false;
+        // Filter by questionSetId if selected
+        if (
+          selectedQuestionSetId &&
+          run.questionSetId !== selectedQuestionSetId
+        )
+          return false;
+        return true;
+      })
       .map((run) => {
         const results = run.results || [];
         const stats = calculateEvalStats(results);
@@ -219,9 +323,11 @@ export function Dashboard() {
       });
 
     setTestRuns(testRunData);
-  }, [selectedTestId, runs]);
+  }, [selectedTestId, selectedQuestionSetId, runs]);
 
-  const calculateEvalStats = (results: StoredRun['results']): EvaluationStats => {
+  const calculateEvalStats = (
+    results: StoredRun['results'],
+  ): EvaluationStats => {
     const stats: EvaluationStats = {
       correct: 0,
       partial: 0,
@@ -249,22 +355,34 @@ export function Dashboard() {
   };
 
   // Calculate aggregate stats for test analytics
-  const testRunAggregateStats = testRuns.length > 0 ? {
-    avgAccuracy: testRuns.reduce((sum, e) => sum + e.accuracy, 0) / testRuns.length,
-    totalRuns: testRuns.length,
-    totalQuestions: testRuns.reduce((sum, e) => sum + e.total, 0),
-    latestAccuracy: testRuns.length > 0
-      ? [...testRuns].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].accuracy
-      : 0,
-    trend: testRuns.length >= 2
-      ? (() => {
-          const sorted = [...testRuns].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          const latest = sorted[sorted.length - 1].accuracy;
-          const previous = sorted[sorted.length - 2].accuracy;
-          return latest - previous;
-        })()
-      : 0,
-  } : null;
+  const testRunAggregateStats =
+    testRuns.length > 0
+      ? {
+          avgAccuracy:
+            testRuns.reduce((sum, e) => sum + e.accuracy, 0) / testRuns.length,
+          totalRuns: testRuns.length,
+          totalQuestions: testRuns.reduce((sum, e) => sum + e.total, 0),
+          latestAccuracy:
+            testRuns.length > 0
+              ? [...testRuns].sort(
+                  (a, b) =>
+                    new Date(b.date).getTime() - new Date(a.date).getTime(),
+                )[0].accuracy
+              : 0,
+          trend:
+            testRuns.length >= 2
+              ? (() => {
+                  const sorted = [...testRuns].sort(
+                    (a, b) =>
+                      new Date(a.date).getTime() - new Date(b.date).getTime(),
+                  );
+                  const latest = sorted[sorted.length - 1].accuracy;
+                  const previous = sorted[sorted.length - 2].accuracy;
+                  return latest - previous;
+                })()
+              : 0,
+        }
+      : null;
 
   // Reset pagination when test changes
   useEffect(() => {
@@ -343,6 +461,22 @@ export function Dashboard() {
             ))}
           </select>
         </div>
+        {selectedTestId && availableQuestionSets.length > 0 && (
+          <div className="control-group">
+            <label>Filter by Question Set:</label>
+            <select
+              value={selectedQuestionSetId}
+              onChange={(e) => handleQuestionSetSelect(e.target.value)}
+            >
+              <option value="">All Question Sets</option>
+              {availableQuestionSets.map((qs) => (
+                <option key={qs.id} value={qs.id}>
+                  {qs.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {selectedTestId && testRuns.length > 0 && testRunAggregateStats && (
@@ -361,20 +495,32 @@ export function Dashboard() {
               </div>
               <div className="accuracy-section">
                 <div className="accuracy-header">Latest Accuracy</div>
-                <div className={`accuracy-value ${testRunAggregateStats.latestAccuracy >= 80 ? '' : testRunAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}>
+                <div
+                  className={`accuracy-value ${testRunAggregateStats.latestAccuracy >= 80 ? '' : testRunAggregateStats.latestAccuracy >= 50 ? 'medium' : 'low'}`}
+                >
                   {testRunAggregateStats.latestAccuracy.toFixed(1)}%
                 </div>
                 <div className="accuracy-details">
                   {testRunAggregateStats.trend !== 0 && (
-                    <span className={testRunAggregateStats.trend > 0 ? 'trend-up' : 'trend-down'}>
-                      {testRunAggregateStats.trend > 0 ? '\u2191' : '\u2193'} {Math.abs(testRunAggregateStats.trend).toFixed(1)}% vs previous
+                    <span
+                      className={
+                        testRunAggregateStats.trend > 0
+                          ? 'trend-up'
+                          : 'trend-down'
+                      }
+                    >
+                      {testRunAggregateStats.trend > 0 ? '\u2191' : '\u2193'}{' '}
+                      {Math.abs(testRunAggregateStats.trend).toFixed(1)}% vs
+                      previous
                     </span>
                   )}
                 </div>
               </div>
               <div className="accuracy-section">
                 <div className="accuracy-header">Total Questions</div>
-                <div className="accuracy-value total">{testRunAggregateStats.totalQuestions}</div>
+                <div className="accuracy-value total">
+                  {testRunAggregateStats.totalQuestions}
+                </div>
                 <div className="accuracy-details">
                   {testRunAggregateStats.totalRuns} test runs
                 </div>
@@ -405,16 +551,28 @@ export function Dashboard() {
                   <th className="sortable" onClick={() => handleSort('date')}>
                     Date{getSortIndicator('date')}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('accuracy')}>
+                  <th
+                    className="sortable"
+                    onClick={() => handleSort('accuracy')}
+                  >
                     Accuracy{getSortIndicator('accuracy')}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('correct')}>
+                  <th
+                    className="sortable"
+                    onClick={() => handleSort('correct')}
+                  >
                     Correct{getSortIndicator('correct')}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('partial')}>
+                  <th
+                    className="sortable"
+                    onClick={() => handleSort('partial')}
+                  >
                     Partial{getSortIndicator('partial')}
                   </th>
-                  <th className="sortable" onClick={() => handleSort('incorrect')}>
+                  <th
+                    className="sortable"
+                    onClick={() => handleSort('incorrect')}
+                  >
                     Incorrect{getSortIndicator('incorrect')}
                   </th>
                   <th className="sortable" onClick={() => handleSort('errors')}>
@@ -430,7 +588,15 @@ export function Dashboard() {
                 {sortedAndPaginatedRuns.map((run) => (
                   <tr key={run.id}>
                     <td>{new Date(run.date).toLocaleString()}</td>
-                    <td className={run.accuracy >= 80 ? 'good' : run.accuracy >= 50 ? 'medium' : 'bad'}>
+                    <td
+                      className={
+                        run.accuracy >= 80
+                          ? 'good'
+                          : run.accuracy >= 50
+                            ? 'medium'
+                            : 'bad'
+                      }
+                    >
                       {run.accuracy.toFixed(1)}%
                     </td>
                     <td className="correct">{run.correct}</td>
@@ -468,13 +634,18 @@ export function Dashboard() {
 
       {selectedTestId && testRuns.length === 0 && (
         <div className="dashboard-empty">
-          <p>No completed runs found for this test. Run the test first to see analytics.</p>
+          <p>
+            No completed runs found for this test. Run the test first to see
+            analytics.
+          </p>
         </div>
       )}
 
       {!selectedTestId && (
         <div className="dashboard-empty">
-          <p>Select a test to view analytics. Create tests from the Tests page.</p>
+          <p>
+            Select a test to view analytics. Create tests from the Tests page.
+          </p>
         </div>
       )}
     </div>

@@ -6,10 +6,18 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { WebhooksService, CreateWebhookDto } from './webhooks.service';
+import {
+  WebhooksService,
+  EntityUsage,
+  PaginatedWebhooks,
+  WebhooksSortField,
+  SortDirection,
+} from './webhooks.service';
+import { CreateWebhookDto, UpdateWebhookDto } from './dto';
 import { Webhook, WebhookEvent, WebhookMethod } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -39,8 +47,23 @@ export class WebhooksController {
   @Get()
   async findAll(
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<Webhook[]> {
-    return this.webhooksService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('enabled') enabled?: string,
+    @Query('event') event?: WebhookEvent,
+    @Query('sortBy') sortBy?: WebhooksSortField,
+    @Query('sortDirection') sortDirection?: SortDirection,
+  ): Promise<PaginatedWebhooks> {
+    return this.webhooksService.findAll(user.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      enabled: enabled !== undefined ? enabled === 'true' : undefined,
+      event,
+      sortBy,
+      sortDirection,
+    });
   }
 
   @Get('events')
@@ -64,7 +87,7 @@ export class WebhooksController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateWebhookDto>,
+    @Body() dto: UpdateWebhookDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Webhook> {
     if (dto.events) {
@@ -86,6 +109,14 @@ export class WebhooksController {
       this.validateBodyTemplate(dto.bodyTemplate);
     }
     return this.webhooksService.update(id, dto, user.userId);
+  }
+
+  @Get(':id/usage')
+  async getUsage(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<EntityUsage> {
+    return this.webhooksService.getUsage(id, user.userId);
   }
 
   @Delete(':id')

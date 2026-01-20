@@ -6,9 +6,16 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { FlowConfigsService, CreateFlowConfigDto } from './flow-configs.service';
+import {
+  FlowConfigsService,
+  CreateFlowConfigDto,
+  PaginatedFlowConfigs,
+  FlowConfigsSortField,
+  SortDirection,
+} from './flow-configs.service';
 import { FlowConfig } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -29,8 +36,19 @@ export class FlowConfigsController {
   @Get()
   async findAll(
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<FlowConfig[]> {
-    return this.flowConfigsService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: FlowConfigsSortField,
+    @Query('sortDirection') sortDirection?: SortDirection,
+  ): Promise<PaginatedFlowConfigs> {
+    return this.flowConfigsService.findAll(user.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      sortBy,
+      sortDirection,
+    });
   }
 
   @Get(':id')

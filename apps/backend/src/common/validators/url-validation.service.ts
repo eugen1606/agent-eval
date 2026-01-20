@@ -126,9 +126,7 @@ export class UrlValidationService {
       !this.allowPrivateUrls &&
       parsedUrl.protocol !== 'https:'
     ) {
-      throw new BadRequestException(
-        `${context} must use HTTPS in production`,
-      );
+      throw new BadRequestException(`${context} must use HTTPS in production`);
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
@@ -149,9 +147,7 @@ export class UrlValidationService {
 
     // Always block cloud metadata endpoints
     if (this.isCloudMetadataHostname(hostname)) {
-      this.logger.warn(
-        `Blocked cloud metadata access attempt: ${url}`,
-      );
+      this.logger.warn(`Blocked cloud metadata access attempt: ${url}`);
       throw new BadRequestException(
         `${context} cannot target cloud metadata endpoints`,
       );
@@ -205,9 +201,7 @@ export class UrlValidationService {
       !this.allowPrivateUrls &&
       parsedUrl.protocol !== 'https:'
     ) {
-      throw new BadRequestException(
-        `${context} must use HTTPS in production`,
-      );
+      throw new BadRequestException(`${context} must use HTTPS in production`);
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
@@ -224,9 +218,7 @@ export class UrlValidationService {
 
     // Always block cloud metadata endpoints
     if (this.isCloudMetadataHostname(hostname)) {
-      this.logger.warn(
-        `Blocked cloud metadata access attempt: ${url}`,
-      );
+      this.logger.warn(`Blocked cloud metadata access attempt: ${url}`);
       throw new BadRequestException(
         `${context} cannot target cloud metadata endpoints`,
       );

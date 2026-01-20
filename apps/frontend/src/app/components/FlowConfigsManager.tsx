@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { StoredFlowConfig } from '@agent-eval/shared';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  StoredFlowConfig,
+  SortDirection,
+  FlowConfigsSortField,
+} from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
+import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
+import { Pagination } from './Pagination';
 
 const apiClient = new AgentEvalClient();
 
@@ -24,20 +30,79 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
   });
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean;
+    id: string | null;
+  }>({ open: false, id: null });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+
+  // Filter and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [sortBy, setSortBy] = useState<FlowConfigsSortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const loadFlowConfigs = useCallback(async () => {
+    setIsLoading(true);
+    const response = await apiClient.getFlowConfigs({
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm || undefined,
+      sortBy,
+      sortDirection,
+    });
+    if (response.success && response.data) {
+      setFlowConfigs(response.data.data);
+      setTotalItems(response.data.pagination.total);
+      setTotalPages(response.data.pagination.totalPages);
+    }
+    setIsLoading(false);
+  }, [currentPage, itemsPerPage, searchTerm, sortBy, sortDirection]);
 
   useEffect(() => {
     loadFlowConfigs();
-  }, []);
+  }, [loadFlowConfigs]);
 
-  const loadFlowConfigs = async () => {
-    setIsLoading(true);
-    const response = await apiClient.getFlowConfigs();
-    if (response.success && response.data) {
-      setFlowConfigs(response.data);
-    }
-    setIsLoading(false);
+  // Filter definitions (empty for flow configs - only search and sort)
+  const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
+
+  // Sort options
+  const sortOptions: SortOption[] = [
+    { value: 'createdAt', label: 'Date Created' },
+    { value: 'updatedAt', label: 'Date Updated' },
+    { value: 'name', label: 'Name' },
+  ];
+
+  // Active filters (empty for flow configs)
+  const activeFilters: ActiveFilter[] = useMemo(() => [], []);
+
+  // Handlers
+  const handleFilterAdd = () => {
+    setCurrentPage(1);
+  };
+
+  const handleFilterRemove = () => {
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSortBy('createdAt');
+    setSortDirection('desc');
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -67,7 +132,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     if (response.success) {
       resetForm();
       loadFlowConfigs();
-      showNotification('success', editingId ? 'Flow config updated successfully' : 'Flow config created successfully');
+      showNotification(
+        'success',
+        editingId
+          ? 'Flow config updated successfully'
+          : 'Flow config created successfully'
+      );
     } else {
       showNotification('error', response.error || 'Failed to save flow config');
     }
@@ -100,18 +170,39 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
       loadFlowConfigs();
       showNotification('success', 'Flow config deleted successfully');
     } else {
-      showNotification('error', response.error || 'Failed to delete flow config');
+      showNotification(
+        'error',
+        response.error || 'Failed to delete flow config'
+      );
     }
   };
+
+  const hasNoFlowConfigs = totalItems === 0 && !searchTerm;
 
   return (
     <div className="manager-section">
       <div className="manager-header">
         <h3>Flow Configurations</h3>
-        <button onClick={() => setShowForm(true)}>
-          + Add Flow Config
-        </button>
+        <button onClick={() => setShowForm(true)}>+ Add Flow Config</button>
       </div>
+
+      {!hasNoFlowConfigs && (
+        <FilterBar
+          filters={filterDefinitions}
+          activeFilters={activeFilters}
+          onFilterAdd={handleFilterAdd}
+          onFilterRemove={handleFilterRemove}
+          onClearAll={clearFilters}
+          searchValue={searchTerm}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="Search flow configs..."
+          sortOptions={sortOptions}
+          sortValue={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={(value) => setSortBy(value as FlowConfigsSortField)}
+          onSortDirectionChange={setSortDirection}
+        />
+      )}
 
       <Modal
         isOpen={showForm}
@@ -140,8 +231,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter config name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className={
+                formSubmitAttempted && !formData.name ? 'input-error' : ''
+              }
             />
             {formSubmitAttempted && !formData.name && (
               <span className="field-error">Config name is required</span>
@@ -153,8 +248,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter flow ID"
               value={formData.flowId}
-              onChange={(e) => setFormData({ ...formData, flowId: e.target.value })}
-              className={formSubmitAttempted && !formData.flowId ? 'input-error' : ''}
+              onChange={(e) =>
+                setFormData({ ...formData, flowId: e.target.value })
+              }
+              className={
+                formSubmitAttempted && !formData.flowId ? 'input-error' : ''
+              }
             />
             {formSubmitAttempted && !formData.flowId && (
               <span className="field-error">Flow ID is required</span>
@@ -166,7 +265,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter base path"
               value={formData.basePath}
-              onChange={(e) => setFormData({ ...formData, basePath: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, basePath: e.target.value })
+              }
             />
           </div>
           <div className="form-group">
@@ -175,7 +276,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
             />
           </div>
         </form>
@@ -188,15 +291,23 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
             <span className="loading-text">Loading flow configs...</span>
           </div>
         ) : flowConfigs.length === 0 ? (
-          <p className="empty-message">No flow configs stored</p>
+          <p className="empty-message">
+            {searchTerm
+              ? 'No flow configs match your search'
+              : 'No flow configs stored'}
+          </p>
         ) : (
           flowConfigs.map((fc) => (
             <div key={fc.id} className="manager-item">
               <div className="item-info">
                 <strong>{fc.name}</strong>
                 <span className="item-meta">Flow: {fc.flowId}</span>
-                {fc.basePath && <span className="item-meta">{fc.basePath}</span>}
-                {fc.description && <span className="item-desc">{fc.description}</span>}
+                {fc.basePath && (
+                  <span className="item-meta">{fc.basePath}</span>
+                )}
+                {fc.description && (
+                  <span className="item-desc">{fc.description}</span>
+                )}
               </div>
               <div className="item-actions">
                 {selectable && onSelect && (
@@ -207,7 +318,10 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
                 <button onClick={() => handleEdit(fc)} className="edit-btn">
                   Edit
                 </button>
-                <button onClick={() => setDeleteConfirm({ open: true, id: fc.id })} className="delete-btn">
+                <button
+                  onClick={() => setDeleteConfirm({ open: true, id: fc.id })}
+                  className="delete-btn"
+                >
                   Delete
                 </button>
               </div>
@@ -215,6 +329,18 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
           ))
         )}
       </div>
+
+      {!isLoading && totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          itemName="flow configs"
+        />
+      )}
 
       <ConfirmDialog
         isOpen={deleteConfirm.open}

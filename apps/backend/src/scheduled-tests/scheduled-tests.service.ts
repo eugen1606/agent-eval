@@ -25,12 +25,17 @@ export interface CreateScheduledTestDto {
   cronExpression?: string;
 }
 
+export type ScheduledTestsSortField = 'name' | 'scheduledAt' | 'lastRunAt' | 'status' | 'createdAt';
+export type SortDirection = 'asc' | 'desc';
+
 export interface ScheduledTestsFilterDto {
   page?: number;
   limit?: number;
   search?: string;
   testId?: string;
   status?: ScheduledTestStatus;
+  sortBy?: ScheduledTestsSortField;
+  sortDirection?: SortDirection;
 }
 
 export interface PaginatedScheduledTests {
@@ -115,9 +120,13 @@ export class ScheduledTestsService {
     // Get total count before pagination
     const total = await queryBuilder.getCount();
 
-    // Apply pagination and ordering
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection = (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`scheduled.${sortField}`, sortDirection);
+
+    // Apply pagination
     const data = await queryBuilder
-      .orderBy('scheduled.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getMany();
@@ -388,6 +397,7 @@ export class ScheduledTestsService {
         {
           testId: test.id,
           totalQuestions: questionSet.questions.length,
+          questionSetId: test.questionSetId,
         },
         userId,
       );

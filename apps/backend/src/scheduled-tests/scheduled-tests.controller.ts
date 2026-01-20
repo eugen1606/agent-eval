@@ -38,6 +38,8 @@ export class ScheduledTestsController {
     @Query('search') search?: string,
     @Query('testId') testId?: string,
     @Query('status') status?: ScheduledTestStatus,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string }
   ): Promise<PaginatedScheduledTests> {
     return this.scheduledTestsService.findAll(user!.userId, {
@@ -46,6 +48,8 @@ export class ScheduledTestsController {
       search,
       testId,
       status,
+      sortBy: sortBy as 'name' | 'scheduledAt' | 'lastRunAt' | 'status' | 'createdAt' | undefined,
+      sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
   }
 

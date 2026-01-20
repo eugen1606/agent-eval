@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StoredScheduledTest, StoredTest, ScheduleType, ScheduledTestStatus } from '@agent-eval/shared';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { StoredScheduledTest, StoredTest, ScheduleType, ScheduledTestStatus, ScheduledTestsSortField, SortDirection } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
-import { SearchableSelect } from './SearchableSelect';
+import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
+import { SearchableSelect } from './SearchableSelect';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
 
@@ -23,13 +24,6 @@ const CRON_PRESETS = [
   { label: 'Custom', value: 'custom' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'running', label: 'Running' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'failed', label: 'Failed' },
-];
 
 export function ScheduledTestsPage() {
   const navigate = useNavigate();
@@ -56,14 +50,17 @@ export function ScheduledTestsPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTestId, setFilterTestId] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filters, setFilters] = useState<Record<string, string>>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<ScheduledTestsSortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -72,8 +69,10 @@ export function ScheduledTestsPage() {
         page: currentPage,
         limit: itemsPerPage,
         search: searchQuery || undefined,
-        testId: filterTestId || undefined,
-        status: (filterStatus as ScheduledTestStatus) || undefined,
+        testId: filters.test || undefined,
+        status: (filters.status as ScheduledTestStatus) || undefined,
+        sortBy,
+        sortDirection,
       }),
       apiClient.getTests({ limit: 100 }),
     ]);
@@ -87,7 +86,7 @@ export function ScheduledTestsPage() {
       setTests(testsRes.data.data);
     }
     setIsLoading(false);
-  }, [currentPage, itemsPerPage, searchQuery, filterTestId, filterStatus]);
+  }, [currentPage, itemsPerPage, searchQuery, filters, sortBy, sortDirection]);
 
   useEffect(() => {
     loadData();
@@ -96,7 +95,7 @@ export function ScheduledTestsPage() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterTestId, filterStatus, itemsPerPage]);
+  }, [searchQuery, filters, itemsPerPage, sortBy, sortDirection]);
 
   const isFormValid = () => {
     if (!formData.name.trim()) return false;
@@ -247,13 +246,86 @@ export function ScheduledTestsPage() {
     return 'Not scheduled';
   };
 
-  const clearFilters = () => {
-    setSearchQuery('');
-    setFilterTestId('');
-    setFilterStatus('');
+  // Filter definitions for FilterBar
+  const filterDefinitions: FilterDefinition[] = useMemo(() => [
+    {
+      key: 'test',
+      label: 'Test',
+      type: 'select',
+      options: tests.map((test) => ({
+        value: test.id,
+        label: test.name,
+        sublabel: test.flowId,
+      })),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: 'pending', label: 'Pending' },
+        { value: 'running', label: 'Running' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'failed', label: 'Failed' },
+      ],
+    },
+  ], [tests]);
+
+  const sortOptions: SortOption[] = [
+    { value: 'createdAt', label: 'Date Created' },
+    { value: 'name', label: 'Name' },
+    { value: 'scheduledAt', label: 'Scheduled Time' },
+    { value: 'lastRunAt', label: 'Last Run' },
+    { value: 'status', label: 'Status' },
+  ];
+
+  // Build active filters array for FilterBar
+  const activeFilters: ActiveFilter[] = useMemo(() => {
+    const result: ActiveFilter[] = [];
+    if (filters.test) {
+      const test = tests.find((t) => t.id === filters.test);
+      result.push({
+        key: 'test',
+        value: filters.test,
+        label: 'Test',
+        displayValue: test?.name || 'Unknown',
+      });
+    }
+    if (filters.status) {
+      result.push({
+        key: 'status',
+        value: filters.status,
+        label: 'Status',
+        displayValue: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
+      });
+    }
+    return result;
+  }, [filters, tests]);
+
+  const handleFilterAdd = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const hasActiveFilters = searchQuery || filterTestId || filterStatus;
+  const handleFilterRemove = (key: string) => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilters({});
+    setSortBy('createdAt');
+    setSortDirection('desc');
+  };
+
+  const hasActiveFilters = searchQuery || Object.keys(filters).length > 0;
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -272,48 +344,21 @@ export function ScheduledTestsPage() {
         </button>
       </div>
 
-      <div className="filter-bar">
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Search by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <SearchableSelect
-            value={filterTestId}
-            onChange={setFilterTestId}
-            options={tests.map((test) => ({
-              value: test.id,
-              label: test.name,
-              sublabel: test.flowId,
-            }))}
-            placeholder="Filter by test..."
-            allOptionLabel="All Tests"
-          />
-        </div>
-        <div className="filter-group">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="filter-select"
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {hasActiveFilters && (
-          <button onClick={clearFilters} className="filter-clear-btn">
-            Clear Filters
-          </button>
-        )}
-      </div>
+      <FilterBar
+        filters={filterDefinitions}
+        activeFilters={activeFilters}
+        onFilterAdd={handleFilterAdd}
+        onFilterRemove={handleFilterRemove}
+        onClearAll={clearFilters}
+        searchValue={searchQuery}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search by name..."
+        sortOptions={sortOptions}
+        sortValue={sortBy}
+        sortDirection={sortDirection}
+        onSortChange={(value) => setSortBy(value as ScheduledTestsSortField)}
+        onSortDirectionChange={setSortDirection}
+      />
 
       <Modal
         isOpen={showForm}

@@ -30,6 +30,10 @@ import {
   TestsFilterParams,
   RunsFilterParams,
   ScheduledTestsFilterParams,
+  AccessTokensFilterParams,
+  QuestionSetsFilterParams,
+  WebhooksFilterParams,
+  FlowConfigsFilterParams,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -43,6 +47,8 @@ export class AgentEvalClient {
   private apiUrl: string;
   private onAuthChange?: (isAuthenticated: boolean) => void;
   private csrfToken: string | null = null;
+  // Mutex to prevent concurrent token refresh
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(apiUrl: string = DEFAULT_API_URL) {
     this.apiUrl = apiUrl;
@@ -55,7 +61,9 @@ export class AgentEvalClient {
    */
   private loadCsrfTokenFromCookie(): void {
     if (typeof document !== 'undefined') {
-      const match = document.cookie.match(new RegExp(`${CSRF_COOKIE_NAME}=([^;]+)`));
+      const match = document.cookie.match(
+        new RegExp(`${CSRF_COOKIE_NAME}=([^;]+)`),
+      );
       this.csrfToken = match ? match[1] : null;
     }
   }
@@ -91,7 +99,7 @@ export class AgentEvalClient {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    requireAuth = true
+    requireAuth = true,
   ): Promise<ApiResponse<T>> {
     try {
       const headers: Record<string, string> = {
@@ -101,7 +109,11 @@ export class AgentEvalClient {
 
       // Add CSRF token for state-changing requests
       const method = options.method?.toUpperCase() || 'GET';
-      if (requireAuth && this.csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      if (
+        requireAuth &&
+        this.csrfToken &&
+        !['GET', 'HEAD', 'OPTIONS'].includes(method)
+      ) {
         headers['X-CSRF-Token'] = this.csrfToken;
       }
 
@@ -140,7 +152,10 @@ export class AgentEvalClient {
           // Refresh failed
           this.setCsrfToken(null);
           this.onAuthChange?.(false);
-          return { success: false, error: 'Session expired. Please login again.' };
+          return {
+            success: false,
+            error: 'Session expired. Please login again.',
+          };
         }
       }
 
@@ -169,7 +184,7 @@ export class AgentEvalClient {
         method: 'POST',
         body: JSON.stringify(credentials),
       },
-      false
+      false,
     );
 
     if (result.success && result.data) {
@@ -190,7 +205,7 @@ export class AgentEvalClient {
         method: 'POST',
         body: JSON.stringify(data),
       },
-      false
+      false,
     );
 
     if (result.success && result.data) {
@@ -204,6 +219,23 @@ export class AgentEvalClient {
   }
 
   private async refreshTokens(): Promise<boolean> {
+    // If a refresh is already in progress, wait for it
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    // Start a new refresh and store the promise
+    this.refreshPromise = this.doRefreshTokens();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      // Clear the promise so future refreshes can proceed
+      this.refreshPromise = null;
+    }
+  }
+
+  private async doRefreshTokens(): Promise<boolean> {
     try {
       const response = await fetch(`${this.apiUrl}/auth/refresh`, {
         method: 'POST',
@@ -246,11 +278,16 @@ export class AgentEvalClient {
     return this.request<AccountStats>('/auth/account/stats');
   }
 
-  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<{ message: string }>> {
-    const result = await this.request<{ message: string }>('/auth/account/change-password', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+  async changePassword(
+    data: ChangePasswordRequest,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.request<{ message: string }>(
+      '/auth/account/change-password',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      },
+    );
 
     // Password change clears cookies, user needs to re-login
     if (result.success) {
@@ -278,7 +315,7 @@ export class AgentEvalClient {
   async evaluateWithLLM(
     question: string,
     answer: string,
-    expectedAnswer?: string
+    expectedAnswer?: string,
   ): Promise<ApiResponse<LLMJudgeResponse>> {
     return this.request<LLMJudgeResponse>('/evaluate/llm-judge', {
       method: 'POST',
@@ -288,7 +325,7 @@ export class AgentEvalClient {
 
   // Access Tokens
   async createAccessToken(
-    data: CreateAccessTokenRequest
+    data: CreateAccessTokenRequest,
   ): Promise<ApiResponse<StoredAccessToken>> {
     return this.request<StoredAccessToken>('/access-tokens', {
       method: 'POST',
@@ -296,8 +333,20 @@ export class AgentEvalClient {
     });
   }
 
-  async getAccessTokens(): Promise<ApiResponse<StoredAccessToken[]>> {
-    return this.request<StoredAccessToken[]>('/access-tokens');
+  async getAccessTokens(
+    filters?: AccessTokensFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredAccessToken>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredAccessToken>>(
+      `/access-tokens${query ? `?${query}` : ''}`,
+    );
   }
 
   async getAccessToken(id: string): Promise<ApiResponse<StoredAccessToken>> {
@@ -306,7 +355,7 @@ export class AgentEvalClient {
 
   async updateAccessToken(
     id: string,
-    data: Partial<CreateAccessTokenRequest>
+    data: Partial<CreateAccessTokenRequest>,
   ): Promise<ApiResponse<StoredAccessToken>> {
     return this.request<StoredAccessToken>(`/access-tokens/${id}`, {
       method: 'PUT',
@@ -320,7 +369,7 @@ export class AgentEvalClient {
 
   // Question Sets
   async createQuestionSet(
-    data: CreateQuestionSetRequest
+    data: CreateQuestionSetRequest,
   ): Promise<ApiResponse<StoredQuestionSet>> {
     return this.request<StoredQuestionSet>('/questions', {
       method: 'POST',
@@ -328,8 +377,20 @@ export class AgentEvalClient {
     });
   }
 
-  async getQuestionSets(): Promise<ApiResponse<StoredQuestionSet[]>> {
-    return this.request<StoredQuestionSet[]>('/questions');
+  async getQuestionSets(
+    filters?: QuestionSetsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredQuestionSet>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredQuestionSet>>(
+      `/questions${query ? `?${query}` : ''}`,
+    );
   }
 
   async getQuestionSet(id: string): Promise<ApiResponse<StoredQuestionSet>> {
@@ -338,7 +399,7 @@ export class AgentEvalClient {
 
   async updateQuestionSet(
     id: string,
-    data: Partial<CreateQuestionSetRequest>
+    data: Partial<CreateQuestionSetRequest>,
   ): Promise<ApiResponse<StoredQuestionSet>> {
     return this.request<StoredQuestionSet>(`/questions/${id}`, {
       method: 'PUT',
@@ -363,7 +424,7 @@ export class AgentEvalClient {
 
   // Flow Configs
   async createFlowConfig(
-    data: CreateFlowConfigRequest
+    data: CreateFlowConfigRequest,
   ): Promise<ApiResponse<StoredFlowConfig>> {
     return this.request<StoredFlowConfig>('/flow-configs', {
       method: 'POST',
@@ -371,8 +432,20 @@ export class AgentEvalClient {
     });
   }
 
-  async getFlowConfigs(): Promise<ApiResponse<StoredFlowConfig[]>> {
-    return this.request<StoredFlowConfig[]>('/flow-configs');
+  async getFlowConfigs(
+    filters?: FlowConfigsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredFlowConfig>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredFlowConfig>>(
+      `/flow-configs${query ? `?${query}` : ''}`,
+    );
   }
 
   async getFlowConfig(id: string): Promise<ApiResponse<StoredFlowConfig>> {
@@ -381,7 +454,7 @@ export class AgentEvalClient {
 
   async updateFlowConfig(
     id: string,
-    data: Partial<CreateFlowConfigRequest>
+    data: Partial<CreateFlowConfigRequest>,
   ): Promise<ApiResponse<StoredFlowConfig>> {
     return this.request<StoredFlowConfig>(`/flow-configs/${id}`, {
       method: 'PUT',
@@ -395,7 +468,7 @@ export class AgentEvalClient {
 
   // Scheduled Tests
   async createScheduledTest(
-    data: CreateScheduledTestRequest
+    data: CreateScheduledTestRequest,
   ): Promise<ApiResponse<StoredScheduledTest>> {
     return this.request<StoredScheduledTest>('/scheduled-tests', {
       method: 'POST',
@@ -403,24 +476,33 @@ export class AgentEvalClient {
     });
   }
 
-  async getScheduledTests(filters?: ScheduledTestsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredScheduledTest>>> {
+  async getScheduledTests(
+    filters?: ScheduledTestsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredScheduledTest>>> {
     const params = new URLSearchParams();
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.search) params.append('search', filters.search);
     if (filters?.testId) params.append('testId', filters.testId);
     if (filters?.status) params.append('status', filters.status);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
     const query = params.toString();
-    return this.request<PaginatedResponse<StoredScheduledTest>>(`/scheduled-tests${query ? `?${query}` : ''}`);
+    return this.request<PaginatedResponse<StoredScheduledTest>>(
+      `/scheduled-tests${query ? `?${query}` : ''}`,
+    );
   }
 
-  async getScheduledTest(id: string): Promise<ApiResponse<StoredScheduledTest>> {
+  async getScheduledTest(
+    id: string,
+  ): Promise<ApiResponse<StoredScheduledTest>> {
     return this.request<StoredScheduledTest>(`/scheduled-tests/${id}`);
   }
 
   async updateScheduledTest(
     id: string,
-    data: Partial<CreateScheduledTestRequest>
+    data: Partial<CreateScheduledTestRequest>,
   ): Promise<ApiResponse<StoredScheduledTest>> {
     return this.request<StoredScheduledTest>(`/scheduled-tests/${id}`, {
       method: 'PUT',
@@ -434,7 +516,7 @@ export class AgentEvalClient {
 
   async resetScheduledTest(
     id: string,
-    scheduledAt?: string
+    scheduledAt?: string,
   ): Promise<ApiResponse<StoredScheduledTest>> {
     return this.request<StoredScheduledTest>(`/scheduled-tests/${id}/reset`, {
       method: 'POST',
@@ -442,29 +524,51 @@ export class AgentEvalClient {
     });
   }
 
-  async executeScheduledTestNow(id: string): Promise<ApiResponse<{ message: string }>> {
+  async executeScheduledTestNow(
+    id: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>(`/scheduled-tests/${id}/execute`, {
       method: 'POST',
     });
   }
 
   // Webhooks
-  async createWebhook(data: CreateWebhookRequest): Promise<ApiResponse<StoredWebhook>> {
+  async createWebhook(
+    data: CreateWebhookRequest,
+  ): Promise<ApiResponse<StoredWebhook>> {
     return this.request<StoredWebhook>('/webhooks', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async getWebhooks(): Promise<ApiResponse<StoredWebhook[]>> {
-    return this.request<StoredWebhook[]>('/webhooks');
+  async getWebhooks(
+    filters?: WebhooksFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredWebhook>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.enabled !== undefined)
+      params.append('enabled', filters.enabled.toString());
+    if (filters?.event) params.append('event', filters.event);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredWebhook>>(
+      `/webhooks${query ? `?${query}` : ''}`,
+    );
   }
 
   async getWebhook(id: string): Promise<ApiResponse<StoredWebhook>> {
     return this.request<StoredWebhook>(`/webhooks/${id}`);
   }
 
-  async updateWebhook(id: string, data: Partial<CreateWebhookRequest>): Promise<ApiResponse<StoredWebhook>> {
+  async updateWebhook(
+    id: string,
+    data: Partial<CreateWebhookRequest>,
+  ): Promise<ApiResponse<StoredWebhook>> {
     return this.request<StoredWebhook>(`/webhooks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -481,18 +585,27 @@ export class AgentEvalClient {
     });
   }
 
-  async testWebhook(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
-    return this.request<{ success: boolean; message: string }>(`/webhooks/${id}/test`, {
-      method: 'POST',
-    });
+  async testWebhook(
+    id: string,
+  ): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request<{ success: boolean; message: string }>(
+      `/webhooks/${id}/test`,
+      {
+        method: 'POST',
+      },
+    );
   }
 
   async getWebhookEvents(): Promise<ApiResponse<{ events: WebhookEvent[] }>> {
     return this.request<{ events: WebhookEvent[] }>('/webhooks/events');
   }
 
-  async getWebhookVariables(): Promise<ApiResponse<{ variables: WebhookVariableDefinition[] }>> {
-    return this.request<{ variables: WebhookVariableDefinition[] }>('/webhooks/variables');
+  async getWebhookVariables(): Promise<
+    ApiResponse<{ variables: WebhookVariableDefinition[] }>
+  > {
+    return this.request<{ variables: WebhookVariableDefinition[] }>(
+      '/webhooks/variables',
+    );
   }
 
   // Tests
@@ -503,23 +616,38 @@ export class AgentEvalClient {
     });
   }
 
-  async getTests(filters?: TestsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredTest>>> {
+  async getTests(
+    filters?: TestsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredTest>>> {
     const params = new URLSearchParams();
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.search) params.append('search', filters.search);
-    if (filters?.questionSetId) params.append('questionSetId', filters.questionSetId);
-    if (filters?.multiStep !== undefined) params.append('multiStep', filters.multiStep.toString());
+    if (filters?.questionSetId)
+      params.append('questionSetId', filters.questionSetId);
+    if (filters?.accessTokenId)
+      params.append('accessTokenId', filters.accessTokenId);
+    if (filters?.webhookId) params.append('webhookId', filters.webhookId);
+    if (filters?.multiStep !== undefined)
+      params.append('multiStep', filters.multiStep.toString());
     if (filters?.flowId) params.append('flowId', filters.flowId);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
     const query = params.toString();
-    return this.request<PaginatedResponse<StoredTest>>(`/tests${query ? `?${query}` : ''}`);
+    return this.request<PaginatedResponse<StoredTest>>(
+      `/tests${query ? `?${query}` : ''}`,
+    );
   }
 
   async getTest(id: string): Promise<ApiResponse<StoredTest>> {
     return this.request<StoredTest>(`/tests/${id}`);
   }
 
-  async updateTest(id: string, data: Partial<CreateTestRequest>): Promise<ApiResponse<StoredTest>> {
+  async updateTest(
+    id: string,
+    data: Partial<CreateTestRequest>,
+  ): Promise<ApiResponse<StoredTest>> {
     return this.request<StoredTest>(`/tests/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -544,7 +672,9 @@ export class AgentEvalClient {
     });
   }
 
-  async getRuns(filters?: RunsFilterParams): Promise<ApiResponse<PaginatedResponse<StoredRun>>> {
+  async getRuns(
+    filters?: RunsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredRun>>> {
     const params = new URLSearchParams();
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
@@ -552,15 +682,25 @@ export class AgentEvalClient {
     if (filters?.status) params.append('status', filters.status);
     if (filters?.testId) params.append('testId', filters.testId);
     if (filters?.runId) params.append('runId', filters.runId);
+    if (filters?.questionSetId)
+      params.append('questionSetId', filters.questionSetId);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
     const query = params.toString();
-    return this.request<PaginatedResponse<StoredRun>>(`/runs${query ? `?${query}` : ''}`);
+    return this.request<PaginatedResponse<StoredRun>>(
+      `/runs${query ? `?${query}` : ''}`,
+    );
   }
 
   async getRun(id: string): Promise<ApiResponse<StoredRun>> {
     return this.request<StoredRun>(`/runs/${id}`);
   }
 
-  async updateRun(id: string, data: UpdateRunRequest): Promise<ApiResponse<StoredRun>> {
+  async updateRun(
+    id: string,
+    data: UpdateRunRequest,
+  ): Promise<ApiResponse<StoredRun>> {
     return this.request<StoredRun>(`/runs/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -572,7 +712,9 @@ export class AgentEvalClient {
   }
 
   async deleteRun(id: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request<{ success: boolean }>(`/runs/${id}`, { method: 'DELETE' });
+    return this.request<{ success: boolean }>(`/runs/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   async getRunStats(id: string): Promise<ApiResponse<RunStats>> {
@@ -582,17 +724,20 @@ export class AgentEvalClient {
   async updateResultEvaluation(
     runId: string,
     resultId: string,
-    data: Omit<UpdateResultEvaluationRequest, 'resultId'>
+    data: Omit<UpdateResultEvaluationRequest, 'resultId'>,
   ): Promise<ApiResponse<StoredRun>> {
-    return this.request<StoredRun>(`/runs/${runId}/results/${resultId}/evaluation`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request<StoredRun>(
+      `/runs/${runId}/results/${resultId}/evaluation`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      },
+    );
   }
 
   async bulkUpdateResultEvaluations(
     runId: string,
-    updates: UpdateResultEvaluationRequest[]
+    updates: UpdateResultEvaluationRequest[],
   ): Promise<ApiResponse<StoredRun>> {
     return this.request<StoredRun>(`/runs/${runId}/results/evaluations`, {
       method: 'PUT',

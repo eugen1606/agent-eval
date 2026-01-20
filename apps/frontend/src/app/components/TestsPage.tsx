@@ -1,14 +1,22 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   StoredTest,
   StoredAccessToken,
   StoredQuestionSet,
   StoredFlowConfig,
   StoredWebhook,
+  TestsSortField,
+  SortDirection,
 } from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
+import {
+  FilterBar,
+  FilterDefinition,
+  SortOption,
+  ActiveFilter,
+} from './FilterBar';
 import { SearchableSelect } from './SearchableSelect';
 import { useNotification } from '../context/NotificationContext';
 
@@ -26,8 +34,7 @@ export function TestsPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    flowId: '',
-    basePath: '',
+    flowConfigId: '',
     accessTokenId: '',
     questionSetId: '',
     multiStepEvaluation: false,
@@ -35,7 +42,9 @@ export function TestsPage() {
   });
   const [loading, setLoading] = useState(false);
   // Map of testId -> runId for running tests
-  const [runningTests, setRunningTests] = useState<Map<string, string>>(new Map());
+  const [runningTests, setRunningTests] = useState<Map<string, string>>(
+    new Map(),
+  );
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
     id: string | null;
@@ -48,36 +57,39 @@ export function TestsPage() {
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterQuestionSet, setFilterQuestionSet] = useState('');
-  const [filterFlowId, setFilterFlowId] = useState('');
-  const [filterMultiStep, setFilterMultiStep] = useState<'all' | 'yes' | 'no'>('all');
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<TestsSortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
   // Load supporting data (tokens, questions, configs, webhooks) once
   useEffect(() => {
     const loadSupportingData = async () => {
-      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes] = await Promise.all([
-        apiClient.getAccessTokens(),
-        apiClient.getQuestionSets(),
-        apiClient.getFlowConfigs(),
-        apiClient.getWebhooks(),
-      ]);
+      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes] =
+        await Promise.all([
+          apiClient.getAccessTokens(),
+          apiClient.getQuestionSets(),
+          apiClient.getFlowConfigs(),
+          apiClient.getWebhooks(),
+        ]);
 
       if (tokensRes.success && tokensRes.data) {
-        setAccessTokens(tokensRes.data);
+        setAccessTokens(tokensRes.data.data);
       }
       if (questionsRes.success && questionsRes.data) {
-        setQuestionSets(questionsRes.data);
+        setQuestionSets(questionsRes.data.data);
       }
       if (flowConfigsRes.success && flowConfigsRes.data) {
-        setFlowConfigs(flowConfigsRes.data);
+        setFlowConfigs(flowConfigsRes.data.data);
       }
       if (webhooksRes.success && webhooksRes.data) {
-        setWebhooks(webhooksRes.data);
+        setWebhooks(webhooksRes.data.data);
       }
     };
     loadSupportingData();
@@ -90,9 +102,11 @@ export function TestsPage() {
       page: currentPage,
       limit: itemsPerPage,
       search: searchTerm || undefined,
-      questionSetId: filterQuestionSet || undefined,
-      multiStep: filterMultiStep === 'all' ? undefined : filterMultiStep === 'yes',
-      flowId: filterFlowId || undefined,
+      questionSetId: filters.questionSet || undefined,
+      multiStep: filters.multiStep ? filters.multiStep === 'yes' : undefined,
+      flowId: filters.flowId || undefined,
+      sortBy,
+      sortDirection,
     });
 
     if (response.success && response.data) {
@@ -101,39 +115,106 @@ export function TestsPage() {
       setTotalPages(response.data.pagination.totalPages);
     }
     setIsLoading(false);
-  }, [currentPage, itemsPerPage, searchTerm, filterQuestionSet, filterMultiStep, filterFlowId]);
+  }, [currentPage, itemsPerPage, searchTerm, filters, sortBy, sortDirection]);
 
   // Reload tests when filters or page changes
   useEffect(() => {
     loadTests();
   }, [loadTests]);
 
-  // Reset to page 1 when filters change
+  // Filter definitions for FilterBar
+  const filterDefinitions: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'questionSet',
+        label: 'Question Set',
+        type: 'select',
+        options: questionSets.map((qs) => ({
+          value: qs.id,
+          label: qs.name,
+          sublabel: `${qs.questions.length} questions`,
+        })),
+      },
+      {
+        key: 'flowId',
+        label: 'Flow ID',
+        type: 'text',
+        placeholder: 'Enter flow ID...',
+      },
+      {
+        key: 'multiStep',
+        label: 'Multi-step',
+        type: 'select',
+        options: [
+          { value: 'yes', label: 'Yes' },
+          { value: 'no', label: 'No' },
+        ],
+      },
+    ],
+    [questionSets],
+  );
+
+  const sortOptions: SortOption[] = [
+    { value: 'createdAt', label: 'Date Created' },
+    { value: 'updatedAt', label: 'Date Updated' },
+    { value: 'name', label: 'Name' },
+  ];
+
+  // Build active filters array for FilterBar
+  const activeFilters: ActiveFilter[] = useMemo(() => {
+    const result: ActiveFilter[] = [];
+    if (filters.questionSet) {
+      const qs = questionSets.find((q) => q.id === filters.questionSet);
+      result.push({
+        key: 'questionSet',
+        value: filters.questionSet,
+        label: 'Question Set',
+        displayValue: qs?.name || 'Unknown',
+      });
+    }
+    if (filters.flowId) {
+      result.push({
+        key: 'flowId',
+        value: filters.flowId,
+        label: 'Flow ID',
+        displayValue: filters.flowId,
+      });
+    }
+    if (filters.multiStep) {
+      result.push({
+        key: 'multiStep',
+        value: filters.multiStep,
+        label: 'Multi-step',
+        displayValue: filters.multiStep === 'yes' ? 'Yes' : 'No',
+      });
+    }
+    return result;
+  }, [filters, questionSets]);
+
+  const handleFilterAdd = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  };
+
+  const handleFilterRemove = (key: string) => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setCurrentPage(1);
+  };
+
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     setCurrentPage(1);
   };
 
-  const handleQuestionSetFilterChange = (value: string) => {
-    setFilterQuestionSet(value);
-    setCurrentPage(1);
-  };
-
-  const handleFlowIdFilterChange = (value: string) => {
-    setFilterFlowId(value);
-    setCurrentPage(1);
-  };
-
-  const handleMultiStepFilterChange = (value: 'all' | 'yes' | 'no') => {
-    setFilterMultiStep(value);
-    setCurrentPage(1);
-  };
-
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterQuestionSet('');
-    setFilterFlowId('');
-    setFilterMultiStep('all');
+    setFilters({});
+    setSortBy('createdAt');
+    setSortDirection('desc');
     setCurrentPage(1);
   };
 
@@ -145,19 +226,25 @@ export function TestsPage() {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormSubmitAttempted(true);
-    if (!formData.name || !formData.flowId || !formData.basePath) return;
+    if (!formData.name || !formData.flowConfigId) return;
+
+    const selectedFlowConfig = flowConfigs.find(
+      (fc) => fc.id === formData.flowConfigId,
+    );
+    if (!selectedFlowConfig) return;
 
     setLoading(true);
 
     const data = {
       name: formData.name,
       description: formData.description || undefined,
-      flowId: formData.flowId,
-      basePath: formData.basePath,
-      accessTokenId: formData.accessTokenId || undefined,
-      questionSetId: formData.questionSetId || undefined,
+      flowId: selectedFlowConfig.flowId,
+      basePath: selectedFlowConfig.basePath || '',
+      // Use null to explicitly clear optional FK fields (undefined is stripped by JSON.stringify)
+      accessTokenId: formData.accessTokenId || null,
+      questionSetId: formData.questionSetId || null,
       multiStepEvaluation: formData.multiStepEvaluation,
-      webhookId: formData.webhookId || undefined,
+      webhookId: formData.webhookId || null,
     };
 
     let response;
@@ -170,7 +257,10 @@ export function TestsPage() {
     if (response.success) {
       resetForm();
       loadTests();
-      showNotification('success', editingId ? 'Test updated successfully' : 'Test created successfully');
+      showNotification(
+        'success',
+        editingId ? 'Test updated successfully' : 'Test created successfully',
+      );
     } else {
       showNotification('error', response.error || 'Failed to save test');
     }
@@ -179,11 +269,14 @@ export function TestsPage() {
 
   const handleEdit = (test: StoredTest) => {
     setEditingId(test.id);
+    // Find matching flow config by flowId and basePath
+    const matchingFlowConfig = flowConfigs.find(
+      (fc) => fc.flowId === test.flowId && fc.basePath === test.basePath,
+    );
     setFormData({
       name: test.name,
       description: test.description || '',
-      flowId: test.flowId,
-      basePath: test.basePath,
+      flowConfigId: matchingFlowConfig?.id || '',
       accessTokenId: test.accessTokenId || '',
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
@@ -196,8 +289,7 @@ export function TestsPage() {
     setFormData({
       name: '',
       description: '',
-      flowId: '',
-      basePath: '',
+      flowConfigId: '',
       accessTokenId: '',
       questionSetId: '',
       multiStepEvaluation: false,
@@ -220,19 +312,20 @@ export function TestsPage() {
     }
   };
 
-  const handleRun = async (testId: string) => {
+  const handleRun = async (testId: string, isRetry = false) => {
     // Prevent double-clicking the same test
     if (runningTests.has(testId)) return;
 
     setRunningTests((prev) => new Map(prev).set(testId, ''));
 
-    const token = apiClient.getAuthToken();
-    if (!token) {
+    const csrfToken = apiClient.getAuthToken();
+    if (!csrfToken) {
       setRunningTests((prev) => {
         const next = new Map(prev);
         next.delete(testId);
         return next;
       });
+      showNotification('error', 'Not authenticated. Please log in again.');
       return;
     }
 
@@ -242,14 +335,48 @@ export function TestsPage() {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${token}`,
+            'X-CSRF-Token': csrfToken,
             Accept: 'text/event-stream',
           },
-        }
+          credentials: 'include', // Send cookies for auth
+        },
       );
 
+      // Handle 401 - try to refresh token once
+      if (response.status === 401 && !isRetry) {
+        // Try refreshing the token
+        const refreshResponse = await fetch(
+          'http://localhost:3001/api/auth/refresh',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+          },
+        );
+
+        if (refreshResponse.ok) {
+          // Clear running state and retry
+          setRunningTests((prev) => {
+            const next = new Map(prev);
+            next.delete(testId);
+            return next;
+          });
+          return handleRun(testId, true);
+        } else {
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
@@ -272,14 +399,23 @@ export function TestsPage() {
               const data = JSON.parse(line.slice(6));
               // Track run ID when run starts
               if (data.type === 'run_start' && data.runId) {
-                setRunningTests((prev) => new Map(prev).set(testId, data.runId));
+                setRunningTests((prev) =>
+                  new Map(prev).set(testId, data.runId),
+                );
               }
-              if (data.type === 'complete' || data.type === 'error' || data.type === 'canceled') {
+              if (
+                data.type === 'complete' ||
+                data.type === 'error' ||
+                data.type === 'canceled'
+              ) {
                 setRunningTests((prev) => {
                   const next = new Map(prev);
                   next.delete(testId);
                   return next;
                 });
+                if (data.type === 'error') {
+                  showNotification('error', data.message || 'Test run failed');
+                }
                 loadTests();
               }
             } catch {
@@ -288,12 +424,16 @@ export function TestsPage() {
           }
         }
       }
-    } catch {
+    } catch (error) {
       setRunningTests((prev) => {
         const next = new Map(prev);
         next.delete(testId);
         return next;
       });
+      showNotification(
+        'error',
+        error instanceof Error ? error.message : 'Failed to run test',
+      );
     }
   };
 
@@ -335,7 +475,14 @@ export function TestsPage() {
     return webhook?.name || 'Unknown';
   };
 
-  const hasActiveFilters = searchTerm || filterQuestionSet || filterFlowId || filterMultiStep !== 'all';
+  const getFlowConfigName = (flowId: string, basePath: string) => {
+    const fc = flowConfigs.find(
+      (c) => c.flowId === flowId && c.basePath === basePath,
+    );
+    return fc?.name;
+  };
+
+  const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
 
   return (
     <div className="tests-page">
@@ -376,7 +523,9 @@ export function TestsPage() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
+              className={
+                formSubmitAttempted && !formData.name ? 'input-error' : ''
+              }
             />
             {formSubmitAttempted && !formData.name && (
               <span className="field-error">Test name is required</span>
@@ -394,107 +543,85 @@ export function TestsPage() {
             />
           </div>
           <div className="form-group">
-            <label>Flow Configuration</label>
-            <select
-              onChange={(e) => {
-                const config = flowConfigs.find((fc) => fc.id === e.target.value);
-                if (config) {
-                  setFormData({
-                    ...formData,
-                    flowId: config.flowId,
-                    basePath: config.basePath || '',
-                  });
-                }
-              }}
-              value=""
-            >
-              <option value="">Select from saved configs...</option>
-              {flowConfigs.map((fc) => (
-                <option key={fc.id} value={fc.id}>
-                  {fc.name} ({fc.flowId})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label>Base URL *</label>
-            <input
-              type="text"
-              placeholder="e.g., https://api.example.com"
-              value={formData.basePath}
-              onChange={(e) =>
-                setFormData({ ...formData, basePath: e.target.value })
+            <label>Flow Configuration *</label>
+            <SearchableSelect
+              value={formData.flowConfigId}
+              onChange={(value) =>
+                setFormData({ ...formData, flowConfigId: value })
               }
-              className={formSubmitAttempted && !formData.basePath ? 'input-error' : ''}
+              options={flowConfigs.map((fc) => ({
+                value: fc.id,
+                label: fc.name,
+                sublabel: `${fc.flowId}${fc.basePath ? ` - ${fc.basePath}` : ''}`,
+              }))}
+              placeholder="Search flow configs..."
+              allOptionLabel="Select flow configuration..."
             />
-            {formSubmitAttempted && !formData.basePath && (
-              <span className="field-error">Base URL is required</span>
+            {formSubmitAttempted && !formData.flowConfigId && (
+              <span className="field-error">Flow configuration is required</span>
             )}
-          </div>
-          <div className="form-group">
-            <label>Flow ID *</label>
-            <input
-              type="text"
-              placeholder="e.g., flow_abc123"
-              value={formData.flowId}
-              onChange={(e) =>
-                setFormData({ ...formData, flowId: e.target.value })
-              }
-              className={formSubmitAttempted && !formData.flowId ? 'input-error' : ''}
-            />
-            {formSubmitAttempted && !formData.flowId && (
-              <span className="field-error">Flow ID is required</span>
-            )}
+            {formData.flowConfigId && (() => {
+              const selectedConfig = flowConfigs.find(
+                (fc) => fc.id === formData.flowConfigId,
+              );
+              return selectedConfig ? (
+                <span className="form-hint">
+                  Flow ID: {selectedConfig.flowId}
+                  {selectedConfig.basePath && ` | Base URL: ${selectedConfig.basePath}`}
+                </span>
+              ) : null;
+            })()}
           </div>
           <div className="form-group">
             <label>Access Token</label>
-            <select
+            <SearchableSelect
               value={formData.accessTokenId}
-              onChange={(e) =>
-                setFormData({ ...formData, accessTokenId: e.target.value })
+              onChange={(value) =>
+                setFormData({ ...formData, accessTokenId: value })
               }
-            >
-              <option value="">Select access token...</option>
-              {accessTokens.map((token) => (
-                <option key={token.id} value={token.id}>
-                  {token.name}
-                </option>
-              ))}
-            </select>
+              options={accessTokens.map((token) => ({
+                value: token.id,
+                label: token.name,
+              }))}
+              placeholder="Search tokens..."
+              allOptionLabel="Select access token..."
+            />
           </div>
           <div className="form-group">
             <label>Question Set</label>
-            <select
+            <SearchableSelect
               value={formData.questionSetId}
-              onChange={(e) =>
-                setFormData({ ...formData, questionSetId: e.target.value })
+              onChange={(value) =>
+                setFormData({ ...formData, questionSetId: value })
               }
-            >
-              <option value="">Select question set...</option>
-              {questionSets.map((qs) => (
-                <option key={qs.id} value={qs.id}>
-                  {qs.name} ({qs.questions.length} questions)
-                </option>
-              ))}
-            </select>
+              options={questionSets.map((qs) => ({
+                value: qs.id,
+                label: qs.name,
+                sublabel: `${qs.questions.length} questions`,
+              }))}
+              placeholder="Search question sets..."
+              allOptionLabel="Select question set..."
+            />
           </div>
           <div className="form-group">
             <label>Webhook</label>
-            <select
+            <SearchableSelect
               value={formData.webhookId}
-              onChange={(e) =>
-                setFormData({ ...formData, webhookId: e.target.value })
+              onChange={(value) =>
+                setFormData({ ...formData, webhookId: value })
               }
-            >
-              <option value="">No webhook</option>
-              {webhooks.filter(w => w.enabled).map((webhook) => (
-                <option key={webhook.id} value={webhook.id}>
-                  {webhook.name}
-                </option>
-              ))}
-            </select>
+              options={webhooks
+                .filter((w) => w.enabled)
+                .map((webhook) => ({
+                  value: webhook.id,
+                  label: webhook.name,
+                }))}
+              placeholder="Search webhooks..."
+              allOptionLabel="No webhook"
+            />
             <span className="form-hint">
-              Trigger webhook on run events (running, completed, failed, evaluated)
+              Trigger webhook on run events (running, completed, failed,
+              evaluated)
             </span>
           </div>
           <div className="form-group checkbox-group">
@@ -515,58 +642,27 @@ export function TestsPage() {
         </form>
       </Modal>
 
-      <div className="filter-bar">
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Search tests..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <SearchableSelect
-            value={filterQuestionSet}
-            onChange={handleQuestionSetFilterChange}
-            options={questionSets.map((qs) => ({
-              value: qs.id,
-              label: qs.name,
-              sublabel: `${qs.questions.length} questions`,
-            }))}
-            placeholder="Search question sets..."
-            allOptionLabel="All Question Sets"
-          />
-        </div>
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Filter by Flow ID..."
-            value={filterFlowId}
-            onChange={(e) => handleFlowIdFilterChange(e.target.value)}
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <select
-            value={filterMultiStep}
-            onChange={(e) => handleMultiStepFilterChange(e.target.value as 'all' | 'yes' | 'no')}
-            className="filter-select"
-          >
-            <option value="all">All Types</option>
-            <option value="yes">Multi-step Only</option>
-            <option value="no">Single-step Only</option>
-          </select>
-        </div>
-        {hasActiveFilters && (
-          <button
-            className="filter-clear-btn"
-            onClick={clearFilters}
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
+      <FilterBar
+        filters={filterDefinitions}
+        activeFilters={activeFilters}
+        onFilterAdd={handleFilterAdd}
+        onFilterRemove={handleFilterRemove}
+        onClearAll={clearFilters}
+        searchValue={searchTerm}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search tests..."
+        sortOptions={sortOptions}
+        sortValue={sortBy}
+        sortDirection={sortDirection}
+        onSortChange={(value) => {
+          setSortBy(value as TestsSortField);
+          setCurrentPage(1);
+        }}
+        onSortDirectionChange={(dir) => {
+          setSortDirection(dir);
+          setCurrentPage(1);
+        }}
+      />
 
       <div className="tests-list">
         {isLoading ? (
@@ -597,9 +693,13 @@ export function TestsPage() {
                   {runningTests.has(test.id) ? (
                     <button
                       className="cancel-btn"
-                      onClick={() => setCancelConfirm({ open: true, testId: test.id })}
+                      onClick={() =>
+                        setCancelConfirm({ open: true, testId: test.id })
+                      }
                       disabled={!runningTests.get(test.id)}
-                      title={runningTests.get(test.id) ? 'Cancel run' : 'Starting...'}
+                      title={
+                        runningTests.get(test.id) ? 'Cancel run' : 'Starting...'
+                      }
                     >
                       {runningTests.get(test.id) ? 'Cancel' : 'Starting...'}
                     </button>
@@ -608,7 +708,11 @@ export function TestsPage() {
                       className="run-btn"
                       onClick={() => handleRun(test.id)}
                       disabled={!test.questionSetId}
-                      title={!test.questionSetId ? 'No question set configured' : 'Run test'}
+                      title={
+                        !test.questionSetId
+                          ? 'No question set configured'
+                          : 'Run test'
+                      }
                     >
                       Run
                     </button>
@@ -618,7 +722,9 @@ export function TestsPage() {
                   </button>
                   <button
                     className="delete-btn"
-                    onClick={() => setDeleteConfirm({ open: true, id: test.id })}
+                    onClick={() =>
+                      setDeleteConfirm({ open: true, id: test.id })
+                    }
                   >
                     Delete
                   </button>
@@ -629,18 +735,25 @@ export function TestsPage() {
               )}
               <div className="test-details">
                 <div className="detail-row">
-                  <span className="detail-label">Flow:</span>
-                  <span className="detail-value">{test.flowId}</span>
+                  <span className="detail-label">Flow Config:</span>
+                  <span className="detail-value">
+                    {getFlowConfigName(test.flowId, test.basePath) || (
+                      <span className="text-muted">{test.flowId}</span>
+                    )}
+                  </span>
                 </div>
-                <div className="detail-row">
-                  <span className="detail-label">Base URL:</span>
-                  <span className="detail-value">{test.basePath}</span>
-                </div>
+                {test.basePath && (
+                  <div className="detail-row">
+                    <span className="detail-label">Base URL:</span>
+                    <span className="detail-value">{test.basePath}</span>
+                  </div>
+                )}
                 <div className="detail-row">
                   <span className="detail-label">Questions:</span>
                   <span className="detail-value">
                     {getQuestionSetName(test.questionSetId)}
-                    {test.questionSet && ` (${test.questionSet.questions.length})`}
+                    {test.questionSet &&
+                      ` (${test.questionSet.questions.length})`}
                   </span>
                 </div>
                 <div className="detail-row">

@@ -6,24 +6,26 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { QuestionsService, CreateQuestionSetDto } from './questions.service';
+import {
+  QuestionsService,
+  EntityUsage,
+  PaginatedQuestionSets,
+  QuestionSetsSortField,
+  SortDirection,
+} from './questions.service';
+import {
+  CreateQuestionSetDto,
+  UpdateQuestionSetDto,
+  ImportQuestionsDto,
+  QuestionItemDto,
+} from './dto';
 import { QuestionSet } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-
-interface ImportQuestionsDto {
-  name: string;
-  description?: string;
-  questions: unknown;
-}
-
-interface QuestionItem {
-  question: string;
-  expectedAnswer?: string;
-}
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard)
@@ -41,8 +43,19 @@ export class QuestionsController {
   @Get()
   async findAll(
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<QuestionSet[]> {
-    return this.questionsService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: QuestionSetsSortField,
+    @Query('sortDirection') sortDirection?: SortDirection,
+  ): Promise<PaginatedQuestionSets> {
+    return this.questionsService.findAll(user.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      sortBy,
+      sortDirection,
+    });
   }
 
   @Get(':id')
@@ -56,10 +69,18 @@ export class QuestionsController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateQuestionSetDto>,
+    @Body() dto: UpdateQuestionSetDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<QuestionSet> {
     return this.questionsService.update(id, dto, user.userId);
+  }
+
+  @Get(':id/usage')
+  async getUsage(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<EntityUsage> {
+    return this.questionsService.getUsage(id, user.userId);
   }
 
   @Delete(':id')
@@ -90,7 +111,7 @@ export class QuestionsController {
     }
 
     // Validate each question
-    const validatedQuestions: QuestionItem[] = [];
+    const validatedQuestions: QuestionItemDto[] = [];
     for (let i = 0; i < dto.questions.length; i++) {
       const item = dto.questions[i] as Record<string, unknown>;
 

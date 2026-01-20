@@ -6,13 +6,18 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   AccessTokensService,
-  CreateAccessTokenDto,
   AccessTokenResponse,
+  EntityUsage,
+  PaginatedAccessTokens,
+  AccessTokensSortField,
+  SortDirection,
 } from './access-tokens.service';
+import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -32,8 +37,19 @@ export class AccessTokensController {
   @Get()
   async findAll(
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<AccessTokenResponse[]> {
-    return this.accessTokensService.findAll(user.userId);
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: AccessTokensSortField,
+    @Query('sortDirection') sortDirection?: SortDirection,
+  ): Promise<PaginatedAccessTokens> {
+    return this.accessTokensService.findAll(user.userId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      sortBy,
+      sortDirection,
+    });
   }
 
   @Get(':id')
@@ -47,10 +63,18 @@ export class AccessTokensController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateAccessTokenDto>,
+    @Body() dto: UpdateAccessTokenDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<AccessTokenResponse> {
     return this.accessTokensService.update(id, dto, user.userId);
+  }
+
+  @Get(':id/usage')
+  async getUsage(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<EntityUsage> {
+    return this.accessTokensService.getUsage(id, user.userId);
   }
 
   @Delete(':id')

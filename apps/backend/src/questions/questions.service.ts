@@ -1,24 +1,41 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { QuestionSet } from '../database/entities';
+import { QuestionSet, Test } from '../database/entities';
+import { CreateQuestionSetDto, UpdateQuestionSetDto } from './dto';
 
-export interface QuestionItem {
-  question: string;
-  expectedAnswer?: string;
+export interface EntityUsage {
+  tests: { id: string; name: string }[];
 }
 
-export interface CreateQuestionSetDto {
-  name: string;
-  questions: QuestionItem[];
-  description?: string;
+export type QuestionSetsSortField = 'name' | 'createdAt' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
+
+export interface QuestionSetsFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: QuestionSetsSortField;
+  sortDirection?: SortDirection;
+}
+
+export interface PaginatedQuestionSets {
+  data: QuestionSet[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 @Injectable()
 export class QuestionsService {
   constructor(
     @InjectRepository(QuestionSet)
-    private questionSetRepository: Repository<QuestionSet>
+    private questionSetRepository: Repository<QuestionSet>,
+    @InjectRepository(Test)
+    private testRepository: Repository<Test>
   ) {}
 
   async create(dto: CreateQuestionSetDto, userId: string): Promise<QuestionSet> {
@@ -31,11 +48,47 @@ export class QuestionsService {
     return this.questionSetRepository.save(questionSet);
   }
 
-  async findAll(userId: string): Promise<QuestionSet[]> {
-    return this.questionSetRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(
+    userId: string,
+    filters: QuestionSetsFilterDto = {},
+  ): Promise<PaginatedQuestionSets> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.questionSetRepository
+      .createQueryBuilder('questionSet')
+      .where('questionSet.userId = :userId', { userId });
+
+    // Apply search filter
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(questionSet.name ILIKE :search OR questionSet.description ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection =
+      (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`questionSet.${sortField}`, sortDirection);
+
+    // Apply pagination
+    const data = await queryBuilder.skip(skip).take(limit).getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<QuestionSet> {
@@ -48,7 +101,7 @@ export class QuestionsService {
     return questionSet;
   }
 
-  async update(id: string, dto: Partial<CreateQuestionSetDto>, userId: string): Promise<QuestionSet> {
+  async update(id: string, dto: UpdateQuestionSetDto, userId: string): Promise<QuestionSet> {
     const questionSet = await this.findOne(id, userId);
 
     if (dto.name) questionSet.name = dto.name;
@@ -63,5 +116,20 @@ export class QuestionsService {
     if (result.affected === 0) {
       throw new NotFoundException(`Question set not found: ${id}`);
     }
+  }
+
+  async getUsage(id: string, userId: string): Promise<EntityUsage> {
+    // Verify question set exists and belongs to user
+    await this.findOne(id, userId);
+
+    // Find tests that use this question set
+    const tests = await this.testRepository.find({
+      where: { questionSetId: id, userId },
+      select: ['id', 'name'],
+    });
+
+    return {
+      tests: tests.map((t) => ({ id: t.id, name: t.name })),
+    };
   }
 }

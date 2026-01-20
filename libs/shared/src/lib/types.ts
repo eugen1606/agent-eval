@@ -146,7 +146,11 @@ export interface AccountStats {
 }
 
 // Scheduled Test Types
-export type ScheduledTestStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ScheduledTestStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed';
 export type ScheduleType = 'once' | 'cron';
 
 export interface StoredScheduledTest {
@@ -174,7 +178,11 @@ export interface CreateScheduledTestRequest {
 }
 
 // Webhook Types
-export type WebhookEvent = 'run.running' | 'run.completed' | 'run.failed' | 'run.evaluated';
+export type WebhookEvent =
+  | 'run.running'
+  | 'run.completed'
+  | 'run.failed'
+  | 'run.evaluated';
 export type WebhookMethod = 'POST' | 'PUT' | 'PATCH';
 
 export interface WebhookVariableDefinition {
@@ -234,14 +242,19 @@ export interface CreateTestRequest {
   description?: string;
   flowId: string;
   basePath: string;
-  accessTokenId?: string;
-  questionSetId?: string;
+  accessTokenId?: string | null;
+  questionSetId?: string | null;
   multiStepEvaluation?: boolean;
-  webhookId?: string;
+  webhookId?: string | null;
 }
 
 // Run Types (new model - replaces Evaluation for new workflow)
-export type RunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
+export type RunStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'canceled';
 
 export interface RunResult {
   id: string;
@@ -263,6 +276,7 @@ export interface StoredRun {
   id: string;
   testId?: string;
   test?: StoredTest;
+  questionSetId?: string;
   status: RunStatus;
   results: RunResult[];
   errorMessage?: string;
@@ -322,12 +336,32 @@ export interface PaginatedResponse<T> {
   };
 }
 
+// Sort Types
+export type SortDirection = 'asc' | 'desc';
+
+export type TestsSortField = 'name' | 'createdAt' | 'updatedAt';
+export type RunsSortField =
+  | 'createdAt'
+  | 'startedAt'
+  | 'completedAt'
+  | 'status';
+export type ScheduledTestsSortField =
+  | 'name'
+  | 'scheduledAt'
+  | 'lastRunAt'
+  | 'status'
+  | 'createdAt';
+
 // Tests Filter Params
 export interface TestsFilterParams extends PaginationParams {
   search?: string;
   questionSetId?: string;
+  accessTokenId?: string;
+  webhookId?: string;
   multiStep?: boolean;
   flowId?: string;
+  sortBy?: TestsSortField;
+  sortDirection?: SortDirection;
 }
 
 // Runs Filter Params
@@ -336,6 +370,9 @@ export interface RunsFilterParams extends PaginationParams {
   status?: RunStatus;
   testId?: string;
   runId?: string;
+  questionSetId?: string;
+  sortBy?: RunsSortField;
+  sortDirection?: SortDirection;
 }
 
 // Scheduled Tests Filter Params
@@ -343,4 +380,44 @@ export interface ScheduledTestsFilterParams extends PaginationParams {
   search?: string;
   testId?: string;
   status?: ScheduledTestStatus;
+  sortBy?: ScheduledTestsSortField;
+  sortDirection?: SortDirection;
+}
+
+// Access Tokens Sort and Filter
+export type AccessTokensSortField = 'name' | 'createdAt' | 'updatedAt';
+
+export interface AccessTokensFilterParams extends PaginationParams {
+  search?: string;
+  sortBy?: AccessTokensSortField;
+  sortDirection?: SortDirection;
+}
+
+// Question Sets Sort and Filter
+export type QuestionSetsSortField = 'name' | 'createdAt' | 'updatedAt';
+
+export interface QuestionSetsFilterParams extends PaginationParams {
+  search?: string;
+  sortBy?: QuestionSetsSortField;
+  sortDirection?: SortDirection;
+}
+
+// Webhooks Sort and Filter
+export type WebhooksSortField = 'name' | 'createdAt' | 'updatedAt';
+
+export interface WebhooksFilterParams extends PaginationParams {
+  search?: string;
+  enabled?: boolean;
+  event?: WebhookEvent;
+  sortBy?: WebhooksSortField;
+  sortDirection?: SortDirection;
+}
+
+// Flow Configs Sort and Filter
+export type FlowConfigsSortField = 'name' | 'createdAt' | 'updatedAt';
+
+export interface FlowConfigsFilterParams extends PaginationParams {
+  search?: string;
+  sortBy?: FlowConfigsSortField;
+  sortDirection?: SortDirection;
 }

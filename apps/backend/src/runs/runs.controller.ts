@@ -41,6 +41,9 @@ export class RunsController {
     @Query('status') status?: RunStatus,
     @Query('testId') testId?: string,
     @Query('runId') runId?: string,
+    @Query('questionSetId') questionSetId?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
   ): Promise<PaginatedRuns> {
     return this.runsService.findAll(user!.userId, {
@@ -50,6 +53,9 @@ export class RunsController {
       status,
       testId,
       runId,
+      questionSetId,
+      sortBy: sortBy as 'createdAt' | 'startedAt' | 'completedAt' | 'status' | undefined,
+      sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
   }
 

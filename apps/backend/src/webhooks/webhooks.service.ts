@@ -1,24 +1,40 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Webhook, WebhookEvent, WebhookMethod } from '../database/entities';
+import { Webhook, WebhookEvent, Test } from '../database/entities';
 import {
   VariableResolverService,
   WebhookContext,
 } from './variable-resolver.service';
 import { WebhookRetryService } from './webhook-retry.service';
 import { UrlValidationService } from '../common/validators/url-validation.service';
+import { CreateWebhookDto, UpdateWebhookDto } from './dto';
 
-export interface CreateWebhookDto {
-  name: string;
-  url: string;
-  description?: string;
-  events: WebhookEvent[];
-  secret?: string;
-  method: WebhookMethod;
-  headers?: Record<string, string>;
-  queryParams?: Record<string, string>;
-  bodyTemplate: Record<string, unknown>;
+export interface EntityUsage {
+  tests: { id: string; name: string }[];
+}
+
+export type WebhooksSortField = 'name' | 'createdAt' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
+
+export interface WebhooksFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  enabled?: boolean;
+  event?: WebhookEvent;
+  sortBy?: WebhooksSortField;
+  sortDirection?: SortDirection;
+}
+
+export interface PaginatedWebhooks {
+  data: Webhook[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 @Injectable()
@@ -28,6 +44,8 @@ export class WebhooksService {
   constructor(
     @InjectRepository(Webhook)
     private webhookRepository: Repository<Webhook>,
+    @InjectRepository(Test)
+    private testRepository: Repository<Test>,
     private variableResolver: VariableResolverService,
     private webhookRetryService: WebhookRetryService,
     private urlValidationService: UrlValidationService,
@@ -41,11 +59,61 @@ export class WebhooksService {
     return this.webhookRepository.save(webhook);
   }
 
-  async findAll(userId: string): Promise<Webhook[]> {
-    return this.webhookRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(
+    userId: string,
+    filters: WebhooksFilterDto = {},
+  ): Promise<PaginatedWebhooks> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.webhookRepository
+      .createQueryBuilder('webhook')
+      .where('webhook.userId = :userId', { userId });
+
+    // Apply search filter
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(webhook.name ILIKE :search OR webhook.description ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Apply enabled filter
+    if (filters.enabled !== undefined) {
+      queryBuilder.andWhere('webhook.enabled = :enabled', {
+        enabled: filters.enabled,
+      });
+    }
+
+    // Apply event filter (search in events array)
+    if (filters.event) {
+      queryBuilder.andWhere(':event = ANY(webhook.events)', {
+        event: filters.event,
+      });
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection =
+      (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`webhook.${sortField}`, sortDirection);
+
+    // Apply pagination
+    const data = await queryBuilder.skip(skip).take(limit).getMany();
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Webhook> {
@@ -60,7 +128,7 @@ export class WebhooksService {
 
   async update(
     id: string,
-    dto: Partial<CreateWebhookDto>,
+    dto: UpdateWebhookDto,
     userId: string,
   ): Promise<Webhook> {
     const webhook = await this.findOne(id, userId);
@@ -73,10 +141,35 @@ export class WebhooksService {
     await this.webhookRepository.remove(webhook);
   }
 
+  async getUsage(id: string, userId: string): Promise<EntityUsage> {
+    // Verify webhook exists and belongs to user
+    await this.findOne(id, userId);
+
+    // Find tests that use this webhook
+    const tests = await this.testRepository.find({
+      where: { webhookId: id, userId },
+      select: ['id', 'name'],
+    });
+
+    return {
+      tests: tests.map((t) => ({ id: t.id, name: t.name })),
+    };
+  }
+
   async toggleEnabled(id: string, userId: string): Promise<Webhook> {
     const webhook = await this.findOne(id, userId);
     webhook.enabled = !webhook.enabled;
-    return this.webhookRepository.save(webhook);
+    const savedWebhook = await this.webhookRepository.save(webhook);
+
+    // When disabling a webhook, remove it from all tests that use it
+    if (!webhook.enabled) {
+      await this.testRepository.update(
+        { webhookId: id, userId },
+        { webhookId: null as unknown as string },
+      );
+    }
+
+    return savedWebhook;
   }
 
   async triggerWebhooks(

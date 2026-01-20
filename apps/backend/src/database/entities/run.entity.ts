@@ -32,6 +32,9 @@ export class Run {
   @JoinColumn({ name: 'testId' })
   test: Test;
 
+  @Column({ nullable: true })
+  questionSetId: string;
+
   @Column({ default: 'pending' })
   status: RunStatus;
 

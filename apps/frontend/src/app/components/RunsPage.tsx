@@ -1,10 +1,27 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StoredRun, RunStatus, StoredTest } from '@agent-eval/shared';
+import {
+  StoredRun,
+  RunStatus,
+  StoredTest,
+  RunsSortField,
+  SortDirection,
+} from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
-import { SearchableSelect } from './SearchableSelect';
+import {
+  FilterBar,
+  FilterDefinition,
+  SortOption,
+  ActiveFilter,
+} from './FilterBar';
 import { useNotification } from '../context/NotificationContext';
 
 const apiClient = new AgentEvalClient();
@@ -32,14 +49,17 @@ export function RunsPage() {
   }>({ open: false, id: null });
 
   // Filter and pagination state
-  const [filterTestId, setFilterTestId] = useState('');
-  const [filterRunId, setFilterRunId] = useState('');
-  const [filterStatus, setFilterStatus] = useState<RunStatus | ''>('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<RunsSortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Track if there are running runs for auto-refresh
   const hasRunningRunsRef = useRef(false);
@@ -61,9 +81,12 @@ export function RunsPage() {
     const response = await apiClient.getRuns({
       page: currentPage,
       limit: itemsPerPage,
-      testId: filterTestId || undefined,
-      runId: filterRunId || undefined,
-      status: filterStatus || undefined,
+      search: searchTerm || undefined,
+      testId: filters.test || undefined,
+      runId: filters.runId || undefined,
+      status: (filters.status as RunStatus) || undefined,
+      sortBy,
+      sortDirection,
     });
 
     if (response.success && response.data) {
@@ -73,11 +96,11 @@ export function RunsPage() {
 
       // Check if any runs are still running
       hasRunningRunsRef.current = response.data.data.some(
-        (r) => r.status === 'running' || r.status === 'pending'
+        (r) => r.status === 'running' || r.status === 'pending',
       );
     }
     setIsLoading(false);
-  }, [currentPage, itemsPerPage, filterTestId, filterRunId, filterStatus]);
+  }, [currentPage, itemsPerPage, searchTerm, filters, sortBy, sortDirection]);
 
   // Reload runs when filters or page changes
   useEffect(() => {
@@ -97,26 +120,104 @@ export function RunsPage() {
     return () => clearInterval(interval);
   }, [loadRuns]);
 
-  // Reset to page 1 when filters change
-  const handleTestFilterChange = (value: string) => {
-    setFilterTestId(value);
+  // Filter definitions for FilterBar
+  const filterDefinitions: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'test',
+        label: 'Test',
+        type: 'select',
+        options: tests.map((test) => ({
+          value: test.id,
+          label: test.name,
+          sublabel: test.flowId,
+        })),
+      },
+      {
+        key: 'runId',
+        label: 'Run ID',
+        type: 'text',
+        placeholder: 'Enter run ID...',
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { value: 'pending', label: 'Pending' },
+          { value: 'running', label: 'Running' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'failed', label: 'Failed' },
+          { value: 'canceled', label: 'Canceled' },
+        ],
+      },
+    ],
+    [tests],
+  );
+
+  const sortOptions: SortOption[] = [
+    { value: 'createdAt', label: 'Date Created' },
+    { value: 'startedAt', label: 'Date Started' },
+    { value: 'completedAt', label: 'Date Completed' },
+    { value: 'status', label: 'Status' },
+  ];
+
+  // Build active filters array for FilterBar
+  const activeFilters: ActiveFilter[] = useMemo(() => {
+    const result: ActiveFilter[] = [];
+    if (filters.test) {
+      const test = tests.find((t) => t.id === filters.test);
+      result.push({
+        key: 'test',
+        value: filters.test,
+        label: 'Test',
+        displayValue: test?.name || 'Unknown',
+      });
+    }
+    if (filters.runId) {
+      result.push({
+        key: 'runId',
+        value: filters.runId,
+        label: 'Run ID',
+        displayValue: filters.runId,
+      });
+    }
+    if (filters.status) {
+      result.push({
+        key: 'status',
+        value: filters.status,
+        label: 'Status',
+        displayValue:
+          filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
+      });
+    }
+    return result;
+  }, [filters, tests]);
+
+  const handleFilterAdd = (key: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
 
-  const handleRunIdFilterChange = (value: string) => {
-    setFilterRunId(value);
+  const handleFilterRemove = (key: string) => {
+    setFilters((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     setCurrentPage(1);
   };
 
-  const handleStatusFilterChange = (value: RunStatus | '') => {
-    setFilterStatus(value);
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
     setCurrentPage(1);
   };
 
   const clearFilters = () => {
-    setFilterTestId('');
-    setFilterRunId('');
-    setFilterStatus('');
+    setSearchTerm('');
+    setFilters({});
+    setSortBy('createdAt');
+    setSortDirection('desc');
     setCurrentPage(1);
   };
 
@@ -188,7 +289,7 @@ export function RunsPage() {
     return <span className="accuracy-complete">{accuracy}% accuracy</span>;
   };
 
-  const hasActiveFilters = filterTestId || filterRunId || filterStatus;
+  const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
 
   return (
     <div className="runs-page">
@@ -196,52 +297,27 @@ export function RunsPage() {
         <h2>Runs</h2>
       </div>
 
-      <div className="filter-bar">
-        <div className="filter-group">
-          <SearchableSelect
-            value={filterTestId}
-            onChange={handleTestFilterChange}
-            options={tests.map((test) => ({
-              value: test.id,
-              label: test.name,
-              sublabel: test.flowId,
-            }))}
-            placeholder="Search tests..."
-            allOptionLabel="All Tests"
-          />
-        </div>
-        <div className="filter-group">
-          <input
-            type="text"
-            placeholder="Filter by Run ID..."
-            value={filterRunId}
-            onChange={(e) => handleRunIdFilterChange(e.target.value)}
-            className="filter-input"
-          />
-        </div>
-        <div className="filter-group">
-          <select
-            value={filterStatus}
-            onChange={(e) => handleStatusFilterChange(e.target.value as RunStatus | '')}
-            className="filter-select"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="running">Running</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="canceled">Canceled</option>
-          </select>
-        </div>
-        {hasActiveFilters && (
-          <button
-            className="filter-clear-btn"
-            onClick={clearFilters}
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
+      <FilterBar
+        filters={filterDefinitions}
+        activeFilters={activeFilters}
+        onFilterAdd={handleFilterAdd}
+        onFilterRemove={handleFilterRemove}
+        onClearAll={clearFilters}
+        searchValue={searchTerm}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="Search by test name..."
+        sortOptions={sortOptions}
+        sortValue={sortBy}
+        sortDirection={sortDirection}
+        onSortChange={(value) => {
+          setSortBy(value as RunsSortField);
+          setCurrentPage(1);
+        }}
+        onSortDirectionChange={(dir) => {
+          setSortDirection(dir);
+          setCurrentPage(1);
+        }}
+      />
 
       {/* Runs List */}
       <div className="runs-list">
@@ -286,7 +362,9 @@ export function RunsPage() {
                   {(run.status === 'running' || run.status === 'pending') && (
                     <button
                       className="cancel-btn"
-                      onClick={() => setCancelConfirm({ open: true, id: run.id })}
+                      onClick={() =>
+                        setCancelConfirm({ open: true, id: run.id })
+                      }
                     >
                       Cancel
                     </button>

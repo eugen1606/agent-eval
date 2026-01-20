@@ -11,7 +11,9 @@
       "Bash(yarn nx lint:*)",
       "Bash(yarn nx test:*)",
       "Bash(curl:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(yarn migration:generate:*)",
+      "Bash(yarn migration:run:*)"
     ]
   }
 }

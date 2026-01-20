@@ -1,13 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AccessToken } from '../database/entities';
+import { AccessToken, Test } from '../database/entities';
 import { EncryptionService } from '../config/encryption.service';
+import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto';
 
-export interface CreateAccessTokenDto {
-  name: string;
-  token: string;
-  description?: string;
+export interface EntityUsage {
+  tests: { id: string; name: string }[];
 }
 
 export interface AccessTokenResponse {
@@ -19,11 +18,34 @@ export interface AccessTokenResponse {
   // Token is never exposed
 }
 
+export type AccessTokensSortField = 'name' | 'createdAt' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
+
+export interface AccessTokensFilterDto {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: AccessTokensSortField;
+  sortDirection?: SortDirection;
+}
+
+export interface PaginatedAccessTokens {
+  data: AccessTokenResponse[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 @Injectable()
 export class AccessTokensService {
   constructor(
     @InjectRepository(AccessToken)
     private accessTokenRepository: Repository<AccessToken>,
+    @InjectRepository(Test)
+    private testRepository: Repository<Test>,
     private encryptionService: EncryptionService
   ) {}
 
@@ -42,12 +64,47 @@ export class AccessTokensService {
     return this.toResponse(saved);
   }
 
-  async findAll(userId: string): Promise<AccessTokenResponse[]> {
-    const tokens = await this.accessTokenRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
-    return tokens.map((t) => this.toResponse(t));
+  async findAll(
+    userId: string,
+    filters: AccessTokensFilterDto = {},
+  ): Promise<PaginatedAccessTokens> {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.accessTokenRepository
+      .createQueryBuilder('accessToken')
+      .where('accessToken.userId = :userId', { userId });
+
+    // Apply search filter
+    if (filters.search) {
+      queryBuilder.andWhere(
+        '(accessToken.name ILIKE :search OR accessToken.description ILIKE :search)',
+        { search: `%${filters.search}%` },
+      );
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection =
+      (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`accessToken.${sortField}`, sortDirection);
+
+    // Apply pagination
+    const tokens = await queryBuilder.skip(skip).take(limit).getMany();
+
+    return {
+      data: tokens.map((t) => this.toResponse(t)),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string, userId: string): Promise<AccessTokenResponse> {
@@ -62,7 +119,7 @@ export class AccessTokensService {
 
   async update(
     id: string,
-    dto: Partial<CreateAccessTokenDto>,
+    dto: UpdateAccessTokenDto,
     userId: string
   ): Promise<AccessTokenResponse> {
     const token = await this.accessTokenRepository.findOne({
@@ -90,6 +147,21 @@ export class AccessTokensService {
     if (result.affected === 0) {
       throw new NotFoundException(`Access token not found: ${id}`);
     }
+  }
+
+  async getUsage(id: string, userId: string): Promise<EntityUsage> {
+    // Verify token exists and belongs to user
+    await this.findOne(id, userId);
+
+    // Find tests that use this access token
+    const tests = await this.testRepository.find({
+      where: { accessTokenId: id, userId },
+      select: ['id', 'name'],
+    });
+
+    return {
+      tests: tests.map((t) => ({ id: t.id, name: t.name })),
+    };
   }
 
   // Internal method to get decrypted token for use in flow execution

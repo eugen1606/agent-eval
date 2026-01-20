@@ -13,7 +13,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { TestsService, CreateTestDto, PaginatedTests } from './tests.service';
+import { TestsService, PaginatedTests } from './tests.service';
+import { CreateTestDto, UpdateTestDto } from './dto';
 import { Test } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -63,8 +64,12 @@ export class TestsController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('questionSetId') questionSetId?: string,
+    @Query('accessTokenId') accessTokenId?: string,
+    @Query('webhookId') webhookId?: string,
     @Query('multiStep') multiStep?: string,
     @Query('flowId') flowId?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
   ): Promise<PaginatedTests> {
     return this.testsService.findAll(user!.userId, {
@@ -72,8 +77,12 @@ export class TestsController {
       limit: limit ? parseInt(limit, 10) : undefined,
       search,
       questionSetId,
+      accessTokenId,
+      webhookId,
       multiStep: multiStep !== undefined ? multiStep === 'true' : undefined,
       flowId,
+      sortBy: sortBy as 'name' | 'createdAt' | 'updatedAt' | undefined,
+      sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
   }
 
@@ -88,7 +97,7 @@ export class TestsController {
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateTestDto>,
+    @Body() dto: UpdateTestDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Test> {
     // Validate basePath for SSRF protection if provided
@@ -130,7 +139,7 @@ export class TestsController {
 
           // Create a new run
           const run = await this.runsService.create(
-            { testId: test.id, totalQuestions: questionSet.questions.length },
+            { testId: test.id, totalQuestions: questionSet.questions.length, questionSetId: test.questionSetId },
             user.userId
           );
           runId = run.id;

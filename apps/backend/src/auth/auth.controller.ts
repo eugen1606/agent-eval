@@ -110,7 +110,8 @@ export class AuthController {
     @Body('refreshToken') bodyRefreshToken?: string,
   ) {
     // Support both cookie-based and body-based refresh for backward compatibility
-    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE] || bodyRefreshToken;
+    const refreshToken =
+      req.cookies?.[REFRESH_TOKEN_COOKIE] || bodyRefreshToken;
 
     if (!refreshToken) {
       throw new UnauthorizedException('No refresh token provided');

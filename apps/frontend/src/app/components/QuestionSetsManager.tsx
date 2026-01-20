@@ -1,8 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { StoredQuestionSet } from '@agent-eval/shared';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import {
+  StoredQuestionSet,
+  StoredTest,
+  SortDirection,
+  QuestionSetsSortField,
+} from '@agent-eval/shared';
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog, AlertDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
+import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
+import { Pagination } from './Pagination';
 
 const apiClient = new AgentEvalClient();
 
@@ -27,7 +34,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
     id: string | null;
-  }>({ open: false, id: null });
+    dependentTests: StoredTest[];
+  }>({ open: false, id: null, dependentTests: [] });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
   const [importError, setImportError] = useState<{
     message: string;
@@ -35,17 +43,73 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    loadQuestionSets();
-  }, []);
+  // Filter and pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [sortBy, setSortBy] = useState<QuestionSetsSortField>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const loadQuestionSets = async () => {
+  const loadQuestionSets = useCallback(async () => {
     setIsLoading(true);
-    const response = await apiClient.getQuestionSets();
+    const response = await apiClient.getQuestionSets({
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm || undefined,
+      sortBy,
+      sortDirection,
+    });
     if (response.success && response.data) {
-      setQuestionSets(response.data);
+      setQuestionSets(response.data.data);
+      setTotalItems(response.data.pagination.total);
+      setTotalPages(response.data.pagination.totalPages);
     }
     setIsLoading(false);
+  }, [currentPage, itemsPerPage, searchTerm, sortBy, sortDirection]);
+
+  useEffect(() => {
+    loadQuestionSets();
+  }, [loadQuestionSets]);
+
+  // Filter definitions (empty for question sets - only search and sort)
+  const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
+
+  // Sort options
+  const sortOptions: SortOption[] = [
+    { value: 'createdAt', label: 'Date Created' },
+    { value: 'updatedAt', label: 'Date Updated' },
+    { value: 'name', label: 'Name' },
+  ];
+
+  // Active filters (empty for question sets)
+  const activeFilters: ActiveFilter[] = useMemo(() => [], []);
+
+  // Handlers
+  const handleFilterAdd = () => {
+    setCurrentPage(1);
+  };
+
+  const handleFilterRemove = () => {
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSortBy('createdAt');
+    setSortDirection('desc');
+    setCurrentPage(1);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -84,12 +148,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           'success',
           editingId
             ? 'Question set updated successfully'
-            : 'Question set created successfully',
+            : 'Question set created successfully'
         );
       } else {
         showNotification(
           'error',
-          response.error || 'Failed to save question set',
+          response.error || 'Failed to save question set'
         );
       }
     } catch {
@@ -117,17 +181,25 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     setFormSubmitAttempted(false);
   };
 
+  const handleDeleteClick = async (questionSetId: string) => {
+    // Fetch tests that use this question set
+    const response = await apiClient.getTests({ questionSetId, limit: 100 });
+    const dependentTests =
+      response.success && response.data ? response.data.data : [];
+    setDeleteConfirm({ open: true, id: questionSetId, dependentTests });
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
     const response = await apiClient.deleteQuestionSet(deleteConfirm.id);
-    setDeleteConfirm({ open: false, id: null });
+    setDeleteConfirm({ open: false, id: null, dependentTests: [] });
     if (response.success) {
       loadQuestionSets();
       showNotification('success', 'Question set deleted successfully');
     } else {
       showNotification(
         'error',
-        response.error || 'Failed to delete question set',
+        response.error || 'Failed to delete question set'
       );
     }
   };
@@ -202,6 +274,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   { "question": "Explain gravity" }
 ]`;
 
+  const hasNoQuestionSets = totalItems === 0 && !searchTerm;
+
   return (
     <div className="manager-section">
       <div className="manager-header">
@@ -220,6 +294,24 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           <button onClick={() => setShowForm(true)}>+ Add Question Set</button>
         </div>
       </div>
+
+      {!hasNoQuestionSets && (
+        <FilterBar
+          filters={filterDefinitions}
+          activeFilters={activeFilters}
+          onFilterAdd={handleFilterAdd}
+          onFilterRemove={handleFilterRemove}
+          onClearAll={clearFilters}
+          searchValue={searchTerm}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="Search question sets..."
+          sortOptions={sortOptions}
+          sortValue={sortBy}
+          sortDirection={sortDirection}
+          onSortChange={(value) => setSortBy(value as QuestionSetsSortField)}
+          onSortDirectionChange={setSortDirection}
+        />
+      )}
 
       <Modal
         isOpen={showForm}
@@ -301,7 +393,11 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
             <span className="loading-text">Loading question sets...</span>
           </div>
         ) : questionSets.length === 0 ? (
-          <p className="empty-message">No question sets stored</p>
+          <p className="empty-message">
+            {searchTerm
+              ? 'No question sets match your search'
+              : 'No question sets stored'}
+          </p>
         ) : (
           questionSets.map((qs) => (
             <div key={qs.id} className="manager-item">
@@ -324,7 +420,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                   Edit
                 </button>
                 <button
-                  onClick={() => setDeleteConfirm({ open: true, id: qs.id })}
+                  onClick={() => handleDeleteClick(qs.id)}
                   className="delete-btn"
                 >
                   Delete
@@ -335,12 +431,30 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         )}
       </div>
 
+      {!isLoading && totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
+          itemName="question sets"
+        />
+      )}
+
       <ConfirmDialog
         isOpen={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, id: null })}
+        onClose={() =>
+          setDeleteConfirm({ open: false, id: null, dependentTests: [] })
+        }
         onConfirm={handleDelete}
         title="Delete Question Set"
-        message="Are you sure you want to delete this question set? This action cannot be undone."
+        message={
+          deleteConfirm.dependentTests.length > 0
+            ? `This question set is used by the following tests:\n\n${deleteConfirm.dependentTests.map((t) => `• ${t.name}`).join('\n')}\n\nDeleting this question set will remove it from these tests. This action cannot be undone.`
+            : 'Are you sure you want to delete this question set? This action cannot be undone.'
+        }
         confirmText="Delete"
         variant="danger"
       />

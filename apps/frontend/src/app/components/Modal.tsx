@@ -111,7 +111,7 @@ export function ConfirmDialog({
         </>
       }
     >
-      <p>{message}</p>
+      <p style={{ whiteSpace: 'pre-line' }}>{message}</p>
     </Modal>
   );
 }

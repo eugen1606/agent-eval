@@ -7,6 +7,7 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 export interface CreateRunDto {
   testId: string;
   totalQuestions?: number;
+  questionSetId?: string;
 }
 
 export interface UpdateRunDto {
@@ -26,6 +27,9 @@ export interface UpdateResultEvaluationDto {
   llmJudgeReasoning?: string;
 }
 
+export type RunsSortField = 'createdAt' | 'startedAt' | 'completedAt' | 'status';
+export type SortDirection = 'asc' | 'desc';
+
 export interface RunsFilterDto {
   page?: number;
   limit?: number;
@@ -33,6 +37,9 @@ export interface RunsFilterDto {
   status?: RunStatus;
   testId?: string;
   runId?: string;
+  questionSetId?: string;
+  sortBy?: RunsSortField;
+  sortDirection?: SortDirection;
 }
 
 export interface PaginatedRuns {
@@ -59,6 +66,7 @@ export class RunsService {
     const run = this.runRepository.create({
       testId: dto.testId,
       totalQuestions: dto.totalQuestions ?? 0,
+      questionSetId: dto.questionSetId,
       status: 'pending',
       results: [],
       userId,
@@ -103,17 +111,23 @@ export class RunsService {
       });
     }
 
-    // Debug: log the generated SQL
-    if (filters.runId) {
-      console.log('SQL query:', queryBuilder.getSql());
+    // Apply questionSetId filter
+    if (filters.questionSetId) {
+      queryBuilder.andWhere('run.questionSetId = :questionSetId', {
+        questionSetId: filters.questionSetId,
+      });
     }
 
     // Get total count before pagination
     const total = await queryBuilder.getCount();
 
-    // Apply pagination and ordering
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection = (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`run.${sortField}`, sortDirection);
+
+    // Apply pagination
     const data = await queryBuilder
-      .orderBy('run.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
       .getMany();

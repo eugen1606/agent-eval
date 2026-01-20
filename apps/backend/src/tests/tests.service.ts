@@ -1,26 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Test } from '../database/entities';
+import { CreateTestDto, UpdateTestDto } from './dto';
 
-export interface CreateTestDto {
-  name: string;
-  description?: string;
-  flowId: string;
-  basePath: string;
-  accessTokenId?: string;
-  questionSetId?: string;
-  multiStepEvaluation?: boolean;
-  webhookId?: string;
-}
+export type TestsSortField = 'name' | 'createdAt' | 'updatedAt';
+export type SortDirection = 'asc' | 'desc';
 
 export interface TestsFilterDto {
   page?: number;
   limit?: number;
   search?: string;
   questionSetId?: string;
+  accessTokenId?: string;
+  webhookId?: string;
   multiStep?: boolean;
   flowId?: string;
+  sortBy?: TestsSortField;
+  sortDirection?: SortDirection;
 }
 
 export interface PaginatedTests {
@@ -37,7 +34,7 @@ export interface PaginatedTests {
 export class TestsService {
   constructor(
     @InjectRepository(Test)
-    private testRepository: Repository<Test>
+    private testRepository: Repository<Test>,
   ) {}
 
   async create(dto: CreateTestDto, userId: string): Promise<Test> {
@@ -55,7 +52,10 @@ export class TestsService {
     return this.testRepository.save(test);
   }
 
-  async findAll(userId: string, filters: TestsFilterDto = {}): Promise<PaginatedTests> {
+  async findAll(
+    userId: string,
+    filters: TestsFilterDto = {},
+  ): Promise<PaginatedTests> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 10;
     const skip = (page - 1) * limit;
@@ -69,7 +69,7 @@ export class TestsService {
     if (filters.search) {
       queryBuilder.andWhere(
         '(test.name ILIKE :search OR test.description ILIKE :search)',
-        { search: `%${filters.search}%` }
+        { search: `%${filters.search}%` },
       );
     }
 
@@ -77,6 +77,20 @@ export class TestsService {
     if (filters.questionSetId) {
       queryBuilder.andWhere('test.questionSetId = :questionSetId', {
         questionSetId: filters.questionSetId,
+      });
+    }
+
+    // Apply accessTokenId filter
+    if (filters.accessTokenId) {
+      queryBuilder.andWhere('test.accessTokenId = :accessTokenId', {
+        accessTokenId: filters.accessTokenId,
+      });
+    }
+
+    // Apply webhookId filter
+    if (filters.webhookId) {
+      queryBuilder.andWhere('test.webhookId = :webhookId', {
+        webhookId: filters.webhookId,
       });
     }
 
@@ -97,12 +111,14 @@ export class TestsService {
     // Get total count before pagination
     const total = await queryBuilder.getCount();
 
-    // Apply pagination and ordering
-    const data = await queryBuilder
-      .orderBy('test.createdAt', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getMany();
+    // Apply sorting
+    const sortField = filters.sortBy || 'createdAt';
+    const sortDirection =
+      (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
+    queryBuilder.orderBy(`test.${sortField}`, sortDirection);
+
+    // Apply pagination
+    const data = await queryBuilder.skip(skip).take(limit).getMany();
 
     return {
       data,
@@ -126,19 +142,35 @@ export class TestsService {
     return test;
   }
 
-  async update(id: string, dto: Partial<CreateTestDto>, userId: string): Promise<Test> {
-    const test = await this.findOne(id, userId);
+  async update(id: string, dto: UpdateTestDto, userId: string): Promise<Test> {
+    // Verify test exists and belongs to user
+    await this.findOne(id, userId);
 
-    if (dto.name !== undefined) test.name = dto.name;
-    if (dto.description !== undefined) test.description = dto.description;
-    if (dto.flowId !== undefined) test.flowId = dto.flowId;
-    if (dto.basePath !== undefined) test.basePath = dto.basePath;
-    if (dto.accessTokenId !== undefined) test.accessTokenId = dto.accessTokenId;
-    if (dto.questionSetId !== undefined) test.questionSetId = dto.questionSetId;
-    if (dto.multiStepEvaluation !== undefined) test.multiStepEvaluation = dto.multiStepEvaluation;
-    if (dto.webhookId !== undefined) test.webhookId = dto.webhookId || undefined;
+    // Use repository.update() instead of .save() because .save() ignores undefined values
+    const updateData: Partial<Test> = {};
 
-    return this.testRepository.save(test);
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.flowId !== undefined) updateData.flowId = dto.flowId;
+    if (dto.basePath !== undefined) updateData.basePath = dto.basePath;
+    if (dto.multiStepEvaluation !== undefined)
+      updateData.multiStepEvaluation = dto.multiStepEvaluation;
+
+    // For nullable FK fields: null from DTO means clear, valid UUID means set
+    if (dto.accessTokenId !== undefined) {
+      updateData.accessTokenId =
+        dto.accessTokenId || (null as unknown as string);
+    }
+    if (dto.questionSetId !== undefined) {
+      updateData.questionSetId =
+        dto.questionSetId || (null as unknown as string);
+    }
+    if (dto.webhookId !== undefined) {
+      updateData.webhookId = dto.webhookId || (null as unknown as string);
+    }
+
+    await this.testRepository.update({ id, userId }, updateData);
+    return this.findOne(id, userId);
   }
 
   async delete(id: string, userId: string): Promise<void> {
