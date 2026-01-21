@@ -14,7 +14,7 @@ async function isRateLimitingEnabled(): Promise<boolean> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: `rate-limit-check-${Date.now()}-${i}@e2e-test.local`,
-          password: 'testpassword123',
+          password: 'Testpassword123!',
         }),
       })
     );
@@ -90,7 +90,7 @@ describe('Rate Limiting (Throttling)', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: `throttle-reg-${Date.now()}-${i}@e2e-test.local`,
-              password: 'testpassword123',
+              password: 'Testpassword123!',
             }),
           })
         );
@@ -114,7 +114,7 @@ describe('Rate Limiting (Throttling)', () => {
       }
 
       const email = `throttle-login-${Date.now()}@e2e-test.local`;
-      const password = 'testpassword123';
+      const password = 'Testpassword123!';
 
       await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
@@ -157,7 +157,7 @@ describe('Rate Limiting (Throttling)', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: `throttle-format-${Date.now()}-${i}@e2e-test.local`,
-              password: 'testpassword123',
+              password: 'Testpassword123!',
             }),
           })
         );
@@ -189,7 +189,7 @@ describe('Rate Limiting (Throttling)', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: `no-redis-${Date.now()}-${i}@e2e-test.local`,
-              password: 'testpassword123',
+              password: 'Testpassword123!',
             }),
           })
         );

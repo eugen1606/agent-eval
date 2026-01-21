@@ -2,14 +2,16 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Flow Configs CRUD', () => {
   let accessToken: string;
+  let csrfToken: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-flow-configs');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('POST /api/flow-configs', () => {
@@ -48,8 +50,10 @@ describe('Flow Configs CRUD', () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
+      expect(data.data).toBeDefined();
+      expect(Array.isArray(data.data)).toBe(true);
+      expect(data.data.length).toBeGreaterThan(0);
+      expect(data.pagination).toBeDefined();
     });
   });
 

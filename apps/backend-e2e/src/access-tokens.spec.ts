@@ -2,14 +2,16 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Access Tokens CRUD', () => {
   let accessToken: string;
+  let csrfToken: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-access-tokens');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('POST /api/access-tokens', () => {
@@ -48,12 +50,14 @@ describe('Access Tokens CRUD', () => {
       const response = await authenticatedRequest('/access-tokens', {}, accessToken);
       expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
+      const result = await response.json();
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.pagination).toBeDefined();
 
       // Verify no token values are exposed
-      data.forEach((token: Record<string, unknown>) => {
+      result.data.forEach((token: Record<string, unknown>) => {
         expect(token.token).toBeUndefined();
         expect(token.encryptedToken).toBeUndefined();
       });

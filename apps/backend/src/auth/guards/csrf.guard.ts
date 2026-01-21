@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { CSRF_TOKEN_COOKIE } from '../auth.constants';
+import { CSRF_TOKEN_COOKIE, ACCESS_TOKEN_COOKIE } from '../auth.constants';
 
 /**
  * CSRF protection guard for cookie-based authentication.
@@ -13,6 +13,8 @@ import { CSRF_TOKEN_COOKIE } from '../auth.constants';
  * the token stored in the csrf_token cookie.
  *
  * Safe methods (GET, HEAD, OPTIONS) are exempt from CSRF checks.
+ * Bearer token authentication is also exempt (CSRF protection is only
+ * needed for cookie-based auth where browsers auto-attach cookies).
  */
 @Injectable()
 export class CsrfGuard implements CanActivate {
@@ -22,6 +24,13 @@ export class CsrfGuard implements CanActivate {
     // Skip CSRF for safe methods (read-only operations)
     const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
     if (safeMethods.includes(request.method)) {
+      return true;
+    }
+
+    // Skip CSRF for Bearer token auth (not vulnerable to CSRF)
+    // CSRF protection is only needed for cookie-based auth
+    const authHeader = request.headers['authorization'];
+    if (authHeader?.startsWith('Bearer ') && !request.cookies?.[ACCESS_TOKEN_COOKIE]) {
       return true;
     }
 

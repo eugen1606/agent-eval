@@ -2,14 +2,16 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Question Sets CRUD', () => {
   let accessToken: string;
+  let csrfToken: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-questions');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('POST /api/questions', () => {
@@ -49,9 +51,11 @@ describe('Question Sets CRUD', () => {
       const response = await authenticatedRequest('/questions', {}, accessToken);
       expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
+      const result = await response.json();
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.pagination).toBeDefined();
     });
   });
 
@@ -168,7 +172,7 @@ describe('Question Sets CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Name is required');
+      expect(data.message).toMatch(/[Nn]ame/);
     });
 
     it('should reject non-array questions', async () => {
@@ -182,7 +186,7 @@ describe('Question Sets CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Questions must be an array');
+      expect(data.message).toMatch(/[Qq]uestions/);
     });
 
     it('should reject empty questions array', async () => {

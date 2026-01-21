@@ -21,7 +21,7 @@ export class UpdateWebhookDto {
   name?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   @MaxLength(MAX_LENGTHS.URL)
   url?: string;
 

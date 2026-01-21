@@ -14,7 +14,7 @@ describe('Auth Endpoints', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          password: 'testpassword123',
+          password: 'Testpassword123!',
           displayName: 'Test User',
         }),
       });
@@ -37,14 +37,14 @@ describe('Auth Endpoints', () => {
       await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: 'testpassword123' }),
+        body: JSON.stringify({ email, password: 'Testpassword123!' }),
       });
 
       // Second registration with same email
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: 'testpassword123' }),
+        body: JSON.stringify({ email, password: 'Testpassword123!' }),
       });
 
       expect(response.status).toBe(409);
@@ -54,7 +54,7 @@ describe('Auth Endpoints', () => {
   describe('POST /api/auth/login', () => {
     it('should login with valid credentials', async () => {
       const email = `login-test-${Date.now()}@e2e-test.local`;
-      const password = 'testpassword123';
+      const password = 'Testpassword123!';
 
       // Register first
       await fetch(`${API_URL}/auth/register`, {
@@ -84,13 +84,13 @@ describe('Auth Endpoints', () => {
       await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: 'correctpassword' }),
+        body: JSON.stringify({ email, password: 'Correctpassword123!' }),
       });
 
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: 'wrongpassword' }),
+        body: JSON.stringify({ email, password: 'Wrongpassword123!' }),
       });
 
       expect(response.status).toBe(401);
@@ -118,8 +118,8 @@ describe('Auth Endpoints', () => {
   describe('POST /api/auth/account/change-password', () => {
     it('should change password successfully', async () => {
       const email = `password-change-${Date.now()}@e2e-test.local`;
-      const oldPassword = 'oldpassword123';
-      const newPassword = 'newpassword123';
+      const oldPassword = 'Oldpassword123!';
+      const newPassword = 'Newpassword456!';
 
       // Register
       const registerRes = await fetch(`${API_URL}/auth/register`, {
@@ -127,9 +127,9 @@ describe('Auth Endpoints', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: oldPassword }),
       });
-      const { tokens } = await registerRes.json();
+      const { tokens, csrfToken } = await registerRes.json();
 
-      // Change password
+      // Change password (requires CSRF token)
       const response = await authenticatedRequest(
         '/auth/account/change-password',
         {
@@ -140,7 +140,8 @@ describe('Auth Endpoints', () => {
             confirmPassword: newPassword,
           }),
         },
-        tokens.accessToken
+        tokens.accessToken,
+        csrfToken
       );
 
       expect(response.status).toBe(200);
@@ -156,19 +157,20 @@ describe('Auth Endpoints', () => {
     });
 
     it('should reject wrong current password', async () => {
-      const { accessToken } = await createTestUser('-wrong-password');
+      const { accessToken, csrfToken } = await createTestUser('-wrong-password');
 
       const response = await authenticatedRequest(
         '/auth/account/change-password',
         {
           method: 'POST',
           body: JSON.stringify({
-            currentPassword: 'wrongpassword',
-            newPassword: 'newpassword123',
-            confirmPassword: 'newpassword123',
+            currentPassword: 'Wrongpassword123!',
+            newPassword: 'Newpassword456!',
+            confirmPassword: 'Newpassword456!',
           }),
         },
-        accessToken
+        accessToken,
+        csrfToken
       );
 
       expect(response.status).toBe(400);
@@ -194,7 +196,7 @@ describe('Auth Endpoints', () => {
 
   describe('DELETE /api/auth/account', () => {
     it('should delete account and all related data', async () => {
-      const { accessToken } = await createTestUser('-delete-test');
+      const { accessToken, csrfToken } = await createTestUser('-delete-test');
 
       // Create some data first
       await authenticatedRequest('/questions', {
@@ -205,10 +207,10 @@ describe('Auth Endpoints', () => {
         }),
       }, accessToken);
 
-      // Delete account
+      // Delete account (requires CSRF token)
       const response = await authenticatedRequest('/auth/account', {
         method: 'DELETE',
-      }, accessToken);
+      }, accessToken, csrfToken);
 
       expect(response.status).toBe(200);
 

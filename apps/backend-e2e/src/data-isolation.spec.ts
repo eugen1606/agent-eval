@@ -2,19 +2,23 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Data Isolation', () => {
   let user1Token: string;
+  let user1CsrfToken: string;
   let user2Token: string;
+  let user2CsrfToken: string;
 
   beforeAll(async () => {
     const auth1 = await createTestUser('-isolation-user1');
     const auth2 = await createTestUser('-isolation-user2');
     user1Token = auth1.accessToken;
+    user1CsrfToken = auth1.csrfToken;
     user2Token = auth2.accessToken;
+    user2CsrfToken = auth2.csrfToken;
   });
 
   afterAll(async () => {
     await Promise.all([
-      deleteTestUser(user1Token),
-      deleteTestUser(user2Token),
+      deleteTestUser(user1Token, user1CsrfToken),
+      deleteTestUser(user2Token, user2CsrfToken),
     ]);
   });
 
@@ -34,7 +38,7 @@ describe('Data Isolation', () => {
       const listRes = await authenticatedRequest('/questions', {}, user2Token);
       const list = await listRes.json();
 
-      const found = list.find((q: { id: string }) => q.id === created.id);
+      const found = list.data.find((q: { id: string }) => q.id === created.id);
       expect(found).toBeUndefined();
     });
 
@@ -107,7 +111,7 @@ describe('Data Isolation', () => {
       const listRes = await authenticatedRequest('/flow-configs', {}, user2Token);
       const list = await listRes.json();
 
-      const found = list.find((f: { id: string }) => f.id === created.id);
+      const found = list.data.find((f: { id: string }) => f.id === created.id);
       expect(found).toBeUndefined();
     });
 
@@ -140,7 +144,7 @@ describe('Data Isolation', () => {
       const listRes = await authenticatedRequest('/access-tokens', {}, user2Token);
       const list = await listRes.json();
 
-      const found = list.find((t: { id: string }) => t.id === created.id);
+      const found = list.data.find((t: { id: string }) => t.id === created.id);
       expect(found).toBeUndefined();
     });
 

@@ -2,14 +2,16 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('SSRF Protection', () => {
   let accessToken: string;
+  let csrfToken: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-ssrf');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('Flow Configs endpoint - basePath validation', () => {
@@ -258,7 +260,7 @@ describe('SSRF Protection', () => {
       expect(data.message).toContain('cloud metadata');
     });
 
-    it('should allow localhost webhook URLs in development', async () => {
+    it('should allow localhost webhook URLs in non-production', async () => {
       const response = await authenticatedRequest('/webhooks', {
         method: 'POST',
         body: JSON.stringify({
@@ -267,6 +269,12 @@ describe('SSRF Protection', () => {
         }),
       }, accessToken);
 
+      // In test mode (non-production), localhost should be allowed
+      // If getting 400, check if NODE_ENV=test is properly set on the backend
+      if (response.status === 400) {
+        const data = await response.json();
+        console.log('Localhost URL rejected with:', data.message);
+      }
       expect(response.status).toBe(201);
     });
 

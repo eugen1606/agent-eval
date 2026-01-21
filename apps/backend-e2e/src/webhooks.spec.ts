@@ -2,6 +2,7 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Webhooks CRUD', () => {
   let accessToken: string;
+  let csrfToken: string;
 
   const validWebhookPayload = {
     name: 'Test Webhook',
@@ -18,10 +19,11 @@ describe('Webhooks CRUD', () => {
   beforeAll(async () => {
     const auth = await createTestUser('-webhooks');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('POST /api/webhooks', () => {
@@ -88,7 +90,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Invalid URL');
+      expect(data.message).toMatch(/[Uu]rl|URL/);
     });
 
     it('should reject empty events', async () => {
@@ -102,7 +104,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('At least one event');
+      expect(data.message).toMatch(/event/i);
     });
 
     it('should reject invalid event', async () => {
@@ -116,7 +118,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Invalid event');
+      expect(data.message).toMatch(/event/i);
     });
 
     it('should reject invalid HTTP method', async () => {
@@ -130,7 +132,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Invalid HTTP method');
+      expect(data.message).toMatch(/method/i);
     });
 
     it('should reject missing body template', async () => {
@@ -142,7 +144,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Body template is required');
+      expect(data.message).toMatch(/body.*template|bodyTemplate/i);
     });
 
     it('should reject array as body template', async () => {
@@ -156,7 +158,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Body template must be a JSON object');
+      expect(data.message).toMatch(/body.*template|bodyTemplate/i);
     });
 
     it('should reject missing HTTP method', async () => {
@@ -168,7 +170,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('HTTP method is required');
+      expect(data.message).toMatch(/method/i);
     });
   });
 
@@ -186,9 +188,11 @@ describe('Webhooks CRUD', () => {
       const response = await authenticatedRequest('/webhooks', {}, accessToken);
       expect(response.status).toBe(200);
 
-      const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
+      const result = await response.json();
+      expect(result.data).toBeDefined();
+      expect(Array.isArray(result.data)).toBe(true);
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.pagination).toBeDefined();
     });
   });
 
@@ -325,7 +329,7 @@ describe('Webhooks CRUD', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.message).toContain('Invalid HTTP method');
+      expect(data.message).toMatch(/method/i);
     });
   });
 

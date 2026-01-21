@@ -18,7 +18,7 @@ export class CreateWebhookDto {
   @MaxLength(MAX_LENGTHS.NAME)
   name: string;
 
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   @MaxLength(MAX_LENGTHS.URL)
   url: string;
 

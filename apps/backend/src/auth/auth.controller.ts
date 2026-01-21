@@ -83,6 +83,7 @@ export class AuthController {
     return {
       user: result.user,
       csrfToken, // Return CSRF token in body for initial setup
+      tokens: result.tokens, // Return tokens for API clients that don't support cookies
     };
   }
 
@@ -99,6 +100,7 @@ export class AuthController {
     return {
       user: result.user,
       csrfToken,
+      tokens: result.tokens, // Return tokens for API clients that don't support cookies
     };
   }
 

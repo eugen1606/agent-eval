@@ -2,11 +2,13 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Tests CRUD', () => {
   let accessToken: string;
+  let csrfToken: string;
   let flowConfigId: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-tests');
     accessToken = auth.accessToken;
+    csrfToken = auth.csrfToken;
 
     // Create a FlowConfig to use in tests
     const fcResponse = await authenticatedRequest('/flow-configs', {
@@ -22,7 +24,7 @@ describe('Tests CRUD', () => {
   });
 
   afterAll(async () => {
-    await deleteTestUser(accessToken);
+    await deleteTestUser(accessToken, csrfToken);
   });
 
   describe('POST /api/tests', () => {

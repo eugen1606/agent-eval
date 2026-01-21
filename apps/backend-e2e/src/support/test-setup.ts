@@ -3,7 +3,7 @@
 export const API_URL = process.env.API_URL || 'http://localhost:3001/api';
 
 // Track created test users for cleanup
-const createdTestUsers: Array<{ accessToken: string; email: string }> = [];
+const createdTestUsers: Array<{ accessToken: string; csrfToken: string; email: string }> = [];
 
 // Clear throttle keys before tests
 export async function clearThrottleKeys(): Promise<void> {
@@ -18,13 +18,15 @@ export async function clearThrottleKeys(): Promise<void> {
 export async function authenticatedRequest(
   endpoint: string,
   options: RequestInit = {},
-  token: string
+  accessToken: string,
+  csrfToken?: string,
 ): Promise<Response> {
   return fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      'Authorization': `Bearer ${accessToken}`,
+      ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
       ...options.headers,
     },
   });
@@ -34,10 +36,10 @@ export async function authenticatedRequest(
 export async function createTestUser(suffix = ''): Promise<{
   user: { id: string; email: string };
   accessToken: string;
-  refreshToken: string;
+  csrfToken: string;
 }> {
   const email = `test-${Date.now()}${suffix}@e2e-test.local`;
-  const password = 'testpassword123';
+  const password = 'Testpassword123!';
 
   const response = await fetch(`${API_URL}/auth/register`, {
     method: 'POST',
@@ -52,23 +54,24 @@ export async function createTestUser(suffix = ''): Promise<{
   const data = await response.json();
 
   // Track for cleanup
-  createdTestUsers.push({ accessToken: data.tokens.accessToken, email });
+  createdTestUsers.push({ accessToken: data.tokens.accessToken, csrfToken: data.csrfToken, email });
 
   return {
     user: data.user,
     accessToken: data.tokens.accessToken,
-    refreshToken: data.tokens.refreshToken,
+    csrfToken: data.csrfToken,
   };
 }
 
 // Helper to delete a test user (cascade deletes all their data)
-export async function deleteTestUser(accessToken: string): Promise<void> {
+export async function deleteTestUser(accessToken: string, csrfToken?: string): Promise<void> {
   try {
     await fetch(`${API_URL}/auth/account`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
+        ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
       },
     });
   } catch {
@@ -78,13 +81,18 @@ export async function deleteTestUser(accessToken: string): Promise<void> {
 
 // Cleanup all tracked test users
 export async function cleanupAllTestUsers(): Promise<void> {
-  const promises = createdTestUsers.map(({ accessToken }) => deleteTestUser(accessToken));
+  const promises = createdTestUsers.map(({ accessToken, csrfToken }) =>
+    deleteTestUser(accessToken, csrfToken),
+  );
   await Promise.all(promises);
   createdTestUsers.length = 0; // Clear the array
 }
 
 // Helper to login
-export async function loginUser(email: string, password: string): Promise<{
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<{
   user: { id: string; email: string };
   accessToken: string;
   refreshToken: string;
