@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import {
   StoredRun,
   RunResult,
@@ -22,7 +22,9 @@ export function RunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [pendingUpdates, setPendingUpdates] = useState<Map<string, Partial<RunResult>>>(new Map());
+  const [pendingUpdates, setPendingUpdates] = useState<
+    Map<string, Partial<RunResult>>
+  >(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -103,13 +105,19 @@ export function RunDetailPage() {
     });
   };
 
-  const handleHumanEvaluation = (resultId: string, status: HumanEvaluationStatus) => {
+  const handleHumanEvaluation = (
+    resultId: string,
+    status: HumanEvaluationStatus,
+  ) => {
     const result = run?.results.find((r) => r.id === resultId);
     if (result?.isError) return;
     updateLocalResult(resultId, { humanEvaluation: status });
   };
 
-  const handleSeverityChange = (resultId: string, severity: IncorrectSeverity) => {
+  const handleSeverityChange = (
+    resultId: string,
+    severity: IncorrectSeverity,
+  ) => {
     updateLocalResult(resultId, { severity });
   };
 
@@ -131,12 +139,14 @@ export function RunDetailPage() {
     if (!id || pendingUpdates.size === 0) return;
 
     setSaving(true);
-    const updates = Array.from(pendingUpdates.entries()).map(([resultId, data]) => ({
-      resultId,
-      humanEvaluation: data.humanEvaluation,
-      humanEvaluationDescription: data.humanEvaluationDescription,
-      severity: data.severity,
-    }));
+    const updates = Array.from(pendingUpdates.entries()).map(
+      ([resultId, data]) => ({
+        resultId,
+        humanEvaluation: data.humanEvaluation,
+        humanEvaluationDescription: data.humanEvaluationDescription,
+        severity: data.severity,
+      }),
+    );
 
     const response = await apiClient.bulkUpdateResultEvaluations(id, updates);
     if (response.success) {
@@ -155,6 +165,39 @@ export function RunDetailPage() {
   }).length;
 
   const hasUnsavedChanges = pendingUpdates.size > 0;
+
+  // Block all navigation (back button, links, etc.) when there are unsaved changes
+  const blocker = useBlocker(hasUnsavedChanges);
+
+  // Handle blocker state - show native confirm dialog
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      const shouldLeave = window.confirm(
+        'You have unsaved changes. Are you sure you want to leave this page?',
+      );
+      if (shouldLeave) {
+        blocker.proceed();
+      } else {
+        blocker.reset();
+      }
+    }
+  }, [blocker]);
+
+  // Warn user before browser-level navigation (close tab, refresh, etc.)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        // Modern browsers ignore custom messages, but this is still required
+        e.returnValue =
+          'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   if (loading) {
     return (

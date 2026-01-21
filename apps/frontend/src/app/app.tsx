@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Outlet,
+  Link,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -69,7 +76,11 @@ function SettingsPage() {
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   return (
-    <button onClick={toggleTheme} className="theme-toggle" title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+    <button
+      onClick={toggleTheme}
+      className="theme-toggle"
+      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+    >
       {theme === 'light' ? '\u263D' : '\u2600'}
     </button>
   );
@@ -109,139 +120,149 @@ function UserMenu() {
   );
 }
 
-function AppContent() {
+// Layout component for authenticated pages with header
+function AppLayout() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-
-  // Don't show header on auth pages
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-
-  if (isAuthPage) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>
-    );
-  }
 
   return (
     <div className="app">
       <header className="app-header">
-          <Link to="/" className="logo-link">
-            <h1>
-              <span className="logo-bench">Bench</span>
-              <span className="logo-mark">Mark</span>
-            </h1>
+        <Link to="/" className="logo-link">
+          <h1>
+            <span className="logo-bench">Bench</span>
+            <span className="logo-mark">Mark</span>
+          </h1>
+        </Link>
+        <p>Agent Evaluation</p>
+        <nav>
+          <Link
+            to="/tests"
+            className={location.pathname === '/tests' ? 'active' : ''}
+          >
+            Tests
           </Link>
-          <p>Agent Evaluation</p>
-          <nav>
-            <Link
-              to="/tests"
-              className={location.pathname === '/tests' ? 'active' : ''}
-            >
-              Tests
-            </Link>
-            <Link
-              to="/runs"
-              className={location.pathname.startsWith('/runs') ? 'active' : ''}
-            >
-              Runs
-            </Link>
-            <Link
-              to="/scheduled"
-              className={location.pathname === '/scheduled' ? 'active' : ''}
-            >
-              Scheduled
-            </Link>
-            <Link
-              to="/dashboard"
-              className={
-                location.pathname.startsWith('/dashboard') ? 'active' : ''
-              }
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/settings"
-              className={location.pathname === '/settings' ? 'active' : ''}
-            >
-              Settings
-            </Link>
-          </nav>
-          {isAuthenticated && <UserMenu />}
-        </header>
+          <Link
+            to="/runs"
+            className={location.pathname.startsWith('/runs') ? 'active' : ''}
+          >
+            Runs
+          </Link>
+          <Link
+            to="/scheduled"
+            className={location.pathname === '/scheduled' ? 'active' : ''}
+          >
+            Scheduled
+          </Link>
+          <Link
+            to="/dashboard"
+            className={location.pathname.startsWith('/dashboard') ? 'active' : ''}
+          >
+            Dashboard
+          </Link>
+          <Link
+            to="/settings"
+            className={location.pathname === '/settings' ? 'active' : ''}
+          >
+            Settings
+          </Link>
+        </nav>
+        {isAuthenticated && <UserMenu />}
+      </header>
 
-        <main className="app-main">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Homepage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tests"
-              element={
-                <ProtectedRoute>
-                  <TestsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/runs"
-              element={
-                <ProtectedRoute>
-                  <RunsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/runs/:id"
-              element={
-                <ProtectedRoute>
-                  <RunDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/scheduled"
-              element={
-                <ProtectedRoute>
-                  <ScheduledTestsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/account"
-              element={
-                <ProtectedRoute>
-                  <AccountPage />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </main>
-      </div>
+      <main className="app-main">
+        <Outlet />
+      </main>
+    </div>
   );
+}
+
+// Create the router with data router API
+const router = createBrowserRouter([
+  // Auth pages without layout
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />,
+  },
+  // Main app with layout
+  {
+    element: <AppLayout />,
+    children: [
+      {
+        path: '/',
+        element: (
+          <ProtectedRoute>
+            <Homepage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/tests',
+        element: (
+          <ProtectedRoute>
+            <TestsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/runs',
+        element: (
+          <ProtectedRoute>
+            <RunsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/runs/:id',
+        element: (
+          <ProtectedRoute>
+            <RunDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/scheduled',
+        element: (
+          <ProtectedRoute>
+            <ScheduledTestsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/dashboard',
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/settings',
+        element: (
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/account',
+        element: (
+          <ProtectedRoute>
+            <AccountPage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
+  },
+]);
+
+// Inner component that provides the router
+function AppWithRouter() {
+  return <RouterProvider router={router} />;
 }
 
 export function App() {
@@ -249,7 +270,7 @@ export function App() {
     <ThemeProvider>
       <NotificationProvider>
         <AuthProvider>
-          <AppContent />
+          <AppWithRouter />
         </AuthProvider>
       </NotificationProvider>
     </ThemeProvider>
