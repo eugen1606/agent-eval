@@ -96,6 +96,13 @@ export class AgentEvalClient {
     return this.csrfToken;
   }
 
+  /**
+   * Get the API base URL for SSE/streaming endpoints
+   */
+  public getApiUrl(): string {
+    return this.apiUrl;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},

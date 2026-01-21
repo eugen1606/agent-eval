@@ -8,7 +8,6 @@ import {
   TestsSortField,
   SortDirection,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
 import {
@@ -19,8 +18,7 @@ import {
 } from './FilterBar';
 import { SearchableSelect } from './SearchableSelect';
 import { useNotification } from '../context/NotificationContext';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 export function TestsPage() {
   const { showNotification } = useNotification();
@@ -331,7 +329,7 @@ export function TestsPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/tests/${testId}/run`,
+        `${apiClient.getApiUrl()}/tests/${testId}/run`,
         {
           method: 'POST',
           headers: {
@@ -346,7 +344,7 @@ export function TestsPage() {
       if (response.status === 401 && !isRetry) {
         // Try refreshing the token
         const refreshResponse = await fetch(
-          'http://localhost:3001/api/auth/refresh',
+          `${apiClient.getApiUrl()}/auth/refresh`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

@@ -5,13 +5,11 @@ import {
   SortDirection,
   AccessTokensSortField,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 interface Props {
   onSelect?: (token: StoredAccessToken) => void;

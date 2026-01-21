@@ -7,11 +7,9 @@ import {
   IncorrectSeverity,
   RunStats,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Pagination } from './Pagination';
 import { useNotification } from '../context/NotificationContext';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();

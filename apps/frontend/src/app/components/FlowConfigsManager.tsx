@@ -4,7 +4,6 @@ import {
   SortDirection,
   FlowConfigsSortField,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
 import {
@@ -14,8 +13,7 @@ import {
   ActiveFilter,
 } from './FilterBar';
 import { Pagination } from './Pagination';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 interface Props {
   onSelect?: (flowConfig: StoredFlowConfig) => void;

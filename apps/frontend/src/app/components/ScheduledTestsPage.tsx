@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { StoredScheduledTest, StoredTest, ScheduleType, ScheduledTestStatus, ScheduledTestsSortField, SortDirection } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
 import { SearchableSelect } from './SearchableSelect';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 const CRON_PRESETS = [
   { label: 'Every minute', value: '* * * * *' },

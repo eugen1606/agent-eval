@@ -88,7 +88,9 @@ export function Pagination({
               <span>Show:</span>
               <select
                 value={itemsPerPage}
-                onChange={(e) => onItemsPerPageChange(parseInt(e.target.value, 10))}
+                onChange={(e) =>
+                  onItemsPerPageChange(parseInt(e.target.value, 10))
+                }
               >
                 {ITEMS_PER_PAGE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -131,7 +133,7 @@ export function Pagination({
                   <span key={index} className="pagination-ellipsis">
                     {page}
                   </span>
-                )
+                ),
               )}
             </div>
             <button
@@ -176,7 +178,7 @@ export function Pagination({
   );
 }
 
-export function usePagination<T>(items: T[], itemsPerPage: number = 10) {
+export function usePagination<T>(items: T[], itemsPerPage = 10) {
   const [currentPage, setCurrentPage] = React.useState(1);
 
   const totalPages = Math.ceil(items.length / itemsPerPage);

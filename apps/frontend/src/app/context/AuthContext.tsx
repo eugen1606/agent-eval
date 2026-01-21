@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginRequest, RegisterRequest } from '@agent-eval/shared';
-import { createClient } from '@agent-eval/api-client';
-
-const apiClient = createClient();
+import { apiClient } from '../apiClient';
 
 interface AuthContextType {
   user: User | null;

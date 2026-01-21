@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun, StoredQuestionSet } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from './Pagination';
+import { apiClient } from '../apiClient';
 
 type SortColumn =
   | 'date'
@@ -13,8 +13,6 @@ type SortColumn =
   | 'errors'
   | 'total';
 type SortDirection = 'asc' | 'desc';
-
-const apiClient = new AgentEvalClient();
 
 interface EvaluationStats {
   correct: number;
@@ -456,7 +454,7 @@ export function Dashboard() {
             <option value="">Choose a test...</option>
             {tests.map((test) => (
               <option key={test.id} value={test.id}>
-                {test.name} ({test.flowId})
+                {test.name} ({test.id})
               </option>
             ))}
           </select>

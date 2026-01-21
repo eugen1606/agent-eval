@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { AccountStats } from '@agent-eval/shared';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 export function AccountPage() {
   const navigate = useNavigate();

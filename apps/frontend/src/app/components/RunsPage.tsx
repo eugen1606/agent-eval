@@ -13,7 +13,6 @@ import {
   RunsSortField,
   SortDirection,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
 import {
@@ -23,8 +22,7 @@ import {
   ActiveFilter,
 } from './FilterBar';
 import { useNotification } from '../context/NotificationContext';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 type RunStatusBadge = {
   [key: string]: { label: string; className: string };

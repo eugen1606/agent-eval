@@ -8,13 +8,11 @@ import {
   SortDirection,
   WebhooksSortField,
 } from '@agent-eval/shared';
-import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog, AlertDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
-
-const apiClient = new AgentEvalClient();
+import { apiClient } from '../apiClient';
 
 const EVENT_LABELS: Record<WebhookEvent, string> = {
   'run.running': 'Run Started',
