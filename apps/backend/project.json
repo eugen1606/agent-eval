@@ -28,26 +28,18 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "backend:build",
-        "watch": false
+        "buildTarget": "backend:build"
       },
       "configurations": {
         "development": {
           "buildTarget": "backend:build:development"
         },
+        "debug": {
+          "buildTarget": "backend:build:development"
+        },
         "production": {
           "buildTarget": "backend:build:production"
         }
-      }
-    },
-    "dev": {
-      "executor": "nx:run-commands",
-      "options": {
-        "commands": [
-          "yarn nx build backend:development --watch",
-          "node --watch dist/apps/backend/main.js"
-        ],
-        "parallel": true
       }
     }
   },
