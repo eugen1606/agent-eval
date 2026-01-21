@@ -19,15 +19,8 @@ export class CreateTestDto {
   @MaxLength(MAX_LENGTHS.DESCRIPTION)
   description?: string;
 
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_LENGTHS.FLOW_ID)
-  flowId: string;
-
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_LENGTHS.BASE_PATH)
-  basePath: string;
+  @IsUUID()
+  flowConfigId: string;
 
   @IsOptional()
   @IsUUID()

@@ -630,7 +630,8 @@ export class AgentEvalClient {
     if (filters?.webhookId) params.append('webhookId', filters.webhookId);
     if (filters?.multiStep !== undefined)
       params.append('multiStep', filters.multiStep.toString());
-    if (filters?.flowId) params.append('flowId', filters.flowId);
+    if (filters?.flowConfigId)
+      params.append('flowConfigId', filters.flowConfigId);
     if (filters?.sortBy) params.append('sortBy', filters.sortBy);
     if (filters?.sortDirection)
       params.append('sortDirection', filters.sortDirection);

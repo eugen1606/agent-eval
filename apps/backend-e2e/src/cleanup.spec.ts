@@ -8,13 +8,23 @@ describe('Cleanup', () => {
     const auth = await createTestUser('-cleanup');
     accessToken = auth.accessToken;
 
+    // Create a FlowConfig first
+    const fcRes = await authenticatedRequest('/flow-configs', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Cleanup Test Flow Config',
+        flowId: 'cleanup-test-flow',
+        basePath: 'https://api.example.com',
+      }),
+    }, accessToken);
+    const fcData = await fcRes.json();
+
     // Create a test to associate runs with
     const testRes = await authenticatedRequest('/tests', {
       method: 'POST',
       body: JSON.stringify({
         name: 'Cleanup Test Parent',
-        flowId: 'cleanup-test-flow',
-        basePath: 'https://api.example.com',
+        flowConfigId: fcData.id,
       }),
     }, accessToken);
     const testData = await testRes.json();

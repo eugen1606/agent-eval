@@ -22,7 +22,7 @@ import { FlowService } from '../flow/flow.service';
 import { RunsService } from '../runs/runs.service';
 import { QuestionsService } from '../questions/questions.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
-import { UrlValidationService } from '../common/validators/url-validation.service';
+import { FlowConfigsService } from '../flow-configs/flow-configs.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Controller('tests')
@@ -34,27 +34,16 @@ export class TestsController {
     private readonly runsService: RunsService,
     private readonly questionsService: QuestionsService,
     private readonly webhooksService: WebhooksService,
-    private readonly urlValidationService: UrlValidationService,
+    private readonly flowConfigsService: FlowConfigsService,
   ) {}
-
-  private validateBasePath(basePath: string): void {
-    // Validate basePath URL for SSRF protection
-    // skipDnsCheck=true for input validation (fast check)
-    // Full DNS check happens at execution time in FlowService
-    this.urlValidationService.validateUrlSync(basePath, {
-      context: 'Base path',
-    });
-  }
 
   @Post()
   async create(
     @Body() dto: CreateTestDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Test> {
-    // Validate basePath for SSRF protection
-    if (dto.basePath) {
-      this.validateBasePath(dto.basePath);
-    }
+    // Validate FlowConfig exists and belongs to user
+    await this.flowConfigsService.findOne(dto.flowConfigId, user.userId);
     return this.testsService.create(dto, user.userId);
   }
 
@@ -67,7 +56,7 @@ export class TestsController {
     @Query('accessTokenId') accessTokenId?: string,
     @Query('webhookId') webhookId?: string,
     @Query('multiStep') multiStep?: string,
-    @Query('flowId') flowId?: string,
+    @Query('flowConfigId') flowConfigId?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
@@ -80,7 +69,7 @@ export class TestsController {
       accessTokenId,
       webhookId,
       multiStep: multiStep !== undefined ? multiStep === 'true' : undefined,
-      flowId,
+      flowConfigId,
       sortBy: sortBy as 'name' | 'createdAt' | 'updatedAt' | undefined,
       sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
@@ -100,9 +89,9 @@ export class TestsController {
     @Body() dto: UpdateTestDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<Test> {
-    // Validate basePath for SSRF protection if provided
-    if (dto.basePath) {
-      this.validateBasePath(dto.basePath);
+    // Validate FlowConfig exists if being updated
+    if (dto.flowConfigId) {
+      await this.flowConfigsService.findOne(dto.flowConfigId, user.userId);
     }
     return this.testsService.update(id, dto, user.userId);
   }
@@ -127,8 +116,13 @@ export class TestsController {
         let test: Test | null = null;
 
         try {
-          // Get the test configuration
+          // Get the test configuration (includes flowConfig relation)
           test = await this.testsService.findOne(id, user.userId);
+
+          // Validate test has FlowConfig
+          if (!test.flowConfigId || !test.flowConfig) {
+            throw new BadRequestException('Test has no flow configuration');
+          }
 
           if (!test.questionSetId) {
             throw new BadRequestException('Test has no question set configured');
@@ -169,12 +163,12 @@ export class TestsController {
             expectedAnswer: q.expectedAnswer,
           }));
 
-          // Build flow config from test
+          // Build flow config from test.flowConfig
           const flowConfig = {
             accessToken: '', // Will be resolved by accessTokenId
             accessTokenId: test.accessTokenId,
-            basePath: test.basePath,
-            flowId: test.flowId,
+            basePath: test.flowConfig.basePath || '',
+            flowId: test.flowConfig.flowId,
             multiStepEvaluation: test.multiStepEvaluation,
           };
 

@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Test } from '../database/entities';
 import { TestsController } from './tests.controller';
@@ -7,6 +7,7 @@ import { FlowModule } from '../flow/flow.module';
 import { RunsModule } from '../runs/runs.module';
 import { QuestionsModule } from '../questions/questions.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     RunsModule,
     QuestionsModule,
     WebhooksModule,
+    FlowConfigsModule,
   ],
   controllers: [TestsController],
   providers: [TestsService],

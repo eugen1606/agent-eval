@@ -2,10 +2,23 @@ import { authenticatedRequest, createTestUser, deleteTestUser } from './support/
 
 describe('Tests CRUD', () => {
   let accessToken: string;
+  let flowConfigId: string;
 
   beforeAll(async () => {
     const auth = await createTestUser('-tests');
     accessToken = auth.accessToken;
+
+    // Create a FlowConfig to use in tests
+    const fcResponse = await authenticatedRequest('/flow-configs', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Test Flow Config',
+        flowId: 'test-flow-123',
+        basePath: 'https://api.example.com',
+      }),
+    }, accessToken);
+    const fcData = await fcResponse.json();
+    flowConfigId = fcData.id;
   });
 
   afterAll(async () => {
@@ -13,14 +26,13 @@ describe('Tests CRUD', () => {
   });
 
   describe('POST /api/tests', () => {
-    it('should create a test', async () => {
+    it('should create a test with flowConfigId', async () => {
       const response = await authenticatedRequest('/tests', {
         method: 'POST',
         body: JSON.stringify({
           name: 'Test Flow Evaluation',
           description: 'A test for evaluating flow responses',
-          flowId: 'test-flow-123',
-          basePath: 'https://api.example.com',
+          flowConfigId: flowConfigId,
           multiStepEvaluation: false,
         }),
       }, accessToken);
@@ -30,51 +42,54 @@ describe('Tests CRUD', () => {
       const data = await response.json();
       expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Flow Evaluation');
-      expect(data.flowId).toBe('test-flow-123');
-      expect(data.basePath).toBe('https://api.example.com');
+      expect(data.flowConfigId).toBe(flowConfigId);
       expect(data.multiStepEvaluation).toBe(false);
     });
 
-    it('should require name and flowId', async () => {
+    it('should require flowConfigId', async () => {
       const response = await authenticatedRequest('/tests', {
         method: 'POST',
         body: JSON.stringify({
-          basePath: 'https://api.example.com',
+          name: 'Test without FlowConfig',
         }),
       }, accessToken);
 
       expect(response.status).toBe(400);
     });
-  });
 
-  describe('GET /api/tests', () => {
-    it('should list tests', async () => {
-      await authenticatedRequest('/tests', {
+    it('should reject invalid flowConfigId', async () => {
+      const response = await authenticatedRequest('/tests', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'List Test',
-          flowId: 'list-flow',
-          basePath: 'https://api.example.com',
+          name: 'Test with invalid FlowConfig',
+          flowConfigId: '00000000-0000-0000-0000-000000000000',
         }),
       }, accessToken);
 
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/tests', () => {
+    it('should list tests with pagination', async () => {
       const response = await authenticatedRequest('/tests', {}, accessToken);
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBeGreaterThan(0);
+      expect(data.data).toBeDefined();
+      expect(Array.isArray(data.data)).toBe(true);
+      expect(data.pagination).toBeDefined();
+      expect(data.pagination.page).toBe(1);
     });
   });
 
   describe('GET /api/tests/:id', () => {
-    it('should get a single test', async () => {
+    it('should get a single test with flowConfig relation', async () => {
       const createRes = await authenticatedRequest('/tests', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Get Test',
-          flowId: 'get-flow',
-          basePath: 'https://api.example.com',
+          name: 'Get Test With FlowConfig',
+          flowConfigId: flowConfigId,
         }),
       }, accessToken);
       const created = await createRes.json();
@@ -84,11 +99,15 @@ describe('Tests CRUD', () => {
 
       const data = await response.json();
       expect(data.id).toBe(created.id);
-      expect(data.name).toBe('Get Test');
+      expect(data.name).toBe('Get Test With FlowConfig');
+      expect(data.flowConfigId).toBe(flowConfigId);
+      expect(data.flowConfig).toBeDefined();
+      expect(data.flowConfig.flowId).toBe('test-flow-123');
+      expect(data.flowConfig.basePath).toBe('https://api.example.com');
     });
 
     it('should return 404 for non-existent test', async () => {
-      const response = await authenticatedRequest('/tests/non-existent-id', {}, accessToken);
+      const response = await authenticatedRequest('/tests/00000000-0000-0000-0000-000000000000', {}, accessToken);
       expect(response.status).toBe(404);
     });
   });
@@ -99,8 +118,7 @@ describe('Tests CRUD', () => {
         method: 'POST',
         body: JSON.stringify({
           name: 'Update Test',
-          flowId: 'update-flow',
-          basePath: 'https://api.example.com',
+          flowConfigId: flowConfigId,
         }),
       }, accessToken);
       const created = await createRes.json();
@@ -121,6 +139,41 @@ describe('Tests CRUD', () => {
       expect(data.description).toBe('Updated description');
       expect(data.multiStepEvaluation).toBe(true);
     });
+
+    it('should update flowConfigId', async () => {
+      // Create a second flow config
+      const fc2Res = await authenticatedRequest('/flow-configs', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Second Flow Config',
+          flowId: 'second-flow',
+          basePath: 'https://api2.example.com',
+        }),
+      }, accessToken);
+      const fc2 = await fc2Res.json();
+
+      const createRes = await authenticatedRequest('/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Test to Update FlowConfig',
+          flowConfigId: flowConfigId,
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/tests/${created.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          flowConfigId: fc2.id,
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.flowConfigId).toBe(fc2.id);
+      expect(data.flowConfig.flowId).toBe('second-flow');
+    });
   });
 
   describe('DELETE /api/tests/:id', () => {
@@ -129,8 +182,7 @@ describe('Tests CRUD', () => {
         method: 'POST',
         body: JSON.stringify({
           name: 'Delete Test',
-          flowId: 'delete-flow',
-          basePath: 'https://api.example.com',
+          flowConfigId: flowConfigId,
         }),
       }, accessToken);
       const created = await createRes.json();
@@ -143,6 +195,43 @@ describe('Tests CRUD', () => {
 
       const getRes = await authenticatedRequest(`/tests/${created.id}`, {}, accessToken);
       expect(getRes.status).toBe(404);
+    });
+  });
+
+  describe('FlowConfig SET NULL behavior', () => {
+    it('should set flowConfigId to null when FlowConfig is deleted', async () => {
+      // Create a new FlowConfig
+      const fcRes = await authenticatedRequest('/flow-configs', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Deletable Flow Config',
+          flowId: 'delete-test-flow',
+          basePath: 'https://delete.example.com',
+        }),
+      }, accessToken);
+      const fc = await fcRes.json();
+
+      // Create a test using it
+      const testRes = await authenticatedRequest('/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Test for SET NULL',
+          flowConfigId: fc.id,
+        }),
+      }, accessToken);
+      const test = await testRes.json();
+
+      // Delete the FlowConfig
+      await authenticatedRequest(`/flow-configs/${fc.id}`, {
+        method: 'DELETE',
+      }, accessToken);
+
+      // Verify test still exists but flowConfigId is null
+      const getRes = await authenticatedRequest(`/tests/${test.id}`, {}, accessToken);
+      expect(getRes.status).toBe(200);
+      const updatedTest = await getRes.json();
+      expect(updatedTest.flowConfigId).toBeNull();
+      expect(updatedTest.flowConfig).toBeNull();
     });
   });
 });

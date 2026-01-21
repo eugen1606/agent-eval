@@ -366,7 +366,7 @@ export class ScheduledTestsService {
   async executeScheduledTest(id: string): Promise<void> {
     const scheduled = await this.scheduledTestRepository.findOne({
       where: { id },
-      relations: ['test'],
+      relations: ['test', 'test.flowConfig'],
     });
 
     if (!scheduled) {
@@ -375,6 +375,10 @@ export class ScheduledTestsService {
 
     if (!scheduled.testId || !scheduled.test) {
       throw new NotFoundException(`Test not found for scheduled test: ${id}`);
+    }
+
+    if (!scheduled.test.flowConfigId || !scheduled.test.flowConfig) {
+      throw new NotFoundException(`Flow config not found for test: ${scheduled.testId}`);
     }
 
     const userId = scheduled.userId;
@@ -406,8 +410,8 @@ export class ScheduledTestsService {
       const config: SharedFlowConfig = {
         accessToken: '',
         accessTokenId: test.accessTokenId,
-        basePath: test.basePath,
-        flowId: test.flowId,
+        basePath: test.flowConfig.basePath || '',
+        flowId: test.flowConfig.flowId,
         multiStepEvaluation: test.multiStepEvaluation,
       };
 

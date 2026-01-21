@@ -19,17 +19,34 @@ import {
 import { FlowConfig } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { UrlValidationService } from '../common/validators/url-validation.service';
 
 @Controller('flow-configs')
 @UseGuards(JwtAuthGuard)
 export class FlowConfigsController {
-  constructor(private readonly flowConfigsService: FlowConfigsService) {}
+  constructor(
+    private readonly flowConfigsService: FlowConfigsService,
+    private readonly urlValidationService: UrlValidationService,
+  ) {}
+
+  private validateBasePath(basePath: string): void {
+    // Validate basePath URL for SSRF protection
+    // skipDnsCheck=true for input validation (fast check)
+    // Full DNS check happens at execution time in FlowService
+    this.urlValidationService.validateUrlSync(basePath, {
+      context: 'Base path',
+    });
+  }
 
   @Post()
   async create(
     @Body() dto: CreateFlowConfigDto,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<FlowConfig> {
+    // Validate basePath for SSRF protection if provided
+    if (dto.basePath) {
+      this.validateBasePath(dto.basePath);
+    }
     return this.flowConfigsService.create(dto, user.userId);
   }
 
@@ -65,6 +82,10 @@ export class FlowConfigsController {
     @Body() dto: Partial<CreateFlowConfigDto>,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<FlowConfig> {
+    // Validate basePath for SSRF protection if provided
+    if (dto.basePath) {
+      this.validateBasePath(dto.basePath);
+    }
     return this.flowConfigsService.update(id, dto, user.userId);
   }
 

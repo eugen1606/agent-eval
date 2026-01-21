@@ -7,7 +7,12 @@ import {
 import { AgentEvalClient } from '@agent-eval/api-client';
 import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
+import {
+  FilterBar,
+  FilterDefinition,
+  SortOption,
+  ActiveFilter,
+} from './FilterBar';
 import { Pagination } from './Pagination';
 
 const apiClient = new AgentEvalClient();
@@ -108,7 +113,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormSubmitAttempted(true);
-    if (!formData.name || !formData.flowId) return;
+    if (!formData.name || !formData.flowId || !formData.basePath) return;
 
     setLoading(true);
 
@@ -117,14 +122,14 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
       response = await apiClient.updateFlowConfig(editingId, {
         name: formData.name,
         flowId: formData.flowId,
-        basePath: formData.basePath || undefined,
+        basePath: formData.basePath,
         description: formData.description || undefined,
       });
     } else {
       response = await apiClient.createFlowConfig({
         name: formData.name,
         flowId: formData.flowId,
-        basePath: formData.basePath || undefined,
+        basePath: formData.basePath,
         description: formData.description || undefined,
       });
     }
@@ -136,7 +141,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
         'success',
         editingId
           ? 'Flow config updated successfully'
-          : 'Flow config created successfully'
+          : 'Flow config created successfully',
       );
     } else {
       showNotification('error', response.error || 'Failed to save flow config');
@@ -172,7 +177,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     } else {
       showNotification(
         'error',
-        response.error || 'Failed to delete flow config'
+        response.error || 'Failed to delete flow config',
       );
     }
   };
@@ -260,7 +265,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
             )}
           </div>
           <div className="form-group">
-            <label>Base Path (optional)</label>
+            <label>Base Path *</label>
             <input
               type="text"
               placeholder="Enter base path"
@@ -269,6 +274,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
                 setFormData({ ...formData, basePath: e.target.value })
               }
             />
+            {formSubmitAttempted && !formData.basePath && (
+              <span className="field-error">Base Path is required</span>
+            )}
           </div>
           <div className="form-group">
             <label>Description (optional)</label>

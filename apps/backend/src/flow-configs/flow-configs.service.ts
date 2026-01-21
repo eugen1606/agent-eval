@@ -6,7 +6,7 @@ import { FlowConfig } from '../database/entities';
 export interface CreateFlowConfigDto {
   name: string;
   flowId: string;
-  basePath?: string;
+  basePath: string;
   description?: string;
 }
 
@@ -35,7 +35,7 @@ export interface PaginatedFlowConfigs {
 export class FlowConfigsService {
   constructor(
     @InjectRepository(FlowConfig)
-    private flowConfigRepository: Repository<FlowConfig>
+    private flowConfigRepository: Repository<FlowConfig>,
   ) {}
 
   async create(dto: CreateFlowConfigDto, userId: string): Promise<FlowConfig> {
@@ -102,12 +102,16 @@ export class FlowConfigsService {
     return flowConfig;
   }
 
-  async update(id: string, dto: Partial<CreateFlowConfigDto>, userId: string): Promise<FlowConfig> {
+  async update(
+    id: string,
+    dto: Partial<CreateFlowConfigDto>,
+    userId: string,
+  ): Promise<FlowConfig> {
     const flowConfig = await this.findOne(id, userId);
 
     if (dto.name) flowConfig.name = dto.name;
     if (dto.flowId) flowConfig.flowId = dto.flowId;
-    if (dto.basePath !== undefined) flowConfig.basePath = dto.basePath;
+    if (dto.basePath) flowConfig.basePath = dto.basePath;
     if (dto.description !== undefined) flowConfig.description = dto.description;
 
     return this.flowConfigRepository.save(flowConfig);

@@ -77,7 +77,7 @@ export interface StoredFlowConfig {
   id: string;
   name: string;
   flowId: string;
-  basePath?: string;
+  basePath: string;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -86,7 +86,7 @@ export interface StoredFlowConfig {
 export interface CreateFlowConfigRequest {
   name: string;
   flowId: string;
-  basePath?: string;
+  basePath: string;
   description?: string;
 }
 
@@ -225,8 +225,8 @@ export interface StoredTest {
   id: string;
   name: string;
   description?: string;
-  flowId: string;
-  basePath: string;
+  flowConfigId?: string;
+  flowConfig?: StoredFlowConfig;
   accessTokenId?: string;
   questionSetId?: string;
   questionSet?: StoredQuestionSet;
@@ -240,8 +240,7 @@ export interface StoredTest {
 export interface CreateTestRequest {
   name: string;
   description?: string;
-  flowId: string;
-  basePath: string;
+  flowConfigId: string;
   accessTokenId?: string | null;
   questionSetId?: string | null;
   multiStepEvaluation?: boolean;
@@ -359,7 +358,7 @@ export interface TestsFilterParams extends PaginationParams {
   accessTokenId?: string;
   webhookId?: string;
   multiStep?: boolean;
-  flowId?: string;
+  flowConfigId?: string;
   sortBy?: TestsSortField;
   sortDirection?: SortDirection;
 }

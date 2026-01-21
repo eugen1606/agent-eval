@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import * as path from 'path';
+import * as migrations from './migrations';
 
 // Load environment variables
 config({ path: '.env' });
@@ -14,6 +15,6 @@ export default new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [path.join(__dirname, 'entities', '*.entity.{ts,js}')],
-  migrations: [path.join(__dirname, 'migrations', '*.{ts,js}')],
+  migrations: Object.values(migrations),
   migrationsTableName: 'typeorm_migrations',
 });

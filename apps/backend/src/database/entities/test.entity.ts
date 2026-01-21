@@ -11,6 +11,7 @@ import { User } from './user.entity';
 import { AccessToken } from './access-token.entity';
 import { QuestionSet } from './question-set.entity';
 import { Webhook } from './webhook.entity';
+import { FlowConfig } from './flow-config.entity';
 
 @Entity('tests')
 export class Test {
@@ -30,11 +31,12 @@ export class Test {
   @Column({ nullable: true })
   description: string;
 
-  @Column()
-  flowId: string;
+  @Column({ nullable: true })
+  flowConfigId: string;
 
-  @Column()
-  basePath: string;
+  @ManyToOne(() => FlowConfig, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'flowConfigId' })
+  flowConfig: FlowConfig;
 
   @Column({ nullable: true })
   accessTokenId: string;

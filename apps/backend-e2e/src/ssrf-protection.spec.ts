@@ -12,12 +12,12 @@ describe('SSRF Protection', () => {
     await deleteTestUser(accessToken);
   });
 
-  describe('Tests endpoint - basePath validation', () => {
+  describe('Flow Configs endpoint - basePath validation', () => {
     it('should allow valid HTTPS URLs', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Valid HTTPS Test',
+          name: 'Valid HTTPS Config',
           flowId: 'test-flow',
           basePath: 'https://api.example.com',
         }),
@@ -30,10 +30,10 @@ describe('SSRF Protection', () => {
 
     it('should allow valid HTTP URLs in development', async () => {
       // In development mode, HTTP URLs should be allowed
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Valid HTTP Test',
+          name: 'Valid HTTP Config',
           flowId: 'test-flow',
           basePath: 'http://api.example.com',
         }),
@@ -44,10 +44,10 @@ describe('SSRF Protection', () => {
 
     it('should allow localhost in development mode', async () => {
       // In development, localhost should be allowed
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Localhost Test',
+          name: 'Localhost Config',
           flowId: 'test-flow',
           basePath: 'http://localhost:3000',
         }),
@@ -57,10 +57,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should block cloud metadata endpoint (169.254.169.254)', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Metadata Attack Test',
+          name: 'Metadata Attack Config',
           flowId: 'test-flow',
           basePath: 'http://169.254.169.254/latest/meta-data',
         }),
@@ -72,10 +72,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should block Google metadata endpoint', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Google Metadata Attack Test',
+          name: 'Google Metadata Attack Config',
           flowId: 'test-flow',
           basePath: 'http://metadata.google.internal',
         }),
@@ -87,10 +87,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should block link-local IP range (169.254.x.x)', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Link Local Attack Test',
+          name: 'Link Local Attack Config',
           flowId: 'test-flow',
           basePath: 'http://169.254.1.1',
         }),
@@ -102,10 +102,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should reject invalid URL format', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Invalid URL Test',
+          name: 'Invalid URL Config',
           flowId: 'test-flow',
           basePath: 'not-a-valid-url',
         }),
@@ -117,10 +117,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should reject non-HTTP/HTTPS protocols', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'FTP Protocol Test',
+          name: 'FTP Protocol Config',
           flowId: 'test-flow',
           basePath: 'ftp://ftp.example.com',
         }),
@@ -132,10 +132,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should reject file protocol', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'File Protocol Test',
+          name: 'File Protocol Config',
           flowId: 'test-flow',
           basePath: 'file:///etc/passwd',
         }),
@@ -147,11 +147,11 @@ describe('SSRF Protection', () => {
     });
 
     it('should validate basePath on update', async () => {
-      // First create a valid test
-      const createRes = await authenticatedRequest('/tests', {
+      // First create a valid flow config
+      const createRes = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Update SSRF Test',
+          name: 'Update SSRF Config',
           flowId: 'test-flow',
           basePath: 'https://api.example.com',
         }),
@@ -159,7 +159,7 @@ describe('SSRF Protection', () => {
       const created = await createRes.json();
 
       // Try to update with a malicious basePath
-      const response = await authenticatedRequest(`/tests/${created.id}`, {
+      const response = await authenticatedRequest(`/flow-configs/${created.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           basePath: 'http://169.254.169.254',
@@ -285,10 +285,10 @@ describe('SSRF Protection', () => {
 
   describe('Protocol validation', () => {
     it('should reject javascript: protocol in basePath', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'JS Protocol Test',
+          name: 'JS Protocol Config',
           flowId: 'test-flow',
           basePath: 'javascript:alert(1)',
         }),
@@ -298,10 +298,10 @@ describe('SSRF Protection', () => {
     });
 
     it('should reject data: protocol in basePath', async () => {
-      const response = await authenticatedRequest('/tests', {
+      const response = await authenticatedRequest('/flow-configs', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Data Protocol Test',
+          name: 'Data Protocol Config',
           flowId: 'test-flow',
           basePath: 'data:text/html,<script>alert(1)</script>',
         }),

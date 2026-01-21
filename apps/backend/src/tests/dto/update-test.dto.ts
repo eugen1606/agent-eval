@@ -22,16 +22,9 @@ export class UpdateTestDto {
   description?: string;
 
   @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_LENGTHS.FLOW_ID)
-  flowId?: string;
-
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  @MaxLength(MAX_LENGTHS.BASE_PATH)
-  basePath?: string;
+  @ValidateIf((o) => o.flowConfigId !== null)
+  @IsUUID()
+  flowConfigId?: string | null;
 
   // Allow null to clear the field, skip UUID validation when null
   @IsOptional()

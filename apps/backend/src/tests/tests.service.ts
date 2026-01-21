@@ -15,7 +15,7 @@ export interface TestsFilterDto {
   accessTokenId?: string;
   webhookId?: string;
   multiStep?: boolean;
-  flowId?: string;
+  flowConfigId?: string;
   sortBy?: TestsSortField;
   sortDirection?: SortDirection;
 }
@@ -41,8 +41,7 @@ export class TestsService {
     const test = this.testRepository.create({
       name: dto.name,
       description: dto.description,
-      flowId: dto.flowId,
-      basePath: dto.basePath,
+      flowConfigId: dto.flowConfigId,
       accessTokenId: dto.accessTokenId,
       questionSetId: dto.questionSetId,
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
@@ -63,12 +62,13 @@ export class TestsService {
     const queryBuilder = this.testRepository
       .createQueryBuilder('test')
       .leftJoinAndSelect('test.questionSet', 'questionSet')
+      .leftJoinAndSelect('test.flowConfig', 'flowConfig')
       .where('test.userId = :userId', { userId });
 
-    // Apply search filter
+    // Apply search filter (including flowConfig.flowId)
     if (filters.search) {
       queryBuilder.andWhere(
-        '(test.name ILIKE :search OR test.description ILIKE :search)',
+        '(test.name ILIKE :search OR test.description ILIKE :search OR flowConfig.flowId ILIKE :search)',
         { search: `%${filters.search}%` },
       );
     }
@@ -101,10 +101,10 @@ export class TestsService {
       });
     }
 
-    // Apply flowId filter
-    if (filters.flowId) {
-      queryBuilder.andWhere('test.flowId ILIKE :flowId', {
-        flowId: `%${filters.flowId}%`,
+    // Apply flowConfigId filter
+    if (filters.flowConfigId) {
+      queryBuilder.andWhere('test.flowConfigId = :flowConfigId', {
+        flowConfigId: filters.flowConfigId,
       });
     }
 
@@ -134,7 +134,7 @@ export class TestsService {
   async findOne(id: string, userId: string): Promise<Test> {
     const test = await this.testRepository.findOne({
       where: { id, userId },
-      relations: ['questionSet', 'accessToken', 'webhook'],
+      relations: ['questionSet', 'accessToken', 'webhook', 'flowConfig'],
     });
     if (!test) {
       throw new NotFoundException(`Test not found: ${id}`);
@@ -151,12 +151,14 @@ export class TestsService {
 
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.flowId !== undefined) updateData.flowId = dto.flowId;
-    if (dto.basePath !== undefined) updateData.basePath = dto.basePath;
     if (dto.multiStepEvaluation !== undefined)
       updateData.multiStepEvaluation = dto.multiStepEvaluation;
 
     // For nullable FK fields: null from DTO means clear, valid UUID means set
+    if (dto.flowConfigId !== undefined) {
+      updateData.flowConfigId =
+        dto.flowConfigId || (null as unknown as string);
+    }
     if (dto.accessTokenId !== undefined) {
       updateData.accessTokenId =
         dto.accessTokenId || (null as unknown as string);

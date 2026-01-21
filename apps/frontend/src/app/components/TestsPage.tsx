@@ -104,7 +104,7 @@ export function TestsPage() {
       search: searchTerm || undefined,
       questionSetId: filters.questionSet || undefined,
       multiStep: filters.multiStep ? filters.multiStep === 'yes' : undefined,
-      flowId: filters.flowId || undefined,
+      flowConfigId: filters.flowConfig || undefined,
       sortBy,
       sortDirection,
     });
@@ -136,10 +136,14 @@ export function TestsPage() {
         })),
       },
       {
-        key: 'flowId',
-        label: 'Flow ID',
-        type: 'text',
-        placeholder: 'Enter flow ID...',
+        key: 'flowConfig',
+        label: 'Flow Config',
+        type: 'select',
+        options: flowConfigs.map((fc) => ({
+          value: fc.id,
+          label: fc.name,
+          sublabel: fc.flowId,
+        })),
       },
       {
         key: 'multiStep',
@@ -151,7 +155,7 @@ export function TestsPage() {
         ],
       },
     ],
-    [questionSets],
+    [questionSets, flowConfigs],
   );
 
   const sortOptions: SortOption[] = [
@@ -172,12 +176,13 @@ export function TestsPage() {
         displayValue: qs?.name || 'Unknown',
       });
     }
-    if (filters.flowId) {
+    if (filters.flowConfig) {
+      const fc = flowConfigs.find((f) => f.id === filters.flowConfig);
       result.push({
-        key: 'flowId',
-        value: filters.flowId,
-        label: 'Flow ID',
-        displayValue: filters.flowId,
+        key: 'flowConfig',
+        value: filters.flowConfig,
+        label: 'Flow Config',
+        displayValue: fc?.name || 'Unknown',
       });
     }
     if (filters.multiStep) {
@@ -189,7 +194,7 @@ export function TestsPage() {
       });
     }
     return result;
-  }, [filters, questionSets]);
+  }, [filters, questionSets, flowConfigs]);
 
   const handleFilterAdd = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -238,8 +243,7 @@ export function TestsPage() {
     const data = {
       name: formData.name,
       description: formData.description || undefined,
-      flowId: selectedFlowConfig.flowId,
-      basePath: selectedFlowConfig.basePath || '',
+      flowConfigId: formData.flowConfigId,
       // Use null to explicitly clear optional FK fields (undefined is stripped by JSON.stringify)
       accessTokenId: formData.accessTokenId || null,
       questionSetId: formData.questionSetId || null,
@@ -269,14 +273,10 @@ export function TestsPage() {
 
   const handleEdit = (test: StoredTest) => {
     setEditingId(test.id);
-    // Find matching flow config by flowId and basePath
-    const matchingFlowConfig = flowConfigs.find(
-      (fc) => fc.flowId === test.flowId && fc.basePath === test.basePath,
-    );
     setFormData({
       name: test.name,
       description: test.description || '',
-      flowConfigId: matchingFlowConfig?.id || '',
+      flowConfigId: test.flowConfigId || '',
       accessTokenId: test.accessTokenId || '',
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
@@ -475,12 +475,6 @@ export function TestsPage() {
     return webhook?.name || 'Unknown';
   };
 
-  const getFlowConfigName = (flowId: string, basePath: string) => {
-    const fc = flowConfigs.find(
-      (c) => c.flowId === flowId && c.basePath === basePath,
-    );
-    return fc?.name;
-  };
 
   const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
 
@@ -707,9 +701,11 @@ export function TestsPage() {
                     <button
                       className="run-btn"
                       onClick={() => handleRun(test.id)}
-                      disabled={!test.questionSetId}
+                      disabled={!test.questionSetId || !test.flowConfigId}
                       title={
-                        !test.questionSetId
+                        !test.flowConfigId
+                          ? 'No flow config - edit test to add one'
+                          : !test.questionSetId
                           ? 'No question set configured'
                           : 'Run test'
                       }
@@ -737,15 +733,15 @@ export function TestsPage() {
                 <div className="detail-row">
                   <span className="detail-label">Flow Config:</span>
                   <span className="detail-value">
-                    {getFlowConfigName(test.flowId, test.basePath) || (
-                      <span className="text-muted">{test.flowId}</span>
+                    {test.flowConfig?.name || (
+                      <span className="text-muted">Not configured</span>
                     )}
                   </span>
                 </div>
-                {test.basePath && (
+                {test.flowConfig?.basePath && (
                   <div className="detail-row">
                     <span className="detail-label">Base URL:</span>
-                    <span className="detail-value">{test.basePath}</span>
+                    <span className="detail-value">{test.flowConfig.basePath}</span>
                   </div>
                 )}
                 <div className="detail-row">
