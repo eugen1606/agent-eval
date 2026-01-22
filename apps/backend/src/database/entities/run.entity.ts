@@ -45,6 +45,7 @@ export class Run {
     answer: string;
     expectedAnswer?: string;
     executionId?: string;
+    executionTimeMs?: number;
     isError?: boolean;
     errorMessage?: string;
     humanEvaluation?: 'correct' | 'incorrect' | 'partial';

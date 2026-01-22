@@ -33,6 +33,7 @@ interface TestRunData {
   partial: number;
   incorrect: number;
   errors: number;
+  avgLatencyMs: number | null;
 }
 
 function LineChart({ data }: { data: TestRunData[] }) {
@@ -216,6 +217,102 @@ function BarChart({ data }: { data: TestRunData[] }) {
   );
 }
 
+function LatencyChart({ data }: { data: TestRunData[] }) {
+  const runsWithLatency = data.filter((d) => d.avgLatencyMs !== null);
+  if (runsWithLatency.length === 0) return null;
+
+  const padding = 40;
+  const width = 600;
+  const height = 250;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  // Sort by date
+  const sortedData = [...runsWithLatency].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+
+  const maxLatency = Math.max(...sortedData.map((d) => d.avgLatencyMs || 0));
+  const yMax = Math.ceil(maxLatency / 1000) * 1000 || 1000; // Round up to nearest 1000ms
+
+  const points = sortedData.map((d, i) => {
+    const x = padding + (i / Math.max(sortedData.length - 1, 1)) * chartWidth;
+    const y = padding + chartHeight - ((d.avgLatencyMs || 0) / yMax) * chartHeight;
+    return { x, y, ...d };
+  });
+
+  const linePath = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  // Generate Y-axis labels
+  const yLabels = [0, 0.25, 0.5, 0.75, 1].map((pct) => Math.round(yMax * pct));
+
+  return (
+    <div className="line-chart-container">
+      <svg viewBox={`0 0 ${width} ${height}`} className="line-chart">
+        {/* Grid lines */}
+        {yLabels.map((val) => {
+          const y = padding + chartHeight - (val / yMax) * chartHeight;
+          return (
+            <g key={val}>
+              <line
+                x1={padding}
+                y1={y}
+                x2={width - padding}
+                y2={y}
+                stroke="#eee"
+                strokeWidth="1"
+              />
+              <text
+                x={padding - 5}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="#888"
+              >
+                {val >= 1000 ? `${(val / 1000).toFixed(1)}s` : `${val}ms`}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Line */}
+        <path d={linePath} fill="none" stroke="#e67e22" strokeWidth="2" />
+
+        {/* Points */}
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="5" fill="#e67e22" />
+            <title>
+              {p.name}: {p.avgLatencyMs}ms (
+              {new Date(p.date).toLocaleDateString()})
+            </title>
+          </g>
+        ))}
+
+        {/* X-axis labels */}
+        {points.length <= 10 &&
+          points.map((p, i) => (
+            <text
+              key={i}
+              x={p.x}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="9"
+              fill="#888"
+            >
+              {new Date(p.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </text>
+          ))}
+      </svg>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [tests, setTests] = useState<StoredTest[]>([]);
@@ -307,6 +404,14 @@ export function Dashboard() {
         const evaluated = stats.correct + stats.partial + stats.incorrect;
         const accuracy = evaluated > 0 ? (stats.correct / evaluated) * 100 : 0;
 
+        // Calculate average latency
+        const latencies = results
+          .filter((r) => r.executionTimeMs !== undefined && r.executionTimeMs !== null)
+          .map((r) => r.executionTimeMs as number);
+        const avgLatencyMs = latencies.length > 0
+          ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+          : null;
+
         return {
           id: run.id,
           name: `Run ${new Date(run.createdAt).toLocaleString()}`,
@@ -317,6 +422,7 @@ export function Dashboard() {
           partial: stats.partial,
           incorrect: stats.incorrect,
           errors: stats.errors,
+          avgLatencyMs,
         };
       });
 
@@ -379,6 +485,13 @@ export function Dashboard() {
                   return latest - previous;
                 })()
               : 0,
+          avgLatencyMs: (() => {
+            const runsWithLatency = testRuns.filter((r) => r.avgLatencyMs !== null);
+            if (runsWithLatency.length === 0) return null;
+            return Math.round(
+              runsWithLatency.reduce((sum, r) => sum + (r.avgLatencyMs || 0), 0) / runsWithLatency.length
+            );
+          })(),
         }
       : null;
 
@@ -523,6 +636,17 @@ export function Dashboard() {
                   {testRunAggregateStats.totalRuns} test runs
                 </div>
               </div>
+              {testRunAggregateStats.avgLatencyMs !== null && (
+                <div className="accuracy-section latency">
+                  <div className="accuracy-header">Avg Latency</div>
+                  <div className="accuracy-value">
+                    {testRunAggregateStats.avgLatencyMs >= 1000
+                      ? `${(testRunAggregateStats.avgLatencyMs / 1000).toFixed(1)}s`
+                      : `${testRunAggregateStats.avgLatencyMs}ms`}
+                  </div>
+                  <div className="accuracy-details">per question</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -536,6 +660,12 @@ export function Dashboard() {
               <h3>Accuracy by Run</h3>
               <BarChart data={testRuns} />
             </div>
+            {testRuns.some((r) => r.avgLatencyMs !== null) && (
+              <div className="chart-card">
+                <h3>Latency Trend Over Time</h3>
+                <LatencyChart data={testRuns} />
+              </div>
+            )}
           </div>
 
           {/* Runs table */}

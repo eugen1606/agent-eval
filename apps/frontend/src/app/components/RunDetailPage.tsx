@@ -6,6 +6,7 @@ import {
   HumanEvaluationStatus,
   IncorrectSeverity,
   RunStats,
+  PerformanceStats,
 } from '@agent-eval/shared';
 import { Pagination } from './Pagination';
 import { useNotification } from '../context/NotificationContext';
@@ -17,6 +18,7 @@ export function RunDetailPage() {
   const { showNotification } = useNotification();
   const [run, setRun] = useState<StoredRun | null>(null);
   const [stats, setStats] = useState<RunStats | null>(null);
+  const [perfStats, setPerfStats] = useState<PerformanceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -29,15 +31,19 @@ export function RunDetailPage() {
   const loadRun = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const [runRes, statsRes] = await Promise.all([
+    const [runRes, statsRes, perfRes] = await Promise.all([
       apiClient.getRun(id),
       apiClient.getRunStats(id),
+      apiClient.getRunPerformance(id),
     ]);
     if (runRes.success && runRes.data) {
       setRun(runRes.data);
     }
     if (statsRes.success && statsRes.data) {
       setStats(statsRes.data);
+    }
+    if (perfRes.success && perfRes.data) {
+      setPerfStats(perfRes.data);
     }
     setLoading(false);
   }, [id]);
@@ -270,6 +276,35 @@ export function RunDetailPage() {
         </div>
       )}
 
+      {/* Performance Summary */}
+      {perfStats && perfStats.count > 0 && run.status === 'completed' && (
+        <div className="run-perf-bar">
+          <div className="perf-title">Performance</div>
+          <div className="perf-stats">
+            <div className="perf-item">
+              <span className="perf-value">{perfStats.min}ms</span>
+              <span className="perf-label">Min</span>
+            </div>
+            <div className="perf-item">
+              <span className="perf-value">{perfStats.avg}ms</span>
+              <span className="perf-label">Avg</span>
+            </div>
+            <div className="perf-item">
+              <span className="perf-value">{perfStats.p50}ms</span>
+              <span className="perf-label">P50</span>
+            </div>
+            <div className="perf-item">
+              <span className="perf-value">{perfStats.p95}ms</span>
+              <span className="perf-label">P95</span>
+            </div>
+            <div className="perf-item">
+              <span className="perf-value">{perfStats.max}ms</span>
+              <span className="perf-label">Max</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Progress indicator */}
       <div className="evaluation-progress-bar">
         <span>
@@ -360,12 +395,19 @@ export function RunDetailPage() {
                   )}
                 </div>
 
-                {result.executionId && (
-                  <div className="result-execution-id">
-                    <strong>Execution ID:</strong>{' '}
-                    <code>{result.executionId}</code>
-                  </div>
-                )}
+                <div className="result-meta">
+                  {result.executionTimeMs !== undefined && (
+                    <span className="result-latency">
+                      <strong>Latency:</strong> {result.executionTimeMs}ms
+                    </span>
+                  )}
+                  {result.executionId && (
+                    <span className="result-execution-id">
+                      <strong>Execution ID:</strong>{' '}
+                      <code>{result.executionId}</code>
+                    </span>
+                  )}
+                </div>
 
                 {!result.isError ? (
                   <>

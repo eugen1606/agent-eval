@@ -249,6 +249,7 @@ export class RunsService {
 
       if (test?.webhookId) {
         const stats = this.calculateStats(savedRun);
+        const perfStats = this.calculatePerformanceStats(savedRun);
         this.webhooksService.triggerWebhooks(userId, 'run.evaluated', {
           runId: savedRun.id,
           runStatus: savedRun.status,
@@ -262,6 +263,9 @@ export class RunsService {
           incorrectCount: stats.incorrect,
           errorCount: stats.errors,
           evaluatedCount: stats.evaluated,
+          avgLatencyMs: perfStats.avg,
+          p95LatencyMs: perfStats.p95,
+          maxLatencyMs: perfStats.max,
         });
       }
     }
@@ -377,5 +381,80 @@ export class RunsService {
   }> {
     const run = await this.findOne(id, userId);
     return this.calculateStats(run);
+  }
+
+  async getPerformanceStats(
+    id: string,
+    userId: string,
+  ): Promise<{
+    count: number;
+    min: number | null;
+    max: number | null;
+    avg: number | null;
+    p50: number | null;
+    p95: number | null;
+    p99: number | null;
+  }> {
+    const run = await this.findOne(id, userId);
+    return this.calculatePerformanceStats(run);
+  }
+
+  getPerformanceStatsFromRun(run: Run): {
+    count: number;
+    min: number | null;
+    max: number | null;
+    avg: number | null;
+    p50: number | null;
+    p95: number | null;
+    p99: number | null;
+  } {
+    return this.calculatePerformanceStats(run);
+  }
+
+  private calculatePerformanceStats(run: Run): {
+    count: number;
+    min: number | null;
+    max: number | null;
+    avg: number | null;
+    p50: number | null;
+    p95: number | null;
+    p99: number | null;
+  } {
+    const times = run.results
+      .filter((r) => r.executionTimeMs !== undefined && r.executionTimeMs !== null)
+      .map((r) => r.executionTimeMs as number);
+
+    if (times.length === 0) {
+      return {
+        count: 0,
+        min: null,
+        max: null,
+        avg: null,
+        p50: null,
+        p95: null,
+        p99: null,
+      };
+    }
+
+    const sorted = [...times].sort((a, b) => a - b);
+    const count = sorted.length;
+    const min = sorted[0];
+    const max = sorted[count - 1];
+    const avg = Math.round(sorted.reduce((a, b) => a + b, 0) / count);
+
+    const percentile = (p: number): number => {
+      const index = Math.ceil((p / 100) * count) - 1;
+      return sorted[Math.max(0, Math.min(index, count - 1))];
+    };
+
+    return {
+      count,
+      min,
+      max,
+      avg,
+      p50: percentile(50),
+      p95: percentile(95),
+      p99: percentile(99),
+    };
   }
 }

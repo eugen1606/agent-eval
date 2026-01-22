@@ -213,4 +213,35 @@ describe('Runs CRUD', () => {
       expect(data.accuracy).toBeNull();
     });
   });
+
+  describe('GET /api/runs/:id/performance', () => {
+    it('should return null performance stats for run without results', async () => {
+      // Create a run without any results
+      const createRes = await authenticatedRequest('/runs', {
+        method: 'POST',
+        body: JSON.stringify({
+          testId,
+        }),
+      }, accessToken);
+      const created = await createRes.json();
+
+      const response = await authenticatedRequest(`/runs/${created.id}/performance`, {}, accessToken);
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      // No results means null stats
+      expect(data.count).toBe(0);
+      expect(data.min).toBeNull();
+      expect(data.max).toBeNull();
+      expect(data.avg).toBeNull();
+      expect(data.p50).toBeNull();
+      expect(data.p95).toBeNull();
+      expect(data.p99).toBeNull();
+    });
+
+    it('should return 404 for non-existent run', async () => {
+      const response = await authenticatedRequest('/runs/00000000-0000-0000-0000-000000000000/performance', {}, accessToken);
+      expect(response.status).toBe(404);
+    });
+  });
 });

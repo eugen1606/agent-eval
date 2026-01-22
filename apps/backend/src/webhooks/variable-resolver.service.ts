@@ -18,6 +18,9 @@ export interface WebhookContext {
   errorCount?: number;
   evaluatedCount?: number;
   errorMessage?: string;
+  avgLatencyMs?: number | null;
+  p95LatencyMs?: number | null;
+  maxLatencyMs?: number | null;
 }
 
 const ALL_EVENTS: WebhookEvent[] = ['run.running', 'run.completed', 'run.failed', 'run.evaluated'];
@@ -114,6 +117,24 @@ const VARIABLE_DEFINITIONS: WebhookVariableDefinition[] = [
     description: 'Error message when a run fails',
     example: 'Connection timeout',
     events: ['run.failed'],
+  },
+  {
+    name: 'avgLatencyMs',
+    description: 'Average execution time in milliseconds',
+    example: '1250',
+    events: COMPLETION_EVENTS,
+  },
+  {
+    name: 'p95LatencyMs',
+    description: '95th percentile execution time in milliseconds',
+    example: '2500',
+    events: COMPLETION_EVENTS,
+  },
+  {
+    name: 'maxLatencyMs',
+    description: 'Maximum execution time in milliseconds',
+    example: '3500',
+    events: COMPLETION_EVENTS,
   },
 ];
 

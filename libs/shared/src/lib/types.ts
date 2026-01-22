@@ -277,6 +277,7 @@ export interface RunResult {
   answer: string;
   expectedAnswer?: string;
   executionId?: string;
+  executionTimeMs?: number;
   isError?: boolean;
   errorMessage?: string;
   humanEvaluation?: HumanEvaluationStatus;
@@ -285,6 +286,16 @@ export interface RunResult {
   llmJudgeScore?: number;
   llmJudgeReasoning?: string;
   timestamp?: string;
+}
+
+export interface PerformanceStats {
+  count: number;
+  min: number;
+  max: number;
+  avg: number;
+  p50: number;
+  p95: number;
+  p99: number;
 }
 
 export interface StoredRun {

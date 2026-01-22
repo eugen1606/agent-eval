@@ -39,22 +39,26 @@ export class FlowService {
     const sharedSessionId = config.multiStepEvaluation ? uuidv4() : null;
 
     for (const question of questions) {
+      const startTime = Date.now();
       try {
         const { answer, executionId } = await this.callFlowEndpoint(
           resolvedConfig,
           question.question,
           sharedSessionId,
         );
+        const executionTimeMs = Date.now() - startTime;
 
         yield {
           id: uuidv4(),
           question: question.question,
           answer,
           executionId,
+          executionTimeMs,
           expectedAnswer: question.expectedAnswer,
           timestamp: new Date().toISOString(),
         };
       } catch (error) {
+        const executionTimeMs = Date.now() - startTime;
         this.logger.error(
           `Failed to execute flow for question: ${question.question}`,
           error,
@@ -65,6 +69,7 @@ export class FlowService {
           question: question.question,
           answer: `Error: ${errorMessage}`,
           expectedAnswer: question.expectedAnswer,
+          executionTimeMs,
           isError: true,
           errorMessage,
           timestamp: new Date().toISOString(),

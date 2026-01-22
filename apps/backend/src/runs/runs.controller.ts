@@ -75,6 +75,14 @@ export class RunsController {
     return this.runsService.getStats(id, user.userId);
   }
 
+  @Get(':id/performance')
+  async getPerformance(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ) {
+    return this.runsService.getPerformanceStats(id, user.userId);
+  }
+
   @Put(':id')
   async update(
     @Param('id') id: string,

@@ -44,4 +44,16 @@ export class HealthController {
     const clearedCount = await this.throttlerStorage.clearAllThrottleKeys();
     return { cleared: clearedCount };
   }
+
+  @Post('cleanup-test-users')
+  async cleanupTestUsers() {
+    // Only allow in non-production environments
+    const nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
+    if (nodeEnv === 'production') {
+      throw new ForbiddenException('This endpoint is not available in production');
+    }
+
+    const deletedCount = await this.healthService.cleanupTestUsers();
+    return { deleted: deletedCount };
+  }
 }

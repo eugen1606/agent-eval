@@ -3,6 +3,42 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
+const PASSWORD_REQUIREMENTS = {
+  minLength: 12,
+  minLowercase: 1,
+  minUppercase: 1,
+  minNumbers: 1,
+  minSymbols: 1,
+};
+
+function validatePassword(password: string): string | null {
+  if (password.length < PASSWORD_REQUIREMENTS.minLength) {
+    return `Password must be at least ${PASSWORD_REQUIREMENTS.minLength} characters`;
+  }
+  if (
+    (password.match(/[a-z]/g) || []).length < PASSWORD_REQUIREMENTS.minLowercase
+  ) {
+    return `Password must contain at least ${PASSWORD_REQUIREMENTS.minLowercase} lowercase letter`;
+  }
+  if (
+    (password.match(/[A-Z]/g) || []).length < PASSWORD_REQUIREMENTS.minUppercase
+  ) {
+    return `Password must contain at least ${PASSWORD_REQUIREMENTS.minUppercase} uppercase letter`;
+  }
+  if (
+    (password.match(/[0-9]/g) || []).length < PASSWORD_REQUIREMENTS.minNumbers
+  ) {
+    return `Password must contain at least ${PASSWORD_REQUIREMENTS.minNumbers} number`;
+  }
+  if (
+    (password.match(/[^a-zA-Z0-9]/g) || []).length <
+    PASSWORD_REQUIREMENTS.minSymbols
+  ) {
+    return `Password must contain at least ${PASSWORD_REQUIREMENTS.minSymbols} symbol`;
+  }
+  return null;
+}
+
 export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,12 +59,17 @@ export function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setValidationError('Password must be at least 6 characters');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setValidationError(passwordError);
       return;
     }
 
-    const success = await register({ email, password, displayName: displayName || undefined });
+    const success = await register({
+      email,
+      password,
+      displayName: displayName || undefined,
+    });
     if (success) {
       showNotification('success', 'Account created successfully!');
       navigate('/', { replace: true });
@@ -36,7 +77,13 @@ export function RegisterPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isLoading && email && password && confirmPassword) {
+    if (
+      e.key === 'Enter' &&
+      !isLoading &&
+      email &&
+      password &&
+      confirmPassword
+    ) {
       handleSubmit(e);
     }
   };
@@ -91,7 +138,7 @@ export function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="At least 6 characters"
+              placeholder="Password"
               required
             />
           </div>

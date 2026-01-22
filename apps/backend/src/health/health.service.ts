@@ -86,4 +86,11 @@ export class HealthService {
       };
     }
   }
+
+  async cleanupTestUsers(): Promise<number> {
+    const result = await this.dataSource.query(
+      `DELETE FROM "users" WHERE email LIKE '%@e2e-test.local'`
+    );
+    return result[1] || 0;
+  }
 }

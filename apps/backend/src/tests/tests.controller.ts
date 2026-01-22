@@ -214,6 +214,7 @@ export class TestsController {
 
           // Trigger run.completed webhook if test has a webhook configured
           if (test.webhookId) {
+            const perfStats = this.runsService.getPerformanceStatsFromRun(completedRun);
             this.webhooksService.triggerWebhooks(user.userId, 'run.completed', {
               runId: completedRun.id,
               runStatus: 'completed',
@@ -221,6 +222,9 @@ export class TestsController {
               testName: test.name,
               totalQuestions: completedRun.totalQuestions,
               completedQuestions: completedRun.completedQuestions,
+              avgLatencyMs: perfStats.avg,
+              p95LatencyMs: perfStats.p95,
+              maxLatencyMs: perfStats.max,
             });
           }
 
@@ -239,6 +243,7 @@ export class TestsController {
 
               // Trigger run.failed webhook if test has a webhook configured
               if (test?.webhookId) {
+                const perfStats = this.runsService.getPerformanceStatsFromRun(failedRun);
                 this.webhooksService.triggerWebhooks(user.userId, 'run.failed', {
                   runId: failedRun.id,
                   runStatus: 'failed',
@@ -247,6 +252,9 @@ export class TestsController {
                   totalQuestions: failedRun.totalQuestions,
                   completedQuestions: failedRun.completedQuestions,
                   errorMessage,
+                  avgLatencyMs: perfStats.avg,
+                  p95LatencyMs: perfStats.p95,
+                  maxLatencyMs: perfStats.max,
                 });
               }
             } catch {

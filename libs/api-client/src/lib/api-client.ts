@@ -28,6 +28,7 @@ import {
   UpdateRunRequest,
   UpdateResultEvaluationRequest,
   RunStats,
+  PerformanceStats,
   PaginatedResponse,
   TestsFilterParams,
   RunsFilterParams,
@@ -36,6 +37,7 @@ import {
   QuestionSetsFilterParams,
   WebhooksFilterParams,
   FlowConfigsFilterParams,
+  TagsFilterParams,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -781,6 +783,10 @@ export class AgentEvalClient {
 
   async getRunStats(id: string): Promise<ApiResponse<RunStats>> {
     return this.request<RunStats>(`/runs/${id}/stats`);
+  }
+
+  async getRunPerformance(id: string): Promise<ApiResponse<PerformanceStats>> {
+    return this.request<PerformanceStats>(`/runs/${id}/performance`);
   }
 
   async updateResultEvaluation(

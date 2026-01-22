@@ -2508,6 +2508,10 @@ body {
   margin-top: 0.5rem;
 }
 
+.accuracy-section.latency .accuracy-value {
+  color: #e67e22;
+}
+
 /* Questions header with Load Example button */
 .questions-header {
   display: flex;
@@ -3622,6 +3626,64 @@ body {
 
 .run-stats-bar .stat-item.accuracy .stat-label {
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* Performance Stats Bar */
+.run-perf-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.run-perf-bar .perf-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.run-perf-bar .perf-stats {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.run-perf-bar .perf-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.run-perf-bar .perf-item .perf-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.run-perf-bar .perf-item .perf-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* Result metadata */
+.result-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.result-latency {
+  color: var(--text-secondary);
 }
 
 .evaluation-progress-bar {

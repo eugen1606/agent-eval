@@ -14,6 +14,20 @@ async function clearThrottleKeys(): Promise<boolean> {
   }
 }
 
+async function cleanupTestUsers(): Promise<void> {
+  try {
+    const response = await fetch('http://localhost:3001/api/health/cleanup-test-users', { method: 'POST' });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.deleted > 0) {
+        console.log(`Cleaned up ${data.deleted} leftover test users`);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
 export default async function globalSetup() {
   // Start the backend server for e2e tests
   console.log('\nStarting backend server for e2e tests...');
@@ -23,6 +37,8 @@ export default async function globalSetup() {
     const response = await fetch('http://localhost:3001/api/health');
     if (response.ok) {
       console.log('Backend server already running');
+      // Cleanup leftover test users from previous failed runs
+      await cleanupTestUsers();
       // Try to clear throttle keys
       const cleared = await clearThrottleKeys();
       if (!cleared) {
@@ -75,6 +91,7 @@ export default async function globalSetup() {
       const response = await fetch('http://localhost:3001/api/health');
       if (response.ok) {
         console.log('Backend server is ready!');
+        await cleanupTestUsers();
         await clearThrottleKeys();
         return;
       }
