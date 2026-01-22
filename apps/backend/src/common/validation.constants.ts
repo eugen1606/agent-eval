@@ -17,4 +17,5 @@ export const MAX_LENGTHS = {
   HEADER_VALUE: 4096,
   ERROR_MESSAGE: 5000,
   CRON_EXPRESSION: 100,
+  COLOR: 7, // #RRGGBB format
 } as const;

@@ -1,7 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run } from './entities';
+import {
+  AccessToken,
+  QuestionSet,
+  FlowConfig,
+  User,
+  ScheduledTest,
+  Webhook,
+  Test,
+  Run,
+  Tag,
+} from './entities';
 import * as migrations from './migrations';
 
 @Module({
@@ -16,12 +26,25 @@ import * as migrations from './migrations';
 
         // Connection pool configuration
         const poolSize = configService.get<number>('DB_POOL_SIZE', 20);
-        const statementTimeout = configService.get<number>('DB_STATEMENT_TIMEOUT', 30000);
+        const statementTimeout = configService.get<number>(
+          'DB_STATEMENT_TIMEOUT',
+          30000,
+        );
 
         return {
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
-          entities: [AccessToken, QuestionSet, FlowConfig, User, ScheduledTest, Webhook, Test, Run],
+          entities: [
+            AccessToken,
+            QuestionSet,
+            FlowConfig,
+            User,
+            ScheduledTest,
+            Webhook,
+            Test,
+            Run,
+            Tag,
+          ],
           migrations: Object.values(migrations),
           migrationsRun: true,
           migrationsTableName: 'typeorm_migrations',

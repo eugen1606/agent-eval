@@ -57,6 +57,7 @@ export class TestsController {
     @Query('webhookId') webhookId?: string,
     @Query('multiStep') multiStep?: string,
     @Query('flowConfigId') flowConfigId?: string,
+    @Query('tagIds') tagIds?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
@@ -70,6 +71,7 @@ export class TestsController {
       webhookId,
       multiStep: multiStep !== undefined ? multiStep === 'true' : undefined,
       flowConfigId,
+      tagIds: tagIds ? tagIds.split(',') : undefined,
       sortBy: sortBy as 'name' | 'createdAt' | 'updatedAt' | undefined,
       sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });

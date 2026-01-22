@@ -15,6 +15,7 @@ import {
   QuestionSetsManager,
   FlowConfigsManager,
   WebhooksManager,
+  TagManager,
   Dashboard,
   Homepage,
   LoginPage,
@@ -31,7 +32,7 @@ import './app.css';
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'webhooks'
+    'tokens' | 'questions' | 'flows' | 'webhooks' | 'tags'
   >('tokens');
 
   return (
@@ -61,6 +62,12 @@ function SettingsPage() {
         >
           Webhooks
         </button>
+        <button
+          className={activeTab === 'tags' ? 'active' : ''}
+          onClick={() => setActiveTab('tags')}
+        >
+          Tags
+        </button>
       </div>
 
       <div className="settings-content">
@@ -68,6 +75,7 @@ function SettingsPage() {
         {activeTab === 'questions' && <QuestionSetsManager />}
         {activeTab === 'flows' && <FlowConfigsManager />}
         {activeTab === 'webhooks' && <WebhooksManager />}
+        {activeTab === 'tags' && <TagManager />}
       </div>
     </div>
   );

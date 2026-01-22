@@ -5,6 +5,7 @@ import {
   StoredQuestionSet,
   StoredFlowConfig,
   StoredWebhook,
+  StoredTag,
   TestsSortField,
   SortDirection,
 } from '@agent-eval/shared';
@@ -27,6 +28,7 @@ export function TestsPage() {
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
   const [webhooks, setWebhooks] = useState<StoredWebhook[]>([]);
+  const [tags, setTags] = useState<StoredTag[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -37,6 +39,7 @@ export function TestsPage() {
     questionSetId: '',
     multiStepEvaluation: false,
     webhookId: '',
+    tagIds: [] as string[],
   });
   const [loading, setLoading] = useState(false);
   // Map of testId -> runId for running tests
@@ -66,15 +69,16 @@ export function TestsPage() {
   const [sortBy, setSortBy] = useState<TestsSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  // Load supporting data (tokens, questions, configs, webhooks) once
+  // Load supporting data (tokens, questions, configs, webhooks, tags) once
   useEffect(() => {
     const loadSupportingData = async () => {
-      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes] =
+      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes, tagsRes] =
         await Promise.all([
           apiClient.getAccessTokens(),
           apiClient.getQuestionSets(),
           apiClient.getFlowConfigs(),
           apiClient.getWebhooks(),
+          apiClient.getTags({ limit: 100 }),
         ]);
 
       if (tokensRes.success && tokensRes.data) {
@@ -88,6 +92,9 @@ export function TestsPage() {
       }
       if (webhooksRes.success && webhooksRes.data) {
         setWebhooks(webhooksRes.data.data);
+      }
+      if (tagsRes.success && tagsRes.data) {
+        setTags(tagsRes.data.data);
       }
     };
     loadSupportingData();
@@ -103,6 +110,7 @@ export function TestsPage() {
       questionSetId: filters.questionSet || undefined,
       multiStep: filters.multiStep ? filters.multiStep === 'yes' : undefined,
       flowConfigId: filters.flowConfig || undefined,
+      tagIds: filters.tag ? [filters.tag] : undefined,
       sortBy,
       sortDirection,
     });
@@ -144,6 +152,15 @@ export function TestsPage() {
         })),
       },
       {
+        key: 'tag',
+        label: 'Tag',
+        type: 'select',
+        options: tags.map((tag) => ({
+          value: tag.id,
+          label: tag.name,
+        })),
+      },
+      {
         key: 'multiStep',
         label: 'Multi-step',
         type: 'select',
@@ -153,7 +170,7 @@ export function TestsPage() {
         ],
       },
     ],
-    [questionSets, flowConfigs],
+    [questionSets, flowConfigs, tags],
   );
 
   const sortOptions: SortOption[] = [
@@ -183,6 +200,15 @@ export function TestsPage() {
         displayValue: fc?.name || 'Unknown',
       });
     }
+    if (filters.tag) {
+      const tag = tags.find((t) => t.id === filters.tag);
+      result.push({
+        key: 'tag',
+        value: filters.tag,
+        label: 'Tag',
+        displayValue: tag?.name || 'Unknown',
+      });
+    }
     if (filters.multiStep) {
       result.push({
         key: 'multiStep',
@@ -192,7 +218,7 @@ export function TestsPage() {
       });
     }
     return result;
-  }, [filters, questionSets, flowConfigs]);
+  }, [filters, questionSets, flowConfigs, tags]);
 
   const handleFilterAdd = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -247,6 +273,7 @@ export function TestsPage() {
       questionSetId: formData.questionSetId || null,
       multiStepEvaluation: formData.multiStepEvaluation,
       webhookId: formData.webhookId || null,
+      tagIds: formData.tagIds,
     };
 
     let response;
@@ -279,6 +306,7 @@ export function TestsPage() {
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
       webhookId: test.webhookId || '',
+      tagIds: test.tags?.map((t) => t.id) || [],
     });
     setShowForm(true);
   };
@@ -292,6 +320,7 @@ export function TestsPage() {
       questionSetId: '',
       multiStepEvaluation: false,
       webhookId: '',
+      tagIds: [],
     });
     setShowForm(false);
     setEditingId(null);
@@ -616,6 +645,41 @@ export function TestsPage() {
               evaluated)
             </span>
           </div>
+          <div className="form-group">
+            <label>Tags</label>
+            <div className="tag-select">
+              {tags.map((tag) => (
+                <label key={tag.id} className="tag-option">
+                  <input
+                    type="checkbox"
+                    checked={formData.tagIds.includes(tag.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          tagIds: [...formData.tagIds, tag.id],
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          tagIds: formData.tagIds.filter((id) => id !== tag.id),
+                        });
+                      }
+                    }}
+                  />
+                  <span
+                    className="tag-chip"
+                    style={{ backgroundColor: tag.color || '#3B82F6' }}
+                  >
+                    {tag.name}
+                  </span>
+                </label>
+              ))}
+              {tags.length === 0 && (
+                <span className="form-hint">No tags created yet. Create tags in Settings.</span>
+              )}
+            </div>
+          </div>
           <div className="form-group checkbox-group">
             <label>
               <input
@@ -762,6 +826,22 @@ export function TestsPage() {
                     {getWebhookName(test.webhookId)}
                   </span>
                 </div>
+                {test.tags && test.tags.length > 0 && (
+                  <div className="detail-row">
+                    <span className="detail-label">Tags:</span>
+                    <div className="tag-chips">
+                      {test.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="tag-chip"
+                          style={{ backgroundColor: tag.color || '#3B82F6' }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {test.multiStepEvaluation && (
                   <div className="detail-row">
                     <span className="badge">Multi-step</span>

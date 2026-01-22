@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Test } from '../database/entities';
+import { Test, Tag } from '../database/entities';
 import { CreateTestDto, UpdateTestDto } from './dto';
+import { TagsService } from '../tags/tags.service';
 
 export type TestsSortField = 'name' | 'createdAt' | 'updatedAt';
 export type SortDirection = 'asc' | 'desc';
@@ -16,6 +17,7 @@ export interface TestsFilterDto {
   webhookId?: string;
   multiStep?: boolean;
   flowConfigId?: string;
+  tagIds?: string[];
   sortBy?: TestsSortField;
   sortDirection?: SortDirection;
 }
@@ -35,9 +37,19 @@ export class TestsService {
   constructor(
     @InjectRepository(Test)
     private testRepository: Repository<Test>,
+    private tagsService: TagsService,
   ) {}
 
   async create(dto: CreateTestDto, userId: string): Promise<Test> {
+    // Validate and load tags if provided
+    let tags: Tag[] = [];
+    if (dto.tagIds && dto.tagIds.length > 0) {
+      tags = await this.tagsService.findByIds(dto.tagIds, userId);
+      if (tags.length !== dto.tagIds.length) {
+        throw new NotFoundException('One or more tags not found');
+      }
+    }
+
     const test = this.testRepository.create({
       name: dto.name,
       description: dto.description,
@@ -47,6 +59,7 @@ export class TestsService {
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
       webhookId: dto.webhookId,
       userId,
+      tags,
     });
     return this.testRepository.save(test);
   }
@@ -63,6 +76,7 @@ export class TestsService {
       .createQueryBuilder('test')
       .leftJoinAndSelect('test.questionSet', 'questionSet')
       .leftJoinAndSelect('test.flowConfig', 'flowConfig')
+      .leftJoinAndSelect('test.tags', 'tags')
       .where('test.userId = :userId', { userId });
 
     // Apply search filter (including flowConfig.flowId)
@@ -108,6 +122,20 @@ export class TestsService {
       });
     }
 
+    // Apply tagIds filter (tests must have ALL specified tags)
+    if (filters.tagIds && filters.tagIds.length > 0) {
+      queryBuilder.andWhere(
+        `test.id IN (
+          SELECT tt."testId"
+          FROM test_tags tt
+          WHERE tt."tagId" IN (:...tagIds)
+          GROUP BY tt."testId"
+          HAVING COUNT(DISTINCT tt."tagId") = :tagCount
+        )`,
+        { tagIds: filters.tagIds, tagCount: filters.tagIds.length },
+      );
+    }
+
     // Get total count before pagination
     const total = await queryBuilder.getCount();
 
@@ -134,7 +162,7 @@ export class TestsService {
   async findOne(id: string, userId: string): Promise<Test> {
     const test = await this.testRepository.findOne({
       where: { id, userId },
-      relations: ['questionSet', 'accessToken', 'webhook', 'flowConfig'],
+      relations: ['questionSet', 'accessToken', 'webhook', 'flowConfig', 'tags'],
     });
     if (!test) {
       throw new NotFoundException(`Test not found: ${id}`);
@@ -144,7 +172,7 @@ export class TestsService {
 
   async update(id: string, dto: UpdateTestDto, userId: string): Promise<Test> {
     // Verify test exists and belongs to user
-    await this.findOne(id, userId);
+    const test = await this.findOne(id, userId);
 
     // Use repository.update() instead of .save() because .save() ignores undefined values
     const updateData: Partial<Test> = {};
@@ -172,6 +200,20 @@ export class TestsService {
     }
 
     await this.testRepository.update({ id, userId }, updateData);
+
+    // Handle tags update separately (ManyToMany relation)
+    if (dto.tagIds !== undefined) {
+      let tags: Tag[] = [];
+      if (dto.tagIds.length > 0) {
+        tags = await this.tagsService.findByIds(dto.tagIds, userId);
+        if (tags.length !== dto.tagIds.length) {
+          throw new NotFoundException('One or more tags not found');
+        }
+      }
+      test.tags = tags;
+      await this.testRepository.save(test);
+    }
+
     return this.findOne(id, userId);
   }
 

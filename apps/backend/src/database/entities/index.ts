@@ -6,3 +6,4 @@ export { ScheduledTest } from './scheduled-test.entity';
 export { Webhook, WebhookEvent, WebhookMethod } from './webhook.entity';
 export { Test } from './test.entity';
 export { Run, RunStatus } from './run.entity';
+export { Tag } from './tag.entity';

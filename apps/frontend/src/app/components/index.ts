@@ -15,3 +15,4 @@ export { RunDetailPage } from './RunDetailPage';
 export { Pagination, usePagination } from './Pagination';
 export { SearchableSelect } from './SearchableSelect';
 export { ScheduledTestsPage } from './ScheduledTestsPage';
+export { TagManager } from './TagManager';

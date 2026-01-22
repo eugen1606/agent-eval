@@ -220,6 +220,20 @@ export interface CreateWebhookRequest {
   bodyTemplate: Record<string, unknown>;
 }
 
+// Tag Types
+export interface StoredTag {
+  id: string;
+  name: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTagRequest {
+  name: string;
+  color?: string;
+}
+
 // Test Types (new model)
 export interface StoredTest {
   id: string;
@@ -233,6 +247,7 @@ export interface StoredTest {
   multiStepEvaluation: boolean;
   webhookId?: string;
   webhook?: StoredWebhook;
+  tags?: StoredTag[];
   createdAt: string;
   updatedAt: string;
 }
@@ -245,6 +260,7 @@ export interface CreateTestRequest {
   questionSetId?: string | null;
   multiStepEvaluation?: boolean;
   webhookId?: string | null;
+  tagIds?: string[];
 }
 
 // Run Types (new model - replaces Evaluation for new workflow)
@@ -359,6 +375,7 @@ export interface TestsFilterParams extends PaginationParams {
   webhookId?: string;
   multiStep?: boolean;
   flowConfigId?: string;
+  tagIds?: string[];
   sortBy?: TestsSortField;
   sortDirection?: SortDirection;
 }
@@ -418,5 +435,14 @@ export type FlowConfigsSortField = 'name' | 'createdAt' | 'updatedAt';
 export interface FlowConfigsFilterParams extends PaginationParams {
   search?: string;
   sortBy?: FlowConfigsSortField;
+  sortDirection?: SortDirection;
+}
+
+// Tags Sort and Filter
+export type TagsSortField = 'name' | 'createdAt' | 'updatedAt';
+
+export interface TagsFilterParams extends PaginationParams {
+  search?: string;
+  sortBy?: TagsSortField;
   sortDirection?: SortDirection;
 }

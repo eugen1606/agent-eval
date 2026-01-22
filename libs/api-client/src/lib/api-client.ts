@@ -19,6 +19,8 @@ import {
   CreateWebhookRequest,
   WebhookEvent,
   WebhookVariableDefinition,
+  StoredTag,
+  CreateTagRequest,
   StoredTest,
   CreateTestRequest,
   StoredRun,
@@ -615,6 +617,56 @@ export class AgentEvalClient {
     );
   }
 
+  // Tags
+  async createTag(data: CreateTagRequest): Promise<ApiResponse<StoredTag>> {
+    return this.request<StoredTag>('/tags', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTags(
+    filters?: TagsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredTag>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredTag>>(
+      `/tags${query ? `?${query}` : ''}`,
+    );
+  }
+
+  async getTag(id: string): Promise<ApiResponse<StoredTag>> {
+    return this.request<StoredTag>(`/tags/${id}`);
+  }
+
+  async updateTag(
+    id: string,
+    data: Partial<CreateTagRequest>,
+  ): Promise<ApiResponse<StoredTag>> {
+    return this.request<StoredTag>(`/tags/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTag(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/tags/${id}`, { method: 'DELETE' });
+  }
+
+  async getTagUsage(
+    id: string,
+  ): Promise<ApiResponse<{ tests: { id: string; name: string }[] }>> {
+    return this.request<{ tests: { id: string; name: string }[] }>(
+      `/tags/${id}/usage`,
+    );
+  }
+
   // Tests
   async createTest(data: CreateTestRequest): Promise<ApiResponse<StoredTest>> {
     return this.request<StoredTest>('/tests', {
@@ -639,6 +691,8 @@ export class AgentEvalClient {
       params.append('multiStep', filters.multiStep.toString());
     if (filters?.flowConfigId)
       params.append('flowConfigId', filters.flowConfigId);
+    if (filters?.tagIds && filters.tagIds.length > 0)
+      params.append('tagIds', filters.tagIds.join(','));
     if (filters?.sortBy) params.append('sortBy', filters.sortBy);
     if (filters?.sortDirection)
       params.append('sortDirection', filters.sortDirection);

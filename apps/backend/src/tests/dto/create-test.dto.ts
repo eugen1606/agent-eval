@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsUUID,
+  IsArray,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -37,4 +38,9 @@ export class CreateTestDto {
   @IsOptional()
   @IsUUID()
   webhookId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  tagIds?: string[];
 }

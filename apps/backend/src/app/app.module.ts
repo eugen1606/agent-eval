@@ -20,6 +20,7 @@ import { TestsModule } from '../tests/tests.module';
 import { RunsModule } from '../runs/runs.module';
 import { CleanupModule } from '../cleanup/cleanup.module';
 import { MetricsModule } from '../metrics';
+import { TagsModule } from '../tags/tags.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MetricsModule } from '../metrics';
     RunsModule,
     CleanupModule,
     MetricsModule,
+    TagsModule,
   ],
   controllers: [AppController],
   providers: [

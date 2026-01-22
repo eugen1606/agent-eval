@@ -5,13 +5,16 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  ManyToMany,
   JoinColumn,
+  JoinTable,
 } from 'typeorm';
 import { User } from './user.entity';
 import { AccessToken } from './access-token.entity';
 import { QuestionSet } from './question-set.entity';
 import { Webhook } from './webhook.entity';
 import { FlowConfig } from './flow-config.entity';
+import { Tag } from './tag.entity';
 
 @Entity('tests')
 export class Test {
@@ -61,6 +64,14 @@ export class Test {
   @ManyToOne(() => Webhook, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'webhookId' })
   webhook: Webhook;
+
+  @ManyToMany(() => Tag)
+  @JoinTable({
+    name: 'test_tags',
+    joinColumn: { name: 'testId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'tagId', referencedColumnName: 'id' },
+  })
+  tags: Tag[];
 
   @CreateDateColumn()
   createdAt: Date;

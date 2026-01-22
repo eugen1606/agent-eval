@@ -1032,6 +1032,101 @@ body {
   background: #c0392b;
 }
 
+/* Tag Styles */
+.tag-chip {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-chips .tag-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-secondary);
+}
+
+.color-input {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.tag-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-option {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.tag-option input[type="checkbox"] {
+  display: none;
+}
+
+.tag-option .tag-chip {
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.tag-option input[type="checkbox"]:checked + .tag-chip {
+  opacity: 1;
+}
+
+.tag-option:hover .tag-chip {
+  opacity: 0.8;
+}
+
 /* Scheduled Evaluations */
 .scheduled-item .item-header {
   display: flex;

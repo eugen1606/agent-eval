@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsUUID,
+  IsArray,
   MaxLength,
   MinLength,
   ValidateIf,
@@ -45,4 +46,9 @@ export class UpdateTestDto {
   @ValidateIf((o) => o.webhookId !== null)
   @IsUUID()
   webhookId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  tagIds?: string[];
 }
