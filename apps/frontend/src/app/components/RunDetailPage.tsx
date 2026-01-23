@@ -12,6 +12,12 @@ import { Pagination } from './Pagination';
 import { useNotification } from '../context/NotificationContext';
 import { apiClient } from '../apiClient';
 
+interface CompareableRun {
+  id: string;
+  completedAt?: string;
+  status: string;
+}
+
 export function RunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -19,6 +25,7 @@ export function RunDetailPage() {
   const [run, setRun] = useState<StoredRun | null>(null);
   const [stats, setStats] = useState<RunStats | null>(null);
   const [perfStats, setPerfStats] = useState<PerformanceStats | null>(null);
+  const [otherRuns, setOtherRuns] = useState<CompareableRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -38,6 +45,26 @@ export function RunDetailPage() {
     ]);
     if (runRes.success && runRes.data) {
       setRun(runRes.data);
+      // Load other runs of the same test for comparison
+      if (runRes.data.testId) {
+        const otherRunsRes = await apiClient.getRuns({
+          testId: runRes.data.testId,
+          limit: 50,
+          sortBy: 'completedAt',
+          sortDirection: 'desc',
+        });
+        if (otherRunsRes.success && otherRunsRes.data) {
+          // Filter out the current run and only keep completed runs
+          const filteredRuns = otherRunsRes.data.data
+            .filter((r) => r.id !== id && r.status === 'completed')
+            .map((r) => ({
+              id: r.id,
+              completedAt: r.completedAt,
+              status: r.status,
+            }));
+          setOtherRuns(filteredRuns);
+        }
+      }
     }
     if (statsRes.success && statsRes.data) {
       setStats(statsRes.data);
@@ -231,6 +258,26 @@ export function RunDetailPage() {
             {run.status}
           </span>
         </div>
+        {otherRuns.length > 0 && run.status === 'completed' && (
+          <select
+            className="compare-dropdown"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) {
+                navigate(`/runs/${id}/compare/${e.target.value}`);
+              }
+            }}
+          >
+            <option value="">Compare with...</option>
+            {otherRuns.map((otherRun) => (
+              <option key={otherRun.id} value={otherRun.id}>
+                {otherRun.completedAt
+                  ? new Date(otherRun.completedAt).toLocaleString()
+                  : `Run ${otherRun.id.slice(0, 8)}`}
+              </option>
+            ))}
+          </select>
+        )}
         {hasUnsavedChanges && (
           <button
             className="save-btn"

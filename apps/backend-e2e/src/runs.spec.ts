@@ -1,4 +1,8 @@
-import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import {
+  authenticatedRequest,
+  createTestUser,
+  deleteTestUser,
+} from './support/test-setup';
 
 describe('Runs CRUD', () => {
   let accessToken: string;
@@ -11,24 +15,32 @@ describe('Runs CRUD', () => {
     csrfToken = auth.csrfToken;
 
     // Create a FlowConfig first
-    const fcRes = await authenticatedRequest('/flow-configs', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Run Test Flow Config',
-        flowId: 'run-test-flow',
-        basePath: 'https://api.example.com',
-      }),
-    }, accessToken);
+    const fcRes = await authenticatedRequest(
+      '/flow-configs',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Run Test Flow Config',
+          flowId: 'run-test-flow',
+          basePath: 'https://api.example.com',
+        }),
+      },
+      accessToken,
+    );
     const fcData = await fcRes.json();
 
     // Create a test to associate runs with
-    const testRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Run Test Parent',
-        flowConfigId: fcData.id,
-      }),
-    }, accessToken);
+    const testRes = await authenticatedRequest(
+      '/tests',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Run Test Parent',
+          flowConfigId: fcData.id,
+        }),
+      },
+      accessToken,
+    );
     const testData = await testRes.json();
     testId = testData.id;
   });
@@ -39,14 +51,18 @@ describe('Runs CRUD', () => {
 
   describe('POST /api/runs', () => {
     it('should create a run', async () => {
-      const response = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          status: 'pending',
-          totalQuestions: 5,
-        }),
-      }, accessToken);
+      const response = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+            status: 'pending',
+            totalQuestions: 5,
+          }),
+        },
+        accessToken,
+      );
 
       expect(response.status).toBe(201);
 
@@ -58,12 +74,16 @@ describe('Runs CRUD', () => {
     });
 
     it('should create a run without testId', async () => {
-      const response = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          status: 'pending',
-        }),
-      }, accessToken);
+      const response = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            status: 'pending',
+          }),
+        },
+        accessToken,
+      );
 
       expect(response.status).toBe(201);
 
@@ -75,13 +95,17 @@ describe('Runs CRUD', () => {
 
   describe('GET /api/runs', () => {
     it('should list runs', async () => {
-      await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          status: 'pending',
-        }),
-      }, accessToken);
+      await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+            status: 'pending',
+          }),
+        },
+        accessToken,
+      );
 
       const response = await authenticatedRequest('/runs', {}, accessToken);
       expect(response.status).toBe(200);
@@ -96,16 +120,24 @@ describe('Runs CRUD', () => {
 
   describe('GET /api/runs/:id', () => {
     it('should get a single run', async () => {
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          status: 'pending',
-        }),
-      }, accessToken);
+      const createRes = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+            status: 'pending',
+          }),
+        },
+        accessToken,
+      );
       const created = await createRes.json();
 
-      const response = await authenticatedRequest(`/runs/${created.id}`, {}, accessToken);
+      const response = await authenticatedRequest(
+        `/runs/${created.id}`,
+        {},
+        accessToken,
+      );
       expect(response.status).toBe(200);
 
       const data = await response.json();
@@ -115,29 +147,41 @@ describe('Runs CRUD', () => {
 
     it('should return 404 for non-existent run', async () => {
       // Use a valid UUID format that doesn't exist
-      const response = await authenticatedRequest('/runs/00000000-0000-0000-0000-000000000000', {}, accessToken);
+      const response = await authenticatedRequest(
+        '/runs/00000000-0000-0000-0000-000000000000',
+        {},
+        accessToken,
+      );
       expect(response.status).toBe(404);
     });
   });
 
   describe('PUT /api/runs/:id', () => {
     it('should update a run', async () => {
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          status: 'pending',
-        }),
-      }, accessToken);
+      const createRes = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+            status: 'pending',
+          }),
+        },
+        accessToken,
+      );
       const created = await createRes.json();
 
-      const response = await authenticatedRequest(`/runs/${created.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          status: 'running',
-          completedQuestions: 2,
-        }),
-      }, accessToken);
+      const response = await authenticatedRequest(
+        `/runs/${created.id}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            status: 'running',
+            completedQuestions: 2,
+          }),
+        },
+        accessToken,
+      );
 
       expect(response.status).toBe(200);
 
@@ -149,22 +193,34 @@ describe('Runs CRUD', () => {
 
   describe('DELETE /api/runs/:id', () => {
     it('should delete a run', async () => {
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          status: 'pending',
-        }),
-      }, accessToken);
+      const createRes = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+            status: 'pending',
+          }),
+        },
+        accessToken,
+      );
       const created = await createRes.json();
 
-      const response = await authenticatedRequest(`/runs/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
+      const response = await authenticatedRequest(
+        `/runs/${created.id}`,
+        {
+          method: 'DELETE',
+        },
+        accessToken,
+      );
 
       expect(response.status).toBe(200);
 
-      const getRes = await authenticatedRequest(`/runs/${created.id}`, {}, accessToken);
+      const getRes = await authenticatedRequest(
+        `/runs/${created.id}`,
+        {},
+        accessToken,
+      );
       expect(getRes.status).toBe(404);
     });
   });
@@ -192,15 +248,23 @@ describe('Runs CRUD', () => {
   describe('GET /api/runs/:id/stats', () => {
     it('should return run stats', async () => {
       // Create a run (results are added during test execution, not via API)
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-        }),
-      }, accessToken);
+      const createRes = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
       const created = await createRes.json();
 
-      const response = await authenticatedRequest(`/runs/${created.id}/stats`, {}, accessToken);
+      const response = await authenticatedRequest(
+        `/runs/${created.id}/stats`,
+        {},
+        accessToken,
+      );
       expect(response.status).toBe(200);
 
       const data = await response.json();
@@ -217,15 +281,23 @@ describe('Runs CRUD', () => {
   describe('GET /api/runs/:id/performance', () => {
     it('should return null performance stats for run without results', async () => {
       // Create a run without any results
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-        }),
-      }, accessToken);
+      const createRes = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
       const created = await createRes.json();
 
-      const response = await authenticatedRequest(`/runs/${created.id}/performance`, {}, accessToken);
+      const response = await authenticatedRequest(
+        `/runs/${created.id}/performance`,
+        {},
+        accessToken,
+      );
       expect(response.status).toBe(200);
 
       const data = await response.json();
@@ -240,8 +312,214 @@ describe('Runs CRUD', () => {
     });
 
     it('should return 404 for non-existent run', async () => {
-      const response = await authenticatedRequest('/runs/00000000-0000-0000-0000-000000000000/performance', {}, accessToken);
+      const response = await authenticatedRequest(
+        '/runs/00000000-0000-0000-0000-000000000000/performance',
+        {},
+        accessToken,
+      );
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/runs/:id/compare/:otherId', () => {
+    it('should compare two runs of the same test', async () => {
+      // Create two runs for the same test
+      const run1Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run1 = await run1Res.json();
+
+      const run2Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run2 = await run2Res.json();
+
+      // Compare the runs
+      const response = await authenticatedRequest(
+        `/runs/${run1.id}/compare/${run2.id}`,
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.leftRun).toBeDefined();
+      expect(data.rightRun).toBeDefined();
+      expect(data.summary).toBeDefined();
+      expect(data.results).toBeDefined();
+
+      expect(data.leftRun.id).toBe(run1.id);
+      expect(data.rightRun.id).toBe(run2.id);
+
+      // Summary should have all expected fields
+      expect(data.summary.improved).toBeDefined();
+      expect(data.summary.regressed).toBeDefined();
+      expect(data.summary.unchanged).toBeDefined();
+      expect(data.summary.newQuestions).toBeDefined();
+      expect(data.summary.removedQuestions).toBeDefined();
+      expect(data.summary).toHaveProperty('accuracyDelta');
+      expect(data.summary).toHaveProperty('avgLatencyDelta');
+    });
+
+    it('should return 404 when left run does not exist', async () => {
+      const run2Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run2 = await run2Res.json();
+
+      const response = await authenticatedRequest(
+        `/runs/00000000-0000-0000-0000-000000000000/compare/${run2.id}`,
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 when right run does not exist', async () => {
+      const run1Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run1 = await run1Res.json();
+
+      const response = await authenticatedRequest(
+        `/runs/${run1.id}/compare/00000000-0000-0000-0000-000000000000`,
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 400 when comparing runs from different tests', async () => {
+      // Create a second test
+      const fcRes = await authenticatedRequest(
+        '/flow-configs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Comparison Test Flow Config 2',
+            flowId: 'comparison-test-flow-2',
+            basePath: 'https://api.example.com',
+          }),
+        },
+        accessToken,
+      );
+      const fcData = await fcRes.json();
+
+      const test2Res = await authenticatedRequest(
+        '/tests',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Comparison Test 2',
+            flowConfigId: fcData.id,
+          }),
+        },
+        accessToken,
+      );
+      const test2 = await test2Res.json();
+
+      // Create runs for different tests
+      const run1Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run1 = await run1Res.json();
+
+      const run2Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId: test2.id,
+          }),
+        },
+        accessToken,
+      );
+      const run2 = await run2Res.json();
+
+      // Comparing runs from different tests should fail
+      const response = await authenticatedRequest(
+        `/runs/${run1.id}/compare/${run2.id}`,
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('should handle comparison with empty results', async () => {
+      // Create two runs with no results
+      const run1Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run1 = await run1Res.json();
+
+      const run2Res = await authenticatedRequest(
+        '/runs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            testId,
+          }),
+        },
+        accessToken,
+      );
+      const run2 = await run2Res.json();
+
+      const response = await authenticatedRequest(
+        `/runs/${run1.id}/compare/${run2.id}`,
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(200);
+
+      const data = await response.json();
+      expect(data.results).toEqual([]);
+      expect(data.summary.improved).toBe(0);
+      expect(data.summary.regressed).toBe(0);
+      expect(data.summary.unchanged).toBe(0);
+      expect(data.summary.newQuestions).toBe(0);
+      expect(data.summary.removedQuestions).toBe(0);
     });
   });
 });

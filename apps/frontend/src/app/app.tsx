@@ -26,6 +26,7 @@ import {
   TestsPage,
   RunsPage,
   RunDetailPage,
+  RunComparisonPage,
   ScheduledTestsPage,
 } from './components';
 import './app.css';
@@ -229,6 +230,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <RunDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/runs/:id/compare/:otherId',
+        element: (
+          <ProtectedRoute>
+            <RunComparisonPage />
           </ProtectedRoute>
         ),
       },

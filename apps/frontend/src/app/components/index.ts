@@ -12,6 +12,7 @@ export { AccountPage } from './AccountPage';
 export { TestsPage } from './TestsPage';
 export { RunsPage } from './RunsPage';
 export { RunDetailPage } from './RunDetailPage';
+export { RunComparisonPage } from './RunComparisonPage';
 export { Pagination, usePagination } from './Pagination';
 export { SearchableSelect } from './SearchableSelect';
 export { ScheduledTestsPage } from './ScheduledTestsPage';

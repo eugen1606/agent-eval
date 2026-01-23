@@ -457,3 +457,39 @@ export interface TagsFilterParams extends PaginationParams {
   sortBy?: TagsSortField;
   sortDirection?: SortDirection;
 }
+
+// Run Comparison Types
+export type ChangeType = 'improved' | 'regressed' | 'unchanged' | 'new' | 'removed';
+
+export interface ComparisonResult {
+  question: string;
+  leftResult?: RunResult;
+  rightResult?: RunResult;
+  changeType: ChangeType;
+  evaluationChange?: {
+    from?: HumanEvaluationStatus;
+    to?: HumanEvaluationStatus;
+  };
+  executionTimeChange?: {
+    from?: number;
+    to?: number;
+    delta?: number;
+  };
+}
+
+export interface RunComparisonSummary {
+  improved: number;
+  regressed: number;
+  unchanged: number;
+  newQuestions: number;
+  removedQuestions: number;
+  accuracyDelta: number | null;
+  avgLatencyDelta: number | null;
+}
+
+export interface RunComparison {
+  leftRun: StoredRun;
+  rightRun: StoredRun;
+  summary: RunComparisonSummary;
+  results: ComparisonResult[];
+}

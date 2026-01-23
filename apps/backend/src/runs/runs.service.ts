@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Run, RunStatus, Test } from '../database/entities';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import {
+  RunComparison,
+  ComparisonResult,
+  ChangeType,
+  RunComparisonSummary,
+  HumanEvaluationStatus,
+} from '@agent-eval/shared';
 
 export interface CreateRunDto {
   testId: string;
@@ -455,6 +462,191 @@ export class RunsService {
       p50: percentile(50),
       p95: percentile(95),
       p99: percentile(99),
+    };
+  }
+
+  async compareRuns(
+    leftRunId: string,
+    rightRunId: string,
+    userId: string,
+  ): Promise<RunComparison> {
+    // Fetch both runs
+    const leftRun = await this.findOne(leftRunId, userId);
+    const rightRun = await this.findOne(rightRunId, userId);
+
+    // Optionally validate both runs belong to the same test
+    if (leftRun.testId && rightRun.testId && leftRun.testId !== rightRun.testId) {
+      throw new BadRequestException('Runs must belong to the same test for comparison');
+    }
+
+    // Build comparison results by aligning on question text
+    const leftResultsMap = new Map(leftRun.results.map((r) => [r.question, r]));
+    const rightResultsMap = new Map(rightRun.results.map((r) => [r.question, r]));
+
+    const allQuestions = new Set([...leftResultsMap.keys(), ...rightResultsMap.keys()]);
+    const comparisonResults: ComparisonResult[] = [];
+
+    for (const question of allQuestions) {
+      const leftResult = leftResultsMap.get(question);
+      const rightResult = rightResultsMap.get(question);
+
+      const changeType = this.determineChangeType(leftResult, rightResult);
+
+      const result: ComparisonResult = {
+        question,
+        leftResult: leftResult ? this.toRunResultDto(leftResult) : undefined,
+        rightResult: rightResult ? this.toRunResultDto(rightResult) : undefined,
+        changeType,
+      };
+
+      // Add evaluation change if both have evaluations
+      if (leftResult?.humanEvaluation || rightResult?.humanEvaluation) {
+        result.evaluationChange = {
+          from: leftResult?.humanEvaluation as HumanEvaluationStatus | undefined,
+          to: rightResult?.humanEvaluation as HumanEvaluationStatus | undefined,
+        };
+      }
+
+      // Add execution time change if timing data exists
+      if (leftResult?.executionTimeMs !== undefined || rightResult?.executionTimeMs !== undefined) {
+        result.executionTimeChange = {
+          from: leftResult?.executionTimeMs,
+          to: rightResult?.executionTimeMs,
+          delta:
+            leftResult?.executionTimeMs !== undefined && rightResult?.executionTimeMs !== undefined
+              ? rightResult.executionTimeMs - leftResult.executionTimeMs
+              : undefined,
+        };
+      }
+
+      comparisonResults.push(result);
+    }
+
+    // Calculate summary metrics
+    const summary = this.calculateComparisonSummary(comparisonResults, leftRun, rightRun);
+
+    return {
+      leftRun: this.toStoredRunDto(leftRun),
+      rightRun: this.toStoredRunDto(rightRun),
+      summary,
+      results: comparisonResults,
+    };
+  }
+
+  private determineChangeType(
+    leftResult: Run['results'][0] | undefined,
+    rightResult: Run['results'][0] | undefined,
+  ): ChangeType {
+    if (!leftResult) return 'new';
+    if (!rightResult) return 'removed';
+
+    const leftEval = leftResult.humanEvaluation;
+    const rightEval = rightResult.humanEvaluation;
+
+    // If no evaluation data, consider unchanged
+    if (!leftEval && !rightEval) return 'unchanged';
+    if (!leftEval || !rightEval) return 'unchanged';
+
+    // Define evaluation rankings (higher is better)
+    const evalRank: Record<string, number> = {
+      incorrect: 0,
+      partial: 1,
+      correct: 2,
+    };
+
+    const leftRank = evalRank[leftEval] ?? -1;
+    const rightRank = evalRank[rightEval] ?? -1;
+
+    if (rightRank > leftRank) return 'improved';
+    if (rightRank < leftRank) return 'regressed';
+    return 'unchanged';
+  }
+
+  private calculateComparisonSummary(
+    results: ComparisonResult[],
+    leftRun: Run,
+    rightRun: Run,
+  ): RunComparisonSummary {
+    const improved = results.filter((r) => r.changeType === 'improved').length;
+    const regressed = results.filter((r) => r.changeType === 'regressed').length;
+    const unchanged = results.filter((r) => r.changeType === 'unchanged').length;
+    const newQuestions = results.filter((r) => r.changeType === 'new').length;
+    const removedQuestions = results.filter((r) => r.changeType === 'removed').length;
+
+    // Calculate accuracy delta
+    const leftStats = this.calculateStats(leftRun);
+    const rightStats = this.calculateStats(rightRun);
+    const accuracyDelta =
+      leftStats.accuracy !== null && rightStats.accuracy !== null
+        ? rightStats.accuracy - leftStats.accuracy
+        : null;
+
+    // Calculate avg latency delta
+    const leftPerf = this.calculatePerformanceStats(leftRun);
+    const rightPerf = this.calculatePerformanceStats(rightRun);
+    const avgLatencyDelta =
+      leftPerf.avg !== null && rightPerf.avg !== null
+        ? rightPerf.avg - leftPerf.avg
+        : null;
+
+    return {
+      improved,
+      regressed,
+      unchanged,
+      newQuestions,
+      removedQuestions,
+      accuracyDelta,
+      avgLatencyDelta,
+    };
+  }
+
+  private toRunResultDto(result: Run['results'][0]) {
+    return {
+      id: result.id,
+      question: result.question,
+      answer: result.answer,
+      expectedAnswer: result.expectedAnswer,
+      executionId: result.executionId,
+      executionTimeMs: result.executionTimeMs,
+      isError: result.isError,
+      errorMessage: result.errorMessage,
+      humanEvaluation: result.humanEvaluation,
+      humanEvaluationDescription: result.humanEvaluationDescription,
+      severity: result.severity,
+      llmJudgeScore: result.llmJudgeScore,
+      llmJudgeReasoning: result.llmJudgeReasoning,
+      timestamp: result.timestamp,
+    };
+  }
+
+  private toStoredRunDto(run: Run) {
+    return {
+      id: run.id,
+      testId: run.testId,
+      test: run.test ? {
+        id: run.test.id,
+        name: run.test.name,
+        description: run.test.description,
+        flowConfigId: run.test.flowConfigId,
+        accessTokenId: run.test.accessTokenId,
+        questionSetId: run.test.questionSetId,
+        multiStepEvaluation: run.test.multiStepEvaluation,
+        webhookId: run.test.webhookId,
+        createdAt: run.test.createdAt?.toISOString(),
+        updatedAt: run.test.updatedAt?.toISOString(),
+      } : undefined,
+      questionSetId: run.questionSetId,
+      status: run.status,
+      results: run.results.map((r) => this.toRunResultDto(r)),
+      errorMessage: run.errorMessage,
+      totalQuestions: run.totalQuestions,
+      completedQuestions: run.completedQuestions,
+      startedAt: run.startedAt?.toISOString(),
+      completedAt: run.completedAt?.toISOString(),
+      isFullyEvaluated: run.isFullyEvaluated,
+      evaluatedAt: run.evaluatedAt?.toISOString(),
+      createdAt: run.createdAt?.toISOString(),
+      updatedAt: run.updatedAt?.toISOString(),
     };
   }
 }

@@ -19,6 +19,7 @@ import {
 import { Run, RunStatus } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RunComparison } from '@agent-eval/shared';
 
 @Controller('runs')
 @UseGuards(JwtAuthGuard)
@@ -81,6 +82,15 @@ export class RunsController {
     @CurrentUser() user: { userId: string; email: string },
   ) {
     return this.runsService.getPerformanceStats(id, user.userId);
+  }
+
+  @Get(':id/compare/:otherId')
+  async compareRuns(
+    @Param('id') id: string,
+    @Param('otherId') otherId: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<RunComparison> {
+    return this.runsService.compareRuns(id, otherId, user.userId);
   }
 
   @Put(':id')

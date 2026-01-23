@@ -29,6 +29,7 @@ import {
   UpdateResultEvaluationRequest,
   RunStats,
   PerformanceStats,
+  RunComparison,
   PaginatedResponse,
   TestsFilterParams,
   RunsFilterParams,
@@ -787,6 +788,13 @@ export class AgentEvalClient {
 
   async getRunPerformance(id: string): Promise<ApiResponse<PerformanceStats>> {
     return this.request<PerformanceStats>(`/runs/${id}/performance`);
+  }
+
+  async compareRuns(
+    runId: string,
+    otherRunId: string,
+  ): Promise<ApiResponse<RunComparison>> {
+    return this.request<RunComparison>(`/runs/${runId}/compare/${otherRunId}`);
   }
 
   async updateResultEvaluation(
