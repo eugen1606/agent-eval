@@ -1,10 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  StoredTag,
-  StoredTest,
-  SortDirection,
-  TagsSortField,
-} from '@agent-eval/shared';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { StoredTag, StoredTest, SortDirection, TagsSortField } from '@agent-eval/shared';
 import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
@@ -16,16 +11,10 @@ interface Props {
   selectable?: boolean;
 }
 
-const DEFAULT_COLORS = [
-  '#3B82F6', // blue
-  '#10B981', // green
-  '#F59E0B', // amber
-  '#EF4444', // red
-  '#8B5CF6', // purple
-  '#EC4899', // pink
-  '#06B6D4', // cyan
-  '#F97316', // orange
-];
+const generateRandomColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 70%, 50%)`;
+};
 
 export function TagManager({ onSelect, selectable }: Props) {
   const { showNotification } = useNotification();
@@ -34,7 +23,7 @@ export function TagManager({ onSelect, selectable }: Props) {
   const [editingTag, setEditingTag] = useState<StoredTag | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    color: DEFAULT_COLORS[0],
+    color: generateRandomColor(),
   });
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +33,7 @@ export function TagManager({ onSelect, selectable }: Props) {
     dependentTests: StoredTest[];
   }>({ open: false, id: null, dependentTests: [] });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,7 +45,7 @@ export function TagManager({ onSelect, selectable }: Props) {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const resetForm = () => {
-    setFormData({ name: '', color: DEFAULT_COLORS[0] });
+    setFormData({ name: '', color: generateRandomColor() });
     setShowForm(false);
     setEditingTag(null);
     setFormSubmitAttempted(false);
@@ -125,7 +115,7 @@ export function TagManager({ onSelect, selectable }: Props) {
     setEditingTag(tag);
     setFormData({
       name: tag.name,
-      color: tag.color || DEFAULT_COLORS[0],
+      color: tag.color || generateRandomColor(),
     });
     setShowForm(true);
   };
@@ -172,8 +162,7 @@ export function TagManager({ onSelect, selectable }: Props) {
   const handleDeleteClick = async (tagId: string) => {
     // Fetch tests that use this tag
     const response = await apiClient.getTagUsage(tagId);
-    const dependentTests =
-      response.success && response.data ? response.data.tests : [];
+    const dependentTests = response.success && response.data ? response.data.tests : [];
     setDeleteConfirm({
       open: true,
       id: tagId,
@@ -230,11 +219,7 @@ export function TagManager({ onSelect, selectable }: Props) {
             <button className="modal-btn cancel" onClick={resetForm}>
               Cancel
             </button>
-            <button
-              className="modal-btn confirm"
-              onClick={() => handleSubmit()}
-              disabled={loading}
-            >
+            <button className="modal-btn confirm" onClick={() => handleSubmit()} disabled={loading}>
               {loading ? 'Saving...' : editingTag ? 'Update Tag' : 'Save Tag'}
             </button>
           </>
@@ -247,12 +232,8 @@ export function TagManager({ onSelect, selectable }: Props) {
               type="text"
               placeholder="Enter tag name"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className={
-                formSubmitAttempted && !formData.name ? 'input-error' : ''
-              }
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
             {formSubmitAttempted && !formData.name && (
               <span className="field-error">Tag name is required</span>
@@ -261,24 +242,19 @@ export function TagManager({ onSelect, selectable }: Props) {
           <div className="form-group">
             <label>Color</label>
             <div className="color-picker">
-              {DEFAULT_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  className={`color-swatch ${formData.color === color ? 'selected' : ''}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setFormData({ ...formData, color })}
-                  title={color}
-                />
-              ))}
+              <button
+                type="button"
+                className="color-preview-btn"
+                style={{ backgroundColor: formData.color }}
+                onClick={() => colorInputRef.current?.click()}
+                title="Click to change color"
+              />
               <input
+                ref={colorInputRef}
                 type="color"
                 value={formData.color}
-                onChange={(e) =>
-                  setFormData({ ...formData, color: e.target.value })
-                }
-                className="color-input"
-                title="Custom color"
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                className="color-input-hidden"
               />
             </div>
           </div>
@@ -299,10 +275,7 @@ export function TagManager({ onSelect, selectable }: Props) {
           tags.map((tag) => (
             <div key={tag.id} className="manager-item">
               <div className="item-info">
-                <span
-                  className="tag-chip"
-                  style={{ backgroundColor: tag.color || DEFAULT_COLORS[0] }}
-                >
+                <span className="tag-chip" style={{ backgroundColor: tag.color || '#3B82F6' }}>
                   {tag.name}
                 </span>
               </div>
@@ -312,16 +285,10 @@ export function TagManager({ onSelect, selectable }: Props) {
                     Select
                   </button>
                 )}
-                <button
-                  onClick={() => handleEdit(tag)}
-                  className="edit-btn"
-                >
+                <button onClick={() => handleEdit(tag)} className="edit-btn">
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDeleteClick(tag.id)}
-                  className="delete-btn"
-                >
+                <button onClick={() => handleDeleteClick(tag.id)} className="delete-btn">
                   Delete
                 </button>
               </div>
@@ -344,9 +311,7 @@ export function TagManager({ onSelect, selectable }: Props) {
 
       <ConfirmDialog
         isOpen={deleteConfirm.open}
-        onClose={() =>
-          setDeleteConfirm({ open: false, id: null, dependentTests: [] })
-        }
+        onClose={() => setDeleteConfirm({ open: false, id: null, dependentTests: [] })}
         onConfirm={handleDelete}
         title="Delete Tag"
         message={

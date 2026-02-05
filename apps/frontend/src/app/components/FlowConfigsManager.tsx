@@ -14,6 +14,7 @@ import {
 } from './FilterBar';
 import { Pagination } from './Pagination';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename, ImportModal } from './exportImportUtils';
 
 interface Props {
   onSelect?: (flowConfig: StoredFlowConfig) => void;
@@ -38,6 +39,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     id: string | null;
   }>({ open: false, id: null });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,13 +182,35 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     }
   };
 
+  const handleExport = async (fc: StoredFlowConfig) => {
+    const response = await apiClient.exportConfig({
+      types: ['flowConfigs'],
+      flowConfigIds: [fc.id],
+    });
+
+    if (response.success && response.data) {
+      downloadExportBundle(
+        response.data,
+        generateExportFilename('flow-config', fc.name)
+      );
+      showNotification('success', `Exported "${fc.name}"`);
+    } else {
+      showNotification('error', response.error || 'Export failed');
+    }
+  };
+
   const hasNoFlowConfigs = totalItems === 0 && !searchTerm;
 
   return (
     <div className="manager-section">
       <div className="manager-header">
         <h3>Flow Configurations</h3>
-        <button onClick={() => setShowForm(true)}>+ Add Flow Config</button>
+        <div className="header-actions">
+          <button onClick={() => setShowImportModal(true)} className="import-btn">
+            Import
+          </button>
+          <button onClick={() => setShowForm(true)}>+ Add Flow Config</button>
+        </div>
       </div>
 
       {!hasNoFlowConfigs && (
@@ -321,6 +345,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
                     Select
                   </button>
                 )}
+                <button onClick={() => handleExport(fc)} className="export-btn">
+                  Export
+                </button>
                 <button onClick={() => handleEdit(fc)} className="edit-btn">
                   Edit
                 </button>
@@ -356,6 +383,14 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
         message="Are you sure you want to delete this flow configuration? This action cannot be undone."
         confirmText="Delete"
         variant="danger"
+      />
+
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={loadFlowConfigs}
+        entityType="Flow Config"
+        showNotification={showNotification}
       />
     </div>
   );

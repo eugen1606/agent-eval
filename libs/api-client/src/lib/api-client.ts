@@ -39,6 +39,11 @@ import {
   WebhooksFilterParams,
   FlowConfigsFilterParams,
   TagsFilterParams,
+  ExportBundle,
+  ExportOptions,
+  ImportPreviewResult,
+  ImportResult,
+  ConflictStrategy,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -824,6 +829,46 @@ export class AgentEvalClient {
   // Stream run execution (returns EventSource URL for SSE)
   getRunStreamUrl(runId: string): string {
     return `${this.apiUrl}/runs/${runId}/stream`;
+  }
+
+  // Export/Import
+  async exportConfig(options: ExportOptions): Promise<ApiResponse<ExportBundle>> {
+    const params = new URLSearchParams();
+    options.types.forEach((t) => params.append('types', t));
+    if (options.testIds)
+      options.testIds.forEach((id) => params.append('testIds', id));
+    if (options.questionSetIds)
+      options.questionSetIds.forEach((id) => params.append('questionSetIds', id));
+    if (options.flowConfigIds)
+      options.flowConfigIds.forEach((id) => params.append('flowConfigIds', id));
+    if (options.tagIds)
+      options.tagIds.forEach((id) => params.append('tagIds', id));
+    if (options.webhookIds)
+      options.webhookIds.forEach((id) => params.append('webhookIds', id));
+    if (options.runIds)
+      options.runIds.forEach((id) => params.append('runIds', id));
+    const query = params.toString();
+    return this.request<ExportBundle>(`/export?${query}`);
+  }
+
+  async previewImport(bundle: ExportBundle): Promise<ApiResponse<ImportPreviewResult>> {
+    return this.request<ImportPreviewResult>('/export/preview', {
+      method: 'POST',
+      body: JSON.stringify(bundle),
+    });
+  }
+
+  async importConfig(
+    bundle: ExportBundle,
+    conflictStrategy: ConflictStrategy,
+  ): Promise<ApiResponse<ImportResult>> {
+    return this.request<ImportResult>('/export/import', {
+      method: 'POST',
+      body: JSON.stringify({
+        bundle,
+        options: { conflictStrategy },
+      }),
+    });
   }
 }
 

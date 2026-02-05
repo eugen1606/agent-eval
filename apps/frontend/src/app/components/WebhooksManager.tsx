@@ -13,6 +13,7 @@ import { useNotification } from '../context/NotificationContext';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename, ImportModal } from './exportImportUtils';
 
 const EVENT_LABELS: Record<WebhookEvent, string> = {
   'run.running': 'Run Started',
@@ -55,20 +56,25 @@ function KeyValueEditor({
   supportsVariables?: boolean;
 }) {
   const addPair = () => {
-    onChange([...pairs, { key: '', value: '' }]);
+    onChange([
+      ...pairs,
+      {
+        key: '',
+        value: '',
+      },
+    ]);
   };
 
   const removePair = (index: number) => {
     onChange(pairs.filter((_, i) => i !== index));
   };
 
-  const updatePair = (
-    index: number,
-    field: 'key' | 'value',
-    value: string
-  ) => {
+  const updatePair = (index: number, field: 'key' | 'value', value: string) => {
     const newPairs = [...pairs];
-    newPairs[index] = { ...newPairs[index], [field]: value };
+    newPairs[index] = {
+      ...newPairs[index],
+      [field]: value,
+    };
     onChange(newPairs);
   };
 
@@ -82,9 +88,7 @@ function KeyValueEditor({
           + Add {labelText.toLowerCase().replace('s', '')}
         </button>
       </div>
-      {supportsVariables && (
-        <span className="form-hint">Supports {'{{variable}}'} syntax</span>
-      )}
+      {supportsVariables && <span className="form-hint">Supports {'{{variable}}'} syntax</span>}
       <div className="key-value-editor">
         {pairs.map((pair, index) => (
           <div key={index} className="key-value-row">
@@ -113,9 +117,7 @@ function KeyValueEditor({
           </div>
         ))}
         {pairs.length === 0 && (
-          <div className="empty-kv-hint">
-            No {labelText.toLowerCase()} configured
-          </div>
+          <div className="empty-kv-hint">No {labelText.toLowerCase()} configured</div>
         )}
       </div>
     </div>
@@ -156,11 +158,7 @@ function VariableHelper({
       </div>
       <div className="variable-list">
         {filteredVariables.map((v) => (
-          <div
-            key={v.name}
-            className="variable-item"
-            onClick={() => onInsert(`{{${v.name}}}`)}
-          >
+          <div key={v.name} className="variable-item" onClick={() => onInsert(`{{${v.name}}}`)}>
             <div className="variable-item-top">
               <code className="variable-name">{`{{${v.name}}}`}</code>
             </div>
@@ -198,17 +196,24 @@ export function WebhooksManager() {
     open: boolean;
     id: string | null;
     dependentTests: StoredTest[];
-  }>({ open: false, id: null, dependentTests: [] });
+  }>({
+    open: false,
+    id: null,
+    dependentTests: [],
+  });
   const [testResult, setTestResult] = useState<{
     open: boolean;
     success: boolean;
     message: string;
-  }>({ open: false, success: false, message: '' });
+  }>({
+    open: false,
+    success: false,
+    message: '',
+  });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
-  const [bodyTemplateError, setBodyTemplateError] = useState<string | null>(
-    null
-  );
+  const [bodyTemplateError, setBodyTemplateError] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -226,10 +231,7 @@ export function WebhooksManager() {
       page: currentPage,
       limit: itemsPerPage,
       search: searchTerm || undefined,
-      enabled:
-        filters.enabled !== undefined
-          ? filters.enabled === 'true'
-          : undefined,
+      enabled: filters.enabled !== undefined ? filters.enabled === 'true' : undefined,
       event: filters.event as WebhookEvent | undefined,
       sortBy,
       sortDirection,
@@ -265,8 +267,14 @@ export function WebhooksManager() {
         label: 'Status',
         type: 'select',
         options: [
-          { value: 'true', label: 'Enabled' },
-          { value: 'false', label: 'Disabled' },
+          {
+            value: 'true',
+            label: 'Enabled',
+          },
+          {
+            value: 'false',
+            label: 'Disabled',
+          },
         ],
       },
       {
@@ -284,9 +292,18 @@ export function WebhooksManager() {
 
   // Sort options
   const sortOptions: SortOption[] = [
-    { value: 'createdAt', label: 'Date Created' },
-    { value: 'updatedAt', label: 'Date Updated' },
-    { value: 'name', label: 'Name' },
+    {
+      value: 'createdAt',
+      label: 'Date Created',
+    },
+    {
+      value: 'updatedAt',
+      label: 'Date Updated',
+    },
+    {
+      value: 'name',
+      label: 'Name',
+    },
   ];
 
   // Active filters
@@ -313,13 +330,18 @@ export function WebhooksManager() {
 
   // Handlers
   const handleFilterAdd = (key: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
     setCurrentPage(1);
   };
 
   const handleFilterRemove = (key: string) => {
     setFilters((prev) => {
-      const next = { ...prev };
+      const next = {
+        ...prev,
+      };
       delete next[key];
       return next;
     });
@@ -344,9 +366,7 @@ export function WebhooksManager() {
     setCurrentPage(1);
   };
 
-  const keyValuePairsToObject = (
-    pairs: KeyValuePair[]
-  ): Record<string, string> => {
+  const keyValuePairsToObject = (pairs: KeyValuePair[]): Record<string, string> => {
     const obj: Record<string, string> = {};
     for (const pair of pairs) {
       if (pair.key.trim()) {
@@ -356,11 +376,12 @@ export function WebhooksManager() {
     return obj;
   };
 
-  const objectToKeyValuePairs = (
-    obj: Record<string, string> | undefined
-  ): KeyValuePair[] => {
+  const objectToKeyValuePairs = (obj: Record<string, string> | undefined): KeyValuePair[] => {
     if (!obj) return [];
-    return Object.entries(obj).map(([key, value]) => ({ key, value }));
+    return Object.entries(obj).map(([key, value]) => ({
+      key,
+      value,
+    }));
   };
 
   const validateBodyTemplate = (template: string): boolean => {
@@ -406,8 +427,7 @@ export function WebhooksManager() {
         secret: formData.secret || undefined,
         method: formData.method,
         headers: Object.keys(headersObj).length > 0 ? headersObj : undefined,
-        queryParams:
-          Object.keys(queryParamsObj).length > 0 ? queryParamsObj : undefined,
+        queryParams: Object.keys(queryParamsObj).length > 0 ? queryParamsObj : undefined,
         bodyTemplate: bodyTemplateObj,
       };
 
@@ -423,17 +443,13 @@ export function WebhooksManager() {
         loadWebhooks();
         showNotification(
           'success',
-          editingId
-            ? 'Webhook updated successfully'
-            : 'Webhook created successfully'
+          editingId ? 'Webhook updated successfully' : 'Webhook created successfully'
         );
       } else {
         setFormError(response.error || 'Failed to save webhook');
       }
     } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : 'Failed to save webhook'
-      );
+      setFormError(error instanceof Error ? error.message : 'Failed to save webhook');
     }
     setLoading(false);
   };
@@ -479,16 +495,26 @@ export function WebhooksManager() {
 
   const handleDeleteClick = async (webhookId: string) => {
     // Fetch tests that use this webhook
-    const response = await apiClient.getTests({ webhookId, limit: 100 });
-    const dependentTests =
-      response.success && response.data ? response.data.data : [];
-    setDeleteConfirm({ open: true, id: webhookId, dependentTests });
+    const response = await apiClient.getTests({
+      webhookId,
+      limit: 100,
+    });
+    const dependentTests = response.success && response.data ? response.data.data : [];
+    setDeleteConfirm({
+      open: true,
+      id: webhookId,
+      dependentTests,
+    });
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
     const response = await apiClient.deleteWebhook(deleteConfirm.id);
-    setDeleteConfirm({ open: false, id: null, dependentTests: [] });
+    setDeleteConfirm({
+      open: false,
+      id: null,
+      dependentTests: [],
+    });
     if (response.success) {
       loadWebhooks();
       showNotification('success', 'Webhook deleted successfully');
@@ -524,6 +550,20 @@ export function WebhooksManager() {
     }
   };
 
+  const handleExport = async (webhook: StoredWebhook) => {
+    const response = await apiClient.exportConfig({
+      types: ['webhooks'],
+      webhookIds: [webhook.id],
+    });
+
+    if (response.success && response.data) {
+      downloadExportBundle(response.data, generateExportFilename('webhook', webhook.name));
+      showNotification('success', `Exported "${webhook.name}"`);
+    } else {
+      showNotification('error', response.error || 'Export failed');
+    }
+  };
+
   const toggleEvent = (event: WebhookEvent) => {
     setFormData((prev) => ({
       ...prev,
@@ -544,7 +584,12 @@ export function WebhooksManager() {
     <div className="manager-section">
       <div className="manager-header">
         <h3>Webhooks</h3>
-        <button onClick={() => setShowForm(true)}>+ Add Webhook</button>
+        <div className="header-actions">
+          <button onClick={() => setShowImportModal(true)} className="import-btn">
+            Import
+          </button>
+          <button onClick={() => setShowForm(true)}>+ Add Webhook</button>
+        </div>
       </div>
 
       {!hasNoWebhooks && (
@@ -576,11 +621,7 @@ export function WebhooksManager() {
             <button className="modal-btn cancel" onClick={resetForm}>
               Cancel
             </button>
-            <button
-              className="modal-btn confirm"
-              onClick={() => handleSubmit()}
-              disabled={loading}
-            >
+            <button className="modal-btn confirm" onClick={() => handleSubmit()} disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update' : 'Save'}
             </button>
           </>
@@ -596,11 +637,12 @@ export function WebhooksManager() {
                   placeholder="My Integration"
                   value={formData.name}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({
+                      ...formData,
+                      name: e.target.value,
+                    })
                   }
-                  className={
-                    formSubmitAttempted && !formData.name ? 'input-error' : ''
-                  }
+                  className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
                 />
                 {formSubmitAttempted && !formData.name && (
                   <span className="field-error">Webhook name is required</span>
@@ -633,11 +675,12 @@ export function WebhooksManager() {
                     placeholder="https://example.com/webhook"
                     value={formData.url}
                     onChange={(e) =>
-                      setFormData({ ...formData, url: e.target.value })
+                      setFormData({
+                        ...formData,
+                        url: e.target.value,
+                      })
                     }
-                    className={
-                      formSubmitAttempted && !formData.url ? 'input-error' : ''
-                    }
+                    className={formSubmitAttempted && !formData.url ? 'input-error' : ''}
                   />
                   {formSubmitAttempted && !formData.url && (
                     <span className="field-error">Webhook URL is required</span>
@@ -648,29 +691,30 @@ export function WebhooksManager() {
               <div className="form-group">
                 <label>Events *</label>
                 <div className="events-list">
-                  {(Object.keys(EVENT_LABELS) as WebhookEvent[]).map(
-                    (event) => (
-                      <label key={event} className="event-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={formData.events.includes(event)}
-                          onChange={() => toggleEvent(event)}
-                        />
-                        {EVENT_LABELS[event]}
-                      </label>
-                    )
-                  )}
+                  {(Object.keys(EVENT_LABELS) as WebhookEvent[]).map((event) => (
+                    <label key={event} className="event-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={formData.events.includes(event)}
+                        onChange={() => toggleEvent(event)}
+                      />
+                      {EVENT_LABELS[event]}
+                    </label>
+                  ))}
                 </div>
                 {formSubmitAttempted && formData.events.length === 0 && (
-                  <span className="field-error">
-                    At least one event must be selected
-                  </span>
+                  <span className="field-error">At least one event must be selected</span>
                 )}
               </div>
 
               <KeyValueEditor
                 pairs={formData.headers}
-                onChange={(headers) => setFormData({ ...formData, headers })}
+                onChange={(headers) =>
+                  setFormData({
+                    ...formData,
+                    headers,
+                  })
+                }
                 label="Headers (optional)"
                 keyPlaceholder="Header name"
                 valuePlaceholder="Header value"
@@ -680,7 +724,10 @@ export function WebhooksManager() {
               <KeyValueEditor
                 pairs={formData.queryParams}
                 onChange={(queryParams) =>
-                  setFormData({ ...formData, queryParams })
+                  setFormData({
+                    ...formData,
+                    queryParams,
+                  })
                 }
                 label="Query Parameters (optional)"
                 keyPlaceholder="Parameter name"
@@ -694,15 +741,16 @@ export function WebhooksManager() {
                   className={`body-template-editor ${bodyTemplateError ? 'input-error' : ''}`}
                   value={formData.bodyTemplate}
                   onChange={(e) => {
-                    setFormData({ ...formData, bodyTemplate: e.target.value });
+                    setFormData({
+                      ...formData,
+                      bodyTemplate: e.target.value,
+                    });
                     validateBodyTemplate(e.target.value);
                   }}
                   rows={10}
                   placeholder="Enter JSON body template..."
                 />
-                {bodyTemplateError && (
-                  <span className="field-error">{bodyTemplateError}</span>
-                )}
+                {bodyTemplateError && <span className="field-error">{bodyTemplateError}</span>}
                 <span className="form-hint">
                   Use {'{{variableName}}'} syntax to insert dynamic values
                 </span>
@@ -715,12 +763,13 @@ export function WebhooksManager() {
                   placeholder="Shared secret for signature verification"
                   value={formData.secret}
                   onChange={(e) =>
-                    setFormData({ ...formData, secret: e.target.value })
+                    setFormData({
+                      ...formData,
+                      secret: e.target.value,
+                    })
                   }
                 />
-                <span className="form-hint">
-                  Used to sign webhook payloads with HMAC-SHA256
-                </span>
+                <span className="form-hint">Used to sign webhook payloads with HMAC-SHA256</span>
               </div>
 
               <div className="form-group">
@@ -730,7 +779,10 @@ export function WebhooksManager() {
                   placeholder="What this webhook is used for"
                   value={formData.description}
                   onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
+                    setFormData({
+                      ...formData,
+                      description: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -773,9 +825,7 @@ export function WebhooksManager() {
                 </span>
                 <span className="method-badge">{webhook.method || 'POST'}</span>
                 <span className="item-meta">{webhook.url}</span>
-                {webhook.description && (
-                  <span className="item-desc">{webhook.description}</span>
-                )}
+                {webhook.description && <span className="item-desc">{webhook.description}</span>}
                 <div className="webhook-events">
                   {webhook.events.map((event) => (
                     <span key={event} className="event-badge">
@@ -785,28 +835,19 @@ export function WebhooksManager() {
                 </div>
               </div>
               <div className="item-actions">
-                <button
-                  onClick={() => handleTest(webhook.id)}
-                  className="test-btn"
-                >
+                <button onClick={() => handleTest(webhook.id)} className="test-btn">
                   Test
                 </button>
-                <button
-                  onClick={() => handleToggle(webhook.id)}
-                  className="toggle-btn"
-                >
+                <button onClick={() => handleExport(webhook)} className="export-btn">
+                  Export
+                </button>
+                <button onClick={() => handleToggle(webhook.id)} className="toggle-btn">
                   {webhook.enabled ? 'Disable' : 'Enable'}
                 </button>
-                <button
-                  onClick={() => handleEdit(webhook)}
-                  className="edit-btn"
-                >
+                <button onClick={() => handleEdit(webhook)} className="edit-btn">
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDeleteClick(webhook.id)}
-                  className="delete-btn"
-                >
+                <button onClick={() => handleDeleteClick(webhook.id)} className="delete-btn">
                   Delete
                 </button>
               </div>
@@ -830,7 +871,11 @@ export function WebhooksManager() {
       <ConfirmDialog
         isOpen={deleteConfirm.open}
         onClose={() =>
-          setDeleteConfirm({ open: false, id: null, dependentTests: [] })
+          setDeleteConfirm({
+            open: false,
+            id: null,
+            dependentTests: [],
+          })
         }
         onConfirm={handleDelete}
         title="Delete Webhook"
@@ -846,10 +891,22 @@ export function WebhooksManager() {
       <AlertDialog
         isOpen={testResult.open}
         onClose={() =>
-          setTestResult({ open: false, success: false, message: '' })
+          setTestResult({
+            open: false,
+            success: false,
+            message: '',
+          })
         }
         title={testResult.success ? 'Test Successful' : 'Test Failed'}
         message={testResult.message}
+      />
+
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={loadWebhooks}
+        entityType="Webhook"
+        showNotification={showNotification}
       />
     </div>
   );

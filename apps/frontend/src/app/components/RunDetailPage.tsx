@@ -11,6 +11,7 @@ import {
 import { Pagination } from './Pagination';
 import { useNotification } from '../context/NotificationContext';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename } from './exportImportUtils';
 
 interface CompareableRun {
   id: string;
@@ -29,9 +30,7 @@ export function RunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [pendingUpdates, setPendingUpdates] = useState<
-    Map<string, Partial<RunResult>>
-  >(new Map());
+  const [pendingUpdates, setPendingUpdates] = useState<Map<string, Partial<RunResult>>>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -136,19 +135,13 @@ export function RunDetailPage() {
     });
   };
 
-  const handleHumanEvaluation = (
-    resultId: string,
-    status: HumanEvaluationStatus,
-  ) => {
+  const handleHumanEvaluation = (resultId: string, status: HumanEvaluationStatus) => {
     const result = run?.results.find((r) => r.id === resultId);
     if (result?.isError) return;
     updateLocalResult(resultId, { humanEvaluation: status });
   };
 
-  const handleSeverityChange = (
-    resultId: string,
-    severity: IncorrectSeverity,
-  ) => {
+  const handleSeverityChange = (resultId: string, severity: IncorrectSeverity) => {
     updateLocalResult(resultId, { severity });
   };
 
@@ -170,14 +163,12 @@ export function RunDetailPage() {
     if (!id || pendingUpdates.size === 0) return;
 
     setSaving(true);
-    const updates = Array.from(pendingUpdates.entries()).map(
-      ([resultId, data]) => ({
-        resultId,
-        humanEvaluation: data.humanEvaluation,
-        humanEvaluationDescription: data.humanEvaluationDescription,
-        severity: data.severity,
-      }),
-    );
+    const updates = Array.from(pendingUpdates.entries()).map(([resultId, data]) => ({
+      resultId,
+      humanEvaluation: data.humanEvaluation,
+      humanEvaluationDescription: data.humanEvaluationDescription,
+      severity: data.severity,
+    }));
 
     const response = await apiClient.bulkUpdateResultEvaluations(id, updates);
     if (response.success) {
@@ -197,6 +188,21 @@ export function RunDetailPage() {
 
   const hasUnsavedChanges = pendingUpdates.size > 0;
 
+  const handleExport = async () => {
+    if (!run) return;
+    const response = await apiClient.exportConfig({
+      types: ['runs'],
+      runIds: [run.id],
+    });
+    if (response.success && response.data) {
+      const filename = generateExportFilename('run', run.test?.name || run.id);
+      downloadExportBundle(response.data, filename);
+      showNotification('success', 'Run exported successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to export run');
+    }
+  };
+
   // Block all navigation (back button, links, etc.) when there are unsaved changes
   const blocker = useBlocker(hasUnsavedChanges);
 
@@ -204,7 +210,7 @@ export function RunDetailPage() {
   useEffect(() => {
     if (blocker.state === 'blocked') {
       const shouldLeave = window.confirm(
-        'You have unsaved changes. Are you sure you want to leave this page?',
+        'You have unsaved changes. Are you sure you want to leave this page?'
       );
       if (shouldLeave) {
         blocker.proceed();
@@ -220,8 +226,7 @@ export function RunDetailPage() {
       if (hasUnsavedChanges) {
         e.preventDefault();
         // Modern browsers ignore custom messages, but this is still required
-        e.returnValue =
-          'You have unsaved changes. Are you sure you want to leave?';
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
         return e.returnValue;
       }
     };
@@ -254,9 +259,7 @@ export function RunDetailPage() {
         </button>
         <div className="run-title">
           <h2>{run.test?.name || 'Unknown Test'}</h2>
-          <span className={`status-badge badge-${run.status}`}>
-            {run.status}
-          </span>
+          <span className={`status-badge badge-${run.status}`}>{run.status}</span>
         </div>
         {otherRuns.length > 0 && run.status === 'completed' && (
           <select
@@ -278,15 +281,16 @@ export function RunDetailPage() {
             ))}
           </select>
         )}
-        {hasUnsavedChanges && (
-          <button
-            className="save-btn"
-            onClick={saveEvaluations}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : `Save (${pendingUpdates.size} changes)`}
-          </button>
-        )}
+        <button className="export-btn" onClick={handleExport}>
+          Export
+        </button>
+        <button
+          className="save-btn"
+          onClick={saveEvaluations}
+          disabled={saving || !hasUnsavedChanges}
+        >
+          {saving ? 'Saving...' : hasUnsavedChanges ? `Save (${pendingUpdates.size} changes)` : 'Save'}
+        </button>
       </div>
 
       {/* Stats Summary */}
@@ -369,8 +373,7 @@ export function RunDetailPage() {
             <input
               type="checkbox"
               checked={
-                selectedIds.size === evaluatableResults.length &&
-                evaluatableResults.length > 0
+                selectedIds.size === evaluatableResults.length && evaluatableResults.length > 0
               }
               onChange={selectAll}
             />
@@ -379,22 +382,13 @@ export function RunDetailPage() {
           {selectedIds.size > 0 && (
             <div className="bulk-buttons">
               <span>Bulk assign:</span>
-              <button
-                className="eval-btn correct"
-                onClick={() => bulkAssign('correct')}
-              >
+              <button className="eval-btn correct" onClick={() => bulkAssign('correct')}>
                 Correct
               </button>
-              <button
-                className="eval-btn partial"
-                onClick={() => bulkAssign('partial')}
-              >
+              <button className="eval-btn partial" onClick={() => bulkAssign('partial')}>
                 Partial
               </button>
-              <button
-                className="eval-btn incorrect"
-                onClick={() => bulkAssign('incorrect')}
-              >
+              <button className="eval-btn incorrect" onClick={() => bulkAssign('incorrect')}>
                 Incorrect
               </button>
             </div>
@@ -409,9 +403,7 @@ export function RunDetailPage() {
           return (
             <div
               key={result.id}
-              className={`result-card ${result.isError ? 'error' : ''} ${
-                selectedIds.has(result.id) ? 'selected' : ''
-              }`}
+              className={`result-card ${result.isError ? 'error' : ''} ${selectedIds.has(result.id) ? 'selected' : ''}`}
             >
               <div className="result-select">
                 <input
@@ -422,24 +414,18 @@ export function RunDetailPage() {
                 />
               </div>
               <div className="result-content">
-                {result.isError && (
-                  <div className="result-error-badge">ERROR</div>
-                )}
+                {result.isError && <div className="result-error-badge">ERROR</div>}
                 <div className="result-question">
                   <strong>Question:</strong> {result.question}
                 </div>
 
-                <div
-                  className={`result-answer ${result.isError ? 'error-text' : ''}`}
-                >
+                <div className={`result-answer ${result.isError ? 'error-text' : ''}`}>
                   <strong>Answer:</strong> {result.answer}
                 </div>
 
                 <div className="result-expected">
                   <strong>Expected:</strong>{' '}
-                  {result.expectedAnswer || (
-                    <span className="na-value">N/A</span>
-                  )}
+                  {result.expectedAnswer || <span className="na-value">N/A</span>}
                 </div>
 
                 <div className="result-meta">
@@ -450,8 +436,7 @@ export function RunDetailPage() {
                   )}
                   {result.executionId && (
                     <span className="result-execution-id">
-                      <strong>Execution ID:</strong>{' '}
-                      <code>{result.executionId}</code>
+                      <strong>Execution ID:</strong> <code>{result.executionId}</code>
                     </span>
                   )}
                 </div>
@@ -461,38 +446,20 @@ export function RunDetailPage() {
                     <div className="result-actions">
                       <span>Human Evaluation:</span>
                       <button
-                        className={`eval-btn ${
-                          displayResult.humanEvaluation === 'correct'
-                            ? 'active correct'
-                            : ''
-                        }`}
-                        onClick={() =>
-                          handleHumanEvaluation(result.id, 'correct')
-                        }
+                        className={`eval-btn ${displayResult.humanEvaluation === 'correct' ? 'active correct' : ''}`}
+                        onClick={() => handleHumanEvaluation(result.id, 'correct')}
                       >
                         Correct
                       </button>
                       <button
-                        className={`eval-btn ${
-                          displayResult.humanEvaluation === 'partial'
-                            ? 'active partial'
-                            : ''
-                        }`}
-                        onClick={() =>
-                          handleHumanEvaluation(result.id, 'partial')
-                        }
+                        className={`eval-btn ${displayResult.humanEvaluation === 'partial' ? 'active partial' : ''}`}
+                        onClick={() => handleHumanEvaluation(result.id, 'partial')}
                       >
                         Partial
                       </button>
                       <button
-                        className={`eval-btn ${
-                          displayResult.humanEvaluation === 'incorrect'
-                            ? 'active incorrect'
-                            : ''
-                        }`}
-                        onClick={() =>
-                          handleHumanEvaluation(result.id, 'incorrect')
-                        }
+                        className={`eval-btn ${displayResult.humanEvaluation === 'incorrect' ? 'active incorrect' : ''}`}
+                        onClick={() => handleHumanEvaluation(result.id, 'incorrect')}
                       >
                         Incorrect
                       </button>
@@ -502,38 +469,20 @@ export function RunDetailPage() {
                       <div className="result-severity">
                         <span>Severity:</span>
                         <button
-                          className={`severity-btn ${
-                            displayResult.severity === 'critical'
-                              ? 'active critical'
-                              : ''
-                          }`}
-                          onClick={() =>
-                            handleSeverityChange(result.id, 'critical')
-                          }
+                          className={`severity-btn ${displayResult.severity === 'critical' ? 'active critical' : ''}`}
+                          onClick={() => handleSeverityChange(result.id, 'critical')}
                         >
                           Critical
                         </button>
                         <button
-                          className={`severity-btn ${
-                            displayResult.severity === 'major'
-                              ? 'active major'
-                              : ''
-                          }`}
-                          onClick={() =>
-                            handleSeverityChange(result.id, 'major')
-                          }
+                          className={`severity-btn ${displayResult.severity === 'major' ? 'active major' : ''}`}
+                          onClick={() => handleSeverityChange(result.id, 'major')}
                         >
                           Major
                         </button>
                         <button
-                          className={`severity-btn ${
-                            displayResult.severity === 'minor'
-                              ? 'active minor'
-                              : ''
-                          }`}
-                          onClick={() =>
-                            handleSeverityChange(result.id, 'minor')
-                          }
+                          className={`severity-btn ${displayResult.severity === 'minor' ? 'active minor' : ''}`}
+                          onClick={() => handleSeverityChange(result.id, 'minor')}
                         >
                           Minor
                         </button>
@@ -545,16 +494,13 @@ export function RunDetailPage() {
                         type="text"
                         placeholder="Add evaluation notes (optional)"
                         value={displayResult.humanEvaluationDescription || ''}
-                        onChange={(e) =>
-                          handleDescriptionChange(result.id, e.target.value)
-                        }
+                        onChange={(e) => handleDescriptionChange(result.id, e.target.value)}
                       />
                     </div>
                   </>
                 ) : (
                   <div className="result-error-note">
-                    This result cannot be evaluated due to an error during
-                    execution.
+                    This result cannot be evaluated due to an error during execution.
                   </div>
                 )}
               </div>

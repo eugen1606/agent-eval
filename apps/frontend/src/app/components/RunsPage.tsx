@@ -1,28 +1,12 @@
-import React, {
-  useEffect,
-  useState,
-  useCallback,
-  useRef,
-  useMemo,
-} from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  StoredRun,
-  RunStatus,
-  StoredTest,
-  RunsSortField,
-  SortDirection,
-} from '@agent-eval/shared';
+import { StoredRun, RunStatus, StoredTest, RunsSortField, SortDirection } from '@agent-eval/shared';
 import { ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
-import {
-  FilterBar,
-  FilterDefinition,
-  SortOption,
-  ActiveFilter,
-} from './FilterBar';
+import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { useNotification } from '../context/NotificationContext';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename } from './exportImportUtils';
 
 type RunStatusBadge = {
   [key: string]: { label: string; className: string };
@@ -93,9 +77,7 @@ export function RunsPage() {
       setTotalPages(response.data.pagination.totalPages);
 
       // Check if any runs are still running
-      hasRunningRunsRef.current = response.data.data.some(
-        (r) => r.status === 'running' || r.status === 'pending',
-      );
+      hasRunningRunsRef.current = response.data.data.some((r) => r.status === 'running' || r.status === 'pending');
     }
     setIsLoading(false);
   }, [currentPage, itemsPerPage, searchTerm, filters, sortBy, sortDirection]);
@@ -128,7 +110,7 @@ export function RunsPage() {
         options: tests.map((test) => ({
           value: test.id,
           label: test.name,
-          sublabel: test.flowId,
+          sublabel: test.flowConfig?.flowId,
         })),
       },
       {
@@ -150,7 +132,7 @@ export function RunsPage() {
         ],
       },
     ],
-    [tests],
+    [tests]
   );
 
   const sortOptions: SortOption[] = [
@@ -185,8 +167,7 @@ export function RunsPage() {
         key: 'status',
         value: filters.status,
         label: 'Status',
-        displayValue:
-          filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
+        displayValue: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
       });
     }
     return result;
@@ -264,12 +245,9 @@ export function RunsPage() {
 
   const getAccuracyDisplay = (run: StoredRun) => {
     if (run.status !== 'completed') return null;
-    const evaluated = run.results.filter(
-      (r) => r.humanEvaluation && !r.isError,
-    ).length;
+    const evaluated = run.results.filter((r) => r.humanEvaluation && !r.isError).length;
     const total = run.results.filter((r) => !r.isError).length;
-    if (evaluated === 0)
-      return <span className="accuracy-pending">Not evaluated</span>;
+    if (evaluated === 0) return <span className="accuracy-pending">Not evaluated</span>;
     if (evaluated < total)
       return (
         <span className="accuracy-partial">
@@ -277,17 +255,27 @@ export function RunsPage() {
         </span>
       );
 
-    const correct = run.results.filter(
-      (r) => r.humanEvaluation === 'correct',
-    ).length;
-    const partial = run.results.filter(
-      (r) => r.humanEvaluation === 'partial',
-    ).length;
+    const correct = run.results.filter((r) => r.humanEvaluation === 'correct').length;
+    const partial = run.results.filter((r) => r.humanEvaluation === 'partial').length;
     const accuracy = Math.round(((correct + partial * 0.5) / total) * 100);
     return <span className="accuracy-complete">{accuracy}% accuracy</span>;
   };
 
   const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
+
+  const handleExport = async (run: StoredRun) => {
+    const response = await apiClient.exportConfig({
+      types: ['runs'],
+      runIds: [run.id],
+    });
+    if (response.success && response.data) {
+      const filename = generateExportFilename('run', run.test?.name || run.id);
+      downloadExportBundle(response.data, filename);
+      showNotification('success', 'Run exported successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to export run');
+    }
+  };
 
   return (
     <div className="runs-page">
@@ -327,16 +315,12 @@ export function RunsPage() {
         ) : totalItems === 0 && !hasActiveFilters ? (
           <div className="empty-state">
             <p>No runs yet</p>
-            <p className="empty-hint">
-              Run a test from the Tests page to see results here
-            </p>
+            <p className="empty-hint">Run a test from the Tests page to see results here</p>
           </div>
         ) : totalItems === 0 && hasActiveFilters ? (
           <div className="empty-state">
             <p>No runs match your filters</p>
-            <p className="empty-hint">
-              Try adjusting your search or filter criteria
-            </p>
+            <p className="empty-hint">Try adjusting your search or filter criteria</p>
           </div>
         ) : (
           runs.map((run) => (
@@ -344,26 +328,17 @@ export function RunsPage() {
               <div className="run-header">
                 <div className="run-info">
                   <h3>{run.test?.name || 'Unknown Test'}</h3>
-                  <span
-                    className={`status-badge ${STATUS_BADGES[run.status]?.className}`}
-                  >
-                    {STATUS_BADGES[run.status]?.label}
-                  </span>
+                  <span className={`status-badge ${STATUS_BADGES[run.status]?.className}`}>{STATUS_BADGES[run.status]?.label}</span>
                 </div>
                 <div className="run-actions">
-                  <button
-                    className="view-btn"
-                    onClick={() => handleViewRun(run.id)}
-                  >
+                  <button className="view-btn" onClick={() => handleViewRun(run.id)}>
                     {run.status === 'completed' ? 'Evaluate' : 'View'}
                   </button>
+                  <button className="export-btn" onClick={() => handleExport(run)}>
+                    Export
+                  </button>
                   {(run.status === 'running' || run.status === 'pending') && (
-                    <button
-                      className="cancel-btn"
-                      onClick={() =>
-                        setCancelConfirm({ open: true, id: run.id })
-                      }
-                    >
+                    <button className="cancel-btn" onClick={() => setCancelConfirm({ open: true, id: run.id })}>
                       Cancel
                     </button>
                   )}
@@ -376,26 +351,18 @@ export function RunsPage() {
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Started:</span>
-                  <span className="detail-value">
-                    {run.startedAt
-                      ? formatDate(run.startedAt)
-                      : formatDate(run.createdAt)}
-                  </span>
+                  <span className="detail-value">{run.startedAt ? formatDate(run.startedAt) : formatDate(run.createdAt)}</span>
                 </div>
                 {run.completedAt && (
                   <div className="detail-row">
                     <span className="detail-label">Ended:</span>
-                    <span className="detail-value">
-                      {formatDate(run.completedAt)}
-                    </span>
+                    <span className="detail-value">{formatDate(run.completedAt)}</span>
                   </div>
                 )}
                 {formatDuration(run.startedAt, run.completedAt) && (
                   <div className="detail-row">
                     <span className="detail-label">Duration:</span>
-                    <span className="detail-value">
-                      {formatDuration(run.startedAt, run.completedAt)}
-                    </span>
+                    <span className="detail-value">{formatDuration(run.startedAt, run.completedAt)}</span>
                   </div>
                 )}
                 <div className="detail-row">

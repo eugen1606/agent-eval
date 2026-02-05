@@ -1,15 +1,16 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   StoredQuestionSet,
   StoredTest,
   SortDirection,
   QuestionSetsSortField,
 } from '@agent-eval/shared';
-import { Modal, ConfirmDialog, AlertDialog } from './Modal';
+import { Modal, ConfirmDialog } from './Modal';
 import { useNotification } from '../context/NotificationContext';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { Pagination } from './Pagination';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename, ImportModal } from './exportImportUtils';
 
 interface Props {
   onSelect?: (questionSet: StoredQuestionSet) => void;
@@ -35,11 +36,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     dependentTests: StoredTest[];
   }>({ open: false, id: null, dependentTests: [] });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
-  const [importError, setImportError] = useState<{
-    message: string;
-    showSchema: boolean;
-  } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,75 +199,22 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     }
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleExport = async (qs: StoredQuestionSet) => {
+    const response = await apiClient.exportConfig({
+      types: ['questionSets'],
+      questionSetIds: [qs.id],
+    });
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
-      // Extract questions from various formats
-      let questions: unknown;
-      let name = file.name.replace(/\.json$/i, '');
-
-      if (Array.isArray(data)) {
-        questions = data;
-      } else if (data.questions && Array.isArray(data.questions)) {
-        questions = data.questions;
-        if (data.name) name = data.name;
-      } else {
-        setImportError({
-          message:
-            'Invalid JSON structure. The file must contain either an array of questions or an object with a "questions" array.',
-          showSchema: true,
-        });
-        return;
-      }
-
-      const response = await apiClient.importQuestionSet({
-        name,
-        questions,
-        description: data.description,
-      });
-
-      if (response.success) {
-        loadQuestionSets();
-        showNotification('success', 'Question set imported successfully');
-      } else {
-        setImportError({
-          message: response.error || 'Import failed',
-          showSchema: false,
-        });
-      }
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        setImportError({
-          message: 'Invalid JSON syntax. The file does not contain valid JSON.',
-          showSchema: true,
-        });
-      } else {
-        setImportError({
-          message: error instanceof Error ? error.message : 'Import failed',
-          showSchema: false,
-        });
-      }
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    if (response.success && response.data) {
+      downloadExportBundle(
+        response.data,
+        generateExportFilename('question-set', qs.name)
+      );
+      showNotification('success', `Exported "${qs.name}"`);
+    } else {
+      showNotification('error', response.error || 'Export failed');
     }
   };
-
-  const exampleJson = `[
-  { "question": "What is 2+2?", "expectedAnswer": "4" },
-  { "question": "Capital of France?" },
-  { "question": "Explain gravity" }
-]`;
 
   const hasNoQuestionSets = totalItems === 0 && !searchTerm;
 
@@ -279,15 +223,8 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       <div className="manager-header">
         <h3>Question Sets</h3>
         <div className="header-actions">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            accept=".json"
-            style={{ display: 'none' }}
-          />
-          <button onClick={handleImportClick} className="import-btn">
-            Import JSON
+          <button onClick={() => setShowImportModal(true)} className="import-btn">
+            Import
           </button>
           <button onClick={() => setShowForm(true)}>+ Add Question Set</button>
         </div>
@@ -352,7 +289,11 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           <div className="form-group">
             <label>Questions (JSON) *</label>
             <textarea
-              placeholder={exampleJson}
+              placeholder={`[
+  { "question": "What is 2+2?", "expectedAnswer": "4" },
+  { "question": "Capital of France?" },
+  { "question": "Explain gravity" }
+]`}
               value={formData.questionsJson}
               onChange={(e) => {
                 setFormData({ ...formData, questionsJson: e.target.value });
@@ -414,6 +355,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
                     Select
                   </button>
                 )}
+                <button onClick={() => handleExport(qs)} className="export-btn">
+                  Export
+                </button>
                 <button onClick={() => handleEdit(qs)} className="edit-btn">
                   Edit
                 </button>
@@ -457,38 +401,16 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
         variant="danger"
       />
 
-      <AlertDialog
-        isOpen={!!importError}
-        onClose={() => setImportError(null)}
-        title="Import Error"
-        variant="error"
-      >
-        <div className="import-error-content">
-          <p className="error-message">{importError?.message}</p>
-          {importError?.showSchema && (
-            <div className="json-schema-help">
-              <p className="schema-intro">
-                The JSON file must use this format:
-              </p>
-              <div className="schema-section">
-                <pre className="json-example">{`[
-  {
-    "question": "What is 2+2?",
-    "expectedAnswer": "4"
-  },
-  {
-    "question": "Capital of France?",
-  }
-]`}</pre>
-              </div>
-              <p className="schema-note">
-                <strong>Note:</strong> Each question must have a "question"
-                field. The "expectedAnswer" field is optional.
-              </p>
-            </div>
-          )}
-        </div>
-      </AlertDialog>
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          setShowImportModal(false);
+          loadQuestionSets();
+        }}
+        entityType="Question Sets"
+        showNotification={showNotification}
+      />
     </div>
   );
 }

@@ -11,15 +11,11 @@ import {
 } from '@agent-eval/shared';
 import { Modal, ConfirmDialog } from './Modal';
 import { Pagination } from './Pagination';
-import {
-  FilterBar,
-  FilterDefinition,
-  SortOption,
-  ActiveFilter,
-} from './FilterBar';
+import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from './FilterBar';
 import { SearchableSelect } from './SearchableSelect';
 import { useNotification } from '../context/NotificationContext';
 import { apiClient } from '../apiClient';
+import { downloadExportBundle, generateExportFilename, ImportModal } from './exportImportUtils';
 
 export function TestsPage() {
   const { showNotification } = useNotification();
@@ -43,9 +39,7 @@ export function TestsPage() {
   });
   const [loading, setLoading] = useState(false);
   // Map of testId -> runId for running tests
-  const [runningTests, setRunningTests] = useState<Map<string, string>>(
-    new Map(),
-  );
+  const [runningTests, setRunningTests] = useState<Map<string, string>>(new Map());
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
     id: string | null;
@@ -55,6 +49,7 @@ export function TestsPage() {
     testId: string | null;
   }>({ open: false, testId: null });
   const [formSubmitAttempted, setFormSubmitAttempted] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,14 +67,13 @@ export function TestsPage() {
   // Load supporting data (tokens, questions, configs, webhooks, tags) once
   useEffect(() => {
     const loadSupportingData = async () => {
-      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes, tagsRes] =
-        await Promise.all([
-          apiClient.getAccessTokens(),
-          apiClient.getQuestionSets(),
-          apiClient.getFlowConfigs(),
-          apiClient.getWebhooks(),
-          apiClient.getTags({ limit: 100 }),
-        ]);
+      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes, tagsRes] = await Promise.all([
+        apiClient.getAccessTokens(),
+        apiClient.getQuestionSets(),
+        apiClient.getFlowConfigs(),
+        apiClient.getWebhooks(),
+        apiClient.getTags({ limit: 100 }),
+      ]);
 
       if (tokensRes.success && tokensRes.data) {
         setAccessTokens(tokensRes.data.data);
@@ -170,7 +164,7 @@ export function TestsPage() {
         ],
       },
     ],
-    [questionSets, flowConfigs, tags],
+    [questionSets, flowConfigs, tags]
   );
 
   const sortOptions: SortOption[] = [
@@ -257,9 +251,7 @@ export function TestsPage() {
     setFormSubmitAttempted(true);
     if (!formData.name || !formData.flowConfigId) return;
 
-    const selectedFlowConfig = flowConfigs.find(
-      (fc) => fc.id === formData.flowConfigId,
-    );
+    const selectedFlowConfig = flowConfigs.find((fc) => fc.id === formData.flowConfigId);
     if (!selectedFlowConfig) return;
 
     setLoading(true);
@@ -286,10 +278,7 @@ export function TestsPage() {
     if (response.success) {
       resetForm();
       loadTests();
-      showNotification(
-        'success',
-        editingId ? 'Test updated successfully' : 'Test created successfully',
-      );
+      showNotification('success', editingId ? 'Test updated successfully' : 'Test created successfully');
     } else {
       showNotification('error', response.error || 'Failed to save test');
     }
@@ -357,29 +346,23 @@ export function TestsPage() {
     }
 
     try {
-      const response = await fetch(
-        `${apiClient.getApiUrl()}/tests/${testId}/run`,
-        {
-          method: 'POST',
-          headers: {
-            'X-CSRF-Token': csrfToken,
-            Accept: 'text/event-stream',
-          },
-          credentials: 'include', // Send cookies for auth
+      const response = await fetch(`${apiClient.getApiUrl()}/tests/${testId}/run`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          Accept: 'text/event-stream',
         },
-      );
+        credentials: 'include', // Send cookies for auth
+      });
 
       // Handle 401 - try to refresh token once
       if (response.status === 401 && !isRetry) {
         // Try refreshing the token
-        const refreshResponse = await fetch(
-          `${apiClient.getApiUrl()}/auth/refresh`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-          },
-        );
+        const refreshResponse = await fetch(`${apiClient.getApiUrl()}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
 
         if (refreshResponse.ok) {
           // Clear running state and retry
@@ -426,15 +409,9 @@ export function TestsPage() {
               const data = JSON.parse(line.slice(6));
               // Track run ID when run starts
               if (data.type === 'run_start' && data.runId) {
-                setRunningTests((prev) =>
-                  new Map(prev).set(testId, data.runId),
-                );
+                setRunningTests((prev) => new Map(prev).set(testId, data.runId));
               }
-              if (
-                data.type === 'complete' ||
-                data.type === 'error' ||
-                data.type === 'canceled'
-              ) {
+              if (data.type === 'complete' || data.type === 'error' || data.type === 'canceled') {
                 setRunningTests((prev) => {
                   const next = new Map(prev);
                   next.delete(testId);
@@ -457,10 +434,7 @@ export function TestsPage() {
         next.delete(testId);
         return next;
       });
-      showNotification(
-        'error',
-        error instanceof Error ? error.message : 'Failed to run test',
-      );
+      showNotification('error', error instanceof Error ? error.message : 'Failed to run test');
     }
   };
 
@@ -502,6 +476,18 @@ export function TestsPage() {
     return webhook?.name || 'Unknown';
   };
 
+  const handleExport = async (test: StoredTest) => {
+    const response = await apiClient.exportConfig({
+      types: ['tests'],
+      testIds: [test.id],
+    });
+    if (response.success && response.data) {
+      downloadExportBundle(response.data, generateExportFilename('test', test.name));
+      showNotification('success', 'Test exported successfully');
+    } else {
+      showNotification('error', response.error || 'Failed to export test');
+    }
+  };
 
   const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
 
@@ -509,9 +495,14 @@ export function TestsPage() {
     <div className="tests-page">
       <div className="page-header">
         <h2>Tests</h2>
-        <button className="primary-btn" onClick={() => setShowForm(true)}>
-          + Create Test
-        </button>
+        <div className="header-actions">
+          <button className="import-btn" onClick={() => setShowImportModal(true)}>
+            Import
+          </button>
+          <button className="primary-btn" onClick={() => setShowForm(true)}>
+            + Create Test
+          </button>
+        </div>
       </div>
 
       <Modal
@@ -524,11 +515,7 @@ export function TestsPage() {
             <button className="modal-btn cancel" onClick={resetForm}>
               Cancel
             </button>
-            <button
-              className="modal-btn confirm"
-              onClick={() => handleSubmit()}
-              disabled={loading}
-            >
+            <button className="modal-btn confirm" onClick={() => handleSubmit()} disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update' : 'Create'}
             </button>
           </>
@@ -541,16 +528,10 @@ export function TestsPage() {
               type="text"
               placeholder="e.g., Customer Support Flow Test"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className={
-                formSubmitAttempted && !formData.name ? 'input-error' : ''
-              }
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={formSubmitAttempted && !formData.name ? 'input-error' : ''}
             />
-            {formSubmitAttempted && !formData.name && (
-              <span className="field-error">Test name is required</span>
-            )}
+            {formSubmitAttempted && !formData.name && <span className="field-error">Test name is required</span>}
           </div>
           <div className="form-group">
             <label>Description</label>
@@ -558,18 +539,14 @@ export function TestsPage() {
               type="text"
               placeholder="Optional description"
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
           <div className="form-group">
             <label>Flow Configuration *</label>
             <SearchableSelect
               value={formData.flowConfigId}
-              onChange={(value) =>
-                setFormData({ ...formData, flowConfigId: value })
-              }
+              onChange={(value) => setFormData({ ...formData, flowConfigId: value })}
               options={flowConfigs.map((fc) => ({
                 value: fc.id,
                 label: fc.name,
@@ -578,28 +555,23 @@ export function TestsPage() {
               placeholder="Search flow configs..."
               allOptionLabel="Select flow configuration..."
             />
-            {formSubmitAttempted && !formData.flowConfigId && (
-              <span className="field-error">Flow configuration is required</span>
-            )}
-            {formData.flowConfigId && (() => {
-              const selectedConfig = flowConfigs.find(
-                (fc) => fc.id === formData.flowConfigId,
-              );
-              return selectedConfig ? (
-                <span className="form-hint">
-                  Flow ID: {selectedConfig.flowId}
-                  {selectedConfig.basePath && ` | Base URL: ${selectedConfig.basePath}`}
-                </span>
-              ) : null;
-            })()}
+            {formSubmitAttempted && !formData.flowConfigId && <span className="field-error">Flow configuration is required</span>}
+            {formData.flowConfigId &&
+              (() => {
+                const selectedConfig = flowConfigs.find((fc) => fc.id === formData.flowConfigId);
+                return selectedConfig ? (
+                  <span className="form-hint">
+                    Flow ID: {selectedConfig.flowId}
+                    {selectedConfig.basePath && ` | Base URL: ${selectedConfig.basePath}`}
+                  </span>
+                ) : null;
+              })()}
           </div>
           <div className="form-group">
             <label>Access Token</label>
             <SearchableSelect
               value={formData.accessTokenId}
-              onChange={(value) =>
-                setFormData({ ...formData, accessTokenId: value })
-              }
+              onChange={(value) => setFormData({ ...formData, accessTokenId: value })}
               options={accessTokens.map((token) => ({
                 value: token.id,
                 label: token.name,
@@ -612,9 +584,7 @@ export function TestsPage() {
             <label>Question Set</label>
             <SearchableSelect
               value={formData.questionSetId}
-              onChange={(value) =>
-                setFormData({ ...formData, questionSetId: value })
-              }
+              onChange={(value) => setFormData({ ...formData, questionSetId: value })}
               options={questionSets.map((qs) => ({
                 value: qs.id,
                 label: qs.name,
@@ -628,9 +598,7 @@ export function TestsPage() {
             <label>Webhook</label>
             <SearchableSelect
               value={formData.webhookId}
-              onChange={(value) =>
-                setFormData({ ...formData, webhookId: value })
-              }
+              onChange={(value) => setFormData({ ...formData, webhookId: value })}
               options={webhooks
                 .filter((w) => w.enabled)
                 .map((webhook) => ({
@@ -640,10 +608,7 @@ export function TestsPage() {
               placeholder="Search webhooks..."
               allOptionLabel="No webhook"
             />
-            <span className="form-hint">
-              Trigger webhook on run events (running, completed, failed,
-              evaluated)
-            </span>
+            <span className="form-hint">Trigger webhook on run events (running, completed, failed, evaluated)</span>
           </div>
           <div className="form-group">
             <label>Tags</label>
@@ -667,17 +632,12 @@ export function TestsPage() {
                       }
                     }}
                   />
-                  <span
-                    className="tag-chip"
-                    style={{ backgroundColor: tag.color || '#3B82F6' }}
-                  >
+                  <span className="tag-chip" style={{ backgroundColor: tag.color || '#3B82F6' }}>
                     {tag.name}
                   </span>
                 </label>
               ))}
-              {tags.length === 0 && (
-                <span className="form-hint">No tags created yet. Create tags in Settings.</span>
-              )}
+              {tags.length === 0 && <span className="form-hint">No tags created yet. Create tags in Settings.</span>}
             </div>
           </div>
           <div className="form-group checkbox-group">
@@ -729,16 +689,12 @@ export function TestsPage() {
         ) : totalItems === 0 && !hasActiveFilters ? (
           <div className="empty-state">
             <p>No tests created yet</p>
-            <p className="empty-hint">
-              Create a test to define your flow configuration and question set
-            </p>
+            <p className="empty-hint">Create a test to define your flow configuration and question set</p>
           </div>
         ) : totalItems === 0 && hasActiveFilters ? (
           <div className="empty-state">
             <p>No tests match your filters</p>
-            <p className="empty-hint">
-              Try adjusting your search or filter criteria
-            </p>
+            <p className="empty-hint">Try adjusting your search or filter criteria</p>
           </div>
         ) : (
           tests.map((test) => (
@@ -749,13 +705,9 @@ export function TestsPage() {
                   {runningTests.has(test.id) ? (
                     <button
                       className="cancel-btn"
-                      onClick={() =>
-                        setCancelConfirm({ open: true, testId: test.id })
-                      }
+                      onClick={() => setCancelConfirm({ open: true, testId: test.id })}
                       disabled={!runningTests.get(test.id)}
-                      title={
-                        runningTests.get(test.id) ? 'Cancel run' : 'Starting...'
-                      }
+                      title={runningTests.get(test.id) ? 'Cancel run' : 'Starting...'}
                     >
                       {runningTests.get(test.id) ? 'Cancel' : 'Starting...'}
                     </button>
@@ -768,8 +720,8 @@ export function TestsPage() {
                         !test.flowConfigId
                           ? 'No flow config - edit test to add one'
                           : !test.questionSetId
-                          ? 'No question set configured'
-                          : 'Run test'
+                            ? 'No question set configured'
+                            : 'Run test'
                       }
                     >
                       Run
@@ -778,27 +730,19 @@ export function TestsPage() {
                   <button className="edit-btn" onClick={() => handleEdit(test)}>
                     Edit
                   </button>
-                  <button
-                    className="delete-btn"
-                    onClick={() =>
-                      setDeleteConfirm({ open: true, id: test.id })
-                    }
-                  >
+                  <button className="export-btn" onClick={() => handleExport(test)}>
+                    Export
+                  </button>
+                  <button className="delete-btn" onClick={() => setDeleteConfirm({ open: true, id: test.id })}>
                     Delete
                   </button>
                 </div>
               </div>
-              {test.description && (
-                <p className="test-description">{test.description}</p>
-              )}
+              {test.description && <p className="test-description">{test.description}</p>}
               <div className="test-details">
                 <div className="detail-row">
                   <span className="detail-label">Flow Config:</span>
-                  <span className="detail-value">
-                    {test.flowConfig?.name || (
-                      <span className="text-muted">Not configured</span>
-                    )}
-                  </span>
+                  <span className="detail-value">{test.flowConfig?.name || <span className="text-muted">Not configured</span>}</span>
                 </div>
                 {test.flowConfig?.basePath && (
                   <div className="detail-row">
@@ -810,32 +754,23 @@ export function TestsPage() {
                   <span className="detail-label">Questions:</span>
                   <span className="detail-value">
                     {getQuestionSetName(test.questionSetId)}
-                    {test.questionSet &&
-                      ` (${test.questionSet.questions.length})`}
+                    {test.questionSet && ` (${test.questionSet.questions.length})`}
                   </span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Token:</span>
-                  <span className="detail-value">
-                    {getAccessTokenName(test.accessTokenId)}
-                  </span>
+                  <span className="detail-value">{getAccessTokenName(test.accessTokenId)}</span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Webhook:</span>
-                  <span className="detail-value">
-                    {getWebhookName(test.webhookId)}
-                  </span>
+                  <span className="detail-value">{getWebhookName(test.webhookId)}</span>
                 </div>
                 {test.tags && test.tags.length > 0 && (
                   <div className="detail-row">
                     <span className="detail-label">Tags:</span>
                     <div className="tag-chips">
                       {test.tags.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="tag-chip"
-                          style={{ backgroundColor: tag.color || '#3B82F6' }}
-                        >
+                        <span key={tag.id} className="tag-chip" style={{ backgroundColor: tag.color || '#3B82F6' }}>
                           {tag.name}
                         </span>
                       ))}
@@ -883,6 +818,17 @@ export function TestsPage() {
         message="Are you sure you want to cancel this run? Progress will be saved but the run will be marked as failed."
         confirmText="Cancel Run"
         variant="danger"
+      />
+
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          setShowImportModal(false);
+          loadTests();
+        }}
+        entityType="tests"
+        showNotification={showNotification}
       />
     </div>
   );

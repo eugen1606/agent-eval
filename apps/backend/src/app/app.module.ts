@@ -21,6 +21,7 @@ import { RunsModule } from '../runs/runs.module';
 import { CleanupModule } from '../cleanup/cleanup.module';
 import { MetricsModule } from '../metrics';
 import { TagsModule } from '../tags/tags.module';
+import { ExportModule } from '../export/export.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { TagsModule } from '../tags/tags.module';
     CleanupModule,
     MetricsModule,
     TagsModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [
