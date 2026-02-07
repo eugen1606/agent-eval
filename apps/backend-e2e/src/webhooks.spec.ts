@@ -1,9 +1,12 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createWebhook } from './support/factories';
+import { expectPaginatedList, expectDeleteAndVerify } from './support/assertions';
 
 describe('Webhooks CRUD', () => {
   let accessToken: string;
   let csrfToken: string;
 
+  // Used for validation tests that send bad data with specific overrides
   const validWebhookPayload = {
     name: 'Test Webhook',
     url: 'https://example.com/webhook',
@@ -28,19 +31,12 @@ describe('Webhooks CRUD', () => {
 
   describe('POST /api/webhooks', () => {
     it('should create a webhook with all fields', async () => {
-      const response = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          headers: { 'Authorization': 'Bearer {{runId}}' },
-          queryParams: { 'run': '{{runId}}' },
-        }),
-      }, accessToken);
+      const data = await createWebhook(accessToken, {
+        description: 'A test webhook',
+        headers: { 'Authorization': 'Bearer {{runId}}' },
+        queryParams: { 'run': '{{runId}}' },
+      });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Webhook');
       expect(data.url).toBe('https://example.com/webhook');
       expect(data.events).toContain('run.completed');
@@ -52,30 +48,12 @@ describe('Webhooks CRUD', () => {
     });
 
     it('should create a webhook with PUT method', async () => {
-      const response = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          method: 'PUT',
-        }),
-      }, accessToken);
-
-      expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await createWebhook(accessToken, { method: 'PUT' });
       expect(data.method).toBe('PUT');
     });
 
     it('should create a webhook with PATCH method', async () => {
-      const response = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          method: 'PATCH',
-        }),
-      }, accessToken);
-
-      expect(response.status).toBe(201);
-      const data = await response.json();
+      const data = await createWebhook(accessToken, { method: 'PATCH' });
       expect(data.method).toBe('PATCH');
     });
 
@@ -176,23 +154,13 @@ describe('Webhooks CRUD', () => {
 
   describe('GET /api/webhooks', () => {
     it('should list webhooks', async () => {
-      await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'List Test Webhook',
-          url: 'https://example.com/list',
-        }),
-      }, accessToken);
+      await createWebhook(accessToken, {
+        name: 'List Test Webhook',
+        url: 'https://example.com/list',
+      });
 
       const response = await authenticatedRequest('/webhooks', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const result = await response.json();
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
-      expect(result.pagination).toBeDefined();
+      await expectPaginatedList(response, { minLength: 1 });
     });
   });
 
@@ -237,15 +205,10 @@ describe('Webhooks CRUD', () => {
 
   describe('GET /api/webhooks/:id', () => {
     it('should get a single webhook', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'Get Test Webhook',
-          url: 'https://example.com/get',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken, {
+        name: 'Get Test Webhook',
+        url: 'https://example.com/get',
+      });
 
       const response = await authenticatedRequest(`/webhooks/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -260,15 +223,10 @@ describe('Webhooks CRUD', () => {
 
   describe('PUT /api/webhooks/:id', () => {
     it('should update a webhook', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'Update Test Webhook',
-          url: 'https://example.com/update',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken, {
+        name: 'Update Test Webhook',
+        url: 'https://example.com/update',
+      });
 
       const response = await authenticatedRequest(`/webhooks/${created.id}`, {
         method: 'PUT',
@@ -290,14 +248,9 @@ describe('Webhooks CRUD', () => {
     });
 
     it('should update headers and query params', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'Headers Test Webhook',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken, {
+        name: 'Headers Test Webhook',
+      });
 
       const response = await authenticatedRequest(`/webhooks/${created.id}`, {
         method: 'PUT',
@@ -314,11 +267,7 @@ describe('Webhooks CRUD', () => {
     });
 
     it('should reject invalid method on update', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify(validWebhookPayload),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken);
 
       const response = await authenticatedRequest(`/webhooks/${created.id}`, {
         method: 'PUT',
@@ -335,15 +284,10 @@ describe('Webhooks CRUD', () => {
 
   describe('POST /api/webhooks/:id/toggle', () => {
     it('should toggle webhook enabled status', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'Toggle Test Webhook',
-          url: 'https://example.com/toggle',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken, {
+        name: 'Toggle Test Webhook',
+        url: 'https://example.com/toggle',
+      });
       expect(created.enabled).toBe(true);
 
       const response = await authenticatedRequest(`/webhooks/${created.id}/toggle`, {
@@ -365,24 +309,12 @@ describe('Webhooks CRUD', () => {
 
   describe('DELETE /api/webhooks/:id', () => {
     it('should delete a webhook', async () => {
-      const createRes = await authenticatedRequest('/webhooks', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...validWebhookPayload,
-          name: 'Delete Test Webhook',
-          url: 'https://example.com/delete',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createWebhook(accessToken, {
+        name: 'Delete Test Webhook',
+        url: 'https://example.com/delete',
+      });
 
-      const response = await authenticatedRequest(`/webhooks/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      const getRes = await authenticatedRequest(`/webhooks/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      await expectDeleteAndVerify('/webhooks', created.id as string, accessToken);
     });
   });
 });

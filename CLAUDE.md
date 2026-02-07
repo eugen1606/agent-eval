@@ -30,6 +30,9 @@ docker-compose up -d postgres redis
 yarn nx serve backend     # http://localhost:3001/api
 yarn nx serve frontend    # http://localhost:4201
 
+# API Documentation (Swagger)
+# http://localhost:3001/api/docs
+
 # Default login: admin@benchmark.local / admin123
 ```
 
@@ -110,6 +113,7 @@ apps/
 libs/
   shared/            # TypeScript types
   api-client/        # HTTP client library
+  ui/                # Reusable UI components (Modal, Pagination, FilterBar, SearchableSelect)
 ```
 
 ### Backend Modules
@@ -121,12 +125,14 @@ libs/
 | `tests` | `/api/tests` | Test configuration CRUD + run execution (SSE) |
 | `runs` | `/api/runs` | Run management, result evaluations, stats |
 | `flow` | `/api/flow/*` | Execute AI flows (supports SSE streaming) |
-| `evaluation` | `/api/evaluate/*` | LLM-as-judge evaluation |
+| `evaluation` | `/api/evaluate/*` | LLM-as-judge evaluation (on hold) |
 | `access-tokens` | `/api/access-tokens` | Encrypted token storage |
 | `questions` | `/api/questions` | Question set management |
-| `flow-configs` | `/api/flow-configs` | Saved flow configurations (legacy) |
-| `evaluations` | `/api/evaluations` | Stored evaluation results (legacy) |
+| `flow-configs` | `/api/flow-configs` | Saved flow configurations |
 | `webhooks` | `/api/webhooks` | Webhook management with dynamic variables |
+| `tags` | `/api/tags` | Tag management for tests |
+| `scheduled-tests` | `/api/scheduled-tests` | Scheduled test execution (one-time and cron) |
+| `export` | `/api/export` | Export/import of tests and configurations |
 
 ### Database Entities
 
@@ -137,9 +143,10 @@ libs/
 | `Run` | Execution instance with results, status, timestamps |
 | `AccessToken` | Encrypted tokens (AES-256-GCM) |
 | `QuestionSet` | Reusable question collections |
-| `FlowConfig` | Saved flow configurations (legacy) |
-| `Evaluation` | Stored evaluation results (legacy) |
+| `FlowConfig` | Saved flow configurations |
 | `Webhook` | Webhook configurations with HTTP method, headers, query params, body template |
+| `Tag` | Tag labels for organizing tests |
+| `ScheduledTest` | Scheduled test execution configurations |
 
 ### Key Types (libs/shared)
 
@@ -182,11 +189,10 @@ StoredWebhook {
 | `/tests` | TestsPage | Create and manage test configurations |
 | `/runs` | RunsPage | View runs, execute tests with live progress |
 | `/runs/:id` | RunDetailPage | Evaluate run results with bulk actions |
-| `/dashboard` | Dashboard | Test Analytics + legacy Flow Analytics |
+| `/dashboard` | Dashboard | Test Analytics |
 | `/settings` | SettingsPage | Manage tokens, questions, configs |
 | `/account` | AccountPage | User profile, stats, password change |
 | `/login` | LoginPage | Authentication |
-| `/evaluate` | EvaluationPage | Legacy: Execute flows & evaluate (still accessible) |
 
 ### Key Features
 
@@ -272,7 +278,6 @@ describe('Feature Name', () => {
 | `questions.spec.ts` | Question sets CRUD |
 | `flow-configs.spec.ts` | Flow configurations CRUD |
 | `access-tokens.spec.ts` | Access tokens CRUD |
-| `evaluations.spec.ts` | Evaluations CRUD |
 | `data-isolation.spec.ts` | Multi-user data isolation |
 | `throttling.spec.ts` | Rate limiting |
 | `webhooks.spec.ts` | Webhooks CRUD, validation, variables endpoint |
@@ -299,13 +304,15 @@ describe('Feature Name', () => {
 - Migration CLI config: `apps/backend/src/database/data-source.ts`
 
 ### Frontend
-- Tests page: `apps/frontend/src/app/components/TestsPage.tsx`
-- Runs page: `apps/frontend/src/app/components/RunsPage.tsx`
-- Run detail page: `apps/frontend/src/app/components/RunDetailPage.tsx`
-- Dashboard: `apps/frontend/src/app/components/Dashboard.tsx`
+- Tests page: `apps/frontend/src/app/features/tests/TestsPage.tsx`
+- Runs page: `apps/frontend/src/app/features/runs/RunsPage.tsx`
+- Run detail page: `apps/frontend/src/app/features/runs/RunDetailPage.tsx`
+- Dashboard: `apps/frontend/src/app/features/dashboard/Dashboard.tsx`
+- Scheduled tests: `apps/frontend/src/app/features/scheduled-tests/ScheduledTestsPage.tsx`
+- Settings managers: `apps/frontend/src/app/features/settings/`
+- Auth pages: `apps/frontend/src/app/features/auth/`
 - Auth context: `apps/frontend/src/app/context/AuthContext.tsx`
 - App context: `apps/frontend/src/app/context/AppContext.tsx`
-- Webhooks manager: `apps/frontend/src/app/components/WebhooksManager.tsx`
 
 ### Shared
 - API client: `libs/api-client/src/lib/api-client.ts`

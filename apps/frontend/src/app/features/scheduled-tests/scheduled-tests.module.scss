@@ -1,0 +1,260 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+// Scheduled tests page styles
+
+.scheduledTestsPage {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+  }
+}
+
+.primaryBtn {
+  padding: 0.6rem 1.25rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: $border-radius-md;
+  font-size: 0.95rem;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: transform $transition-base, box-shadow $transition-base;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+}
+
+.scheduledList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.scheduledCard {
+  background: var(--bg-secondary);
+  border-radius: $border-radius-lg;
+  padding: 1.25rem;
+  box-shadow: 0 2px 4px var(--shadow);
+  border-left: 4px solid var(--accent-primary);
+}
+
+.scheduledHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: $spacing-md;
+}
+
+.scheduledInfo {
+  h3 {
+    margin: 0 0 $spacing-xs 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+}
+
+.scheduledTestName {
+  display: block;
+  font-size: $font-size-sm;
+  color: var(--text-secondary);
+  margin-bottom: $spacing-xs;
+  font-weight: $font-weight-normal;
+}
+
+.scheduledTestLabel {
+  color: var(--text-muted);
+  font-weight: $font-weight-normal;
+}
+
+.scheduledBadges {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.statusBadge {
+  padding: 0.2rem 0.5rem;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+}
+
+.badgePending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgeRunning {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badgeCompleted {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badgeFailed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cronBadge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: 0.8rem;
+  font-weight: $font-weight-medium;
+}
+
+.scheduledDetails {
+  margin-bottom: $spacing-md;
+}
+
+.detailRow {
+  display: flex;
+  gap: $spacing-sm;
+  font-size: $font-size-sm;
+  margin-bottom: 0.35rem;
+}
+
+.detailLabel {
+  color: var(--text-muted);
+}
+
+.detailValue {
+  color: var(--text-primary);
+}
+
+.error {
+  .detailValue {
+    color: var(--error);
+  }
+}
+
+.scheduledActions {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.runNowBtn {
+  padding: $spacing-sm $spacing-md;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.viewBtn {
+  padding: $spacing-sm $spacing-md;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+
+  &:hover {
+    background: #219a52;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.editBtn {
+  padding: 0.4rem 0.75rem;
+  background: #f39c12;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.deleteBtn {
+  padding: 0.4rem 0.75rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  gap: $spacing-md;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: var(--text-muted);
+  font-size: $font-size-sm;
+}
+
+.emptyState {
+  text-align: center;
+  padding: $spacing-2xl;
+  background: var(--bg-secondary);
+  border-radius: $border-radius-lg;
+  box-shadow: 0 2px 4px var(--shadow);
+
+  p {
+    margin: 0;
+    color: var(--text-tertiary);
+  }
+}
+
+.emptyHint {
+  font-size: $font-size-sm;
+  margin-top: $spacing-sm !important;
+  color: var(--text-muted) !important;
+}

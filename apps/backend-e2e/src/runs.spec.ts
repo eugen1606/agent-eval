@@ -3,6 +3,13 @@ import {
   createTestUser,
   deleteTestUser,
 } from './support/test-setup';
+import { createTest, createRun } from './support/factories';
+import {
+  NON_EXISTENT_UUID,
+  expectNotFound,
+  expectPaginatedList,
+  expectDeleteAndVerify,
+} from './support/assertions';
 
 describe('Runs CRUD', () => {
   let accessToken: string;
@@ -14,35 +21,8 @@ describe('Runs CRUD', () => {
     accessToken = auth.accessToken;
     csrfToken = auth.csrfToken;
 
-    // Create a FlowConfig first
-    const fcRes = await authenticatedRequest(
-      '/flow-configs',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Run Test Flow Config',
-          flowId: 'run-test-flow',
-          basePath: 'https://api.example.com',
-        }),
-      },
-      accessToken,
-    );
-    const fcData = await fcRes.json();
-
-    // Create a test to associate runs with
-    const testRes = await authenticatedRequest(
-      '/tests',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Run Test Parent',
-          flowConfigId: fcData.id,
-        }),
-      },
-      accessToken,
-    );
-    const testData = await testRes.json();
-    testId = testData.id;
+    const test = await createTest(accessToken, { name: 'Run Test Parent' });
+    testId = test.id as string;
   });
 
   afterAll(async () => {
@@ -51,23 +31,8 @@ describe('Runs CRUD', () => {
 
   describe('POST /api/runs', () => {
     it('should create a run', async () => {
-      const response = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-            status: 'pending',
-            totalQuestions: 5,
-          }),
-        },
-        accessToken,
-      );
+      const data = await createRun(accessToken, { testId, totalQuestions: 5 });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.testId).toBe(testId);
       expect(data.status).toBe('pending');
       expect(data.totalQuestions).toBe(5);
@@ -95,43 +60,16 @@ describe('Runs CRUD', () => {
 
   describe('GET /api/runs', () => {
     it('should list runs', async () => {
-      await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-            status: 'pending',
-          }),
-        },
-        accessToken,
-      );
+      await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest('/runs', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-      expect(data.data).toBeDefined();
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.data.length).toBeGreaterThan(0);
-      expect(data.pagination).toBeDefined();
+      await expectPaginatedList(response, { minLength: 1 });
     });
   });
 
   describe('GET /api/runs/:id', () => {
     it('should get a single run', async () => {
-      const createRes = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-            status: 'pending',
-          }),
-        },
-        accessToken,
-      );
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
         `/runs/${created.id}`,
@@ -146,30 +84,18 @@ describe('Runs CRUD', () => {
     });
 
     it('should return 404 for non-existent run', async () => {
-      // Use a valid UUID format that doesn't exist
       const response = await authenticatedRequest(
-        '/runs/00000000-0000-0000-0000-000000000000',
+        `/runs/${NON_EXISTENT_UUID}`,
         {},
         accessToken,
       );
-      expect(response.status).toBe(404);
+      expectNotFound(response);
     });
   });
 
   describe('PUT /api/runs/:id', () => {
     it('should update a run', async () => {
-      const createRes = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-            status: 'pending',
-          }),
-        },
-        accessToken,
-      );
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
         `/runs/${created.id}`,
@@ -193,35 +119,8 @@ describe('Runs CRUD', () => {
 
   describe('DELETE /api/runs/:id', () => {
     it('should delete a run', async () => {
-      const createRes = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-            status: 'pending',
-          }),
-        },
-        accessToken,
-      );
-      const created = await createRes.json();
-
-      const response = await authenticatedRequest(
-        `/runs/${created.id}`,
-        {
-          method: 'DELETE',
-        },
-        accessToken,
-      );
-
-      expect(response.status).toBe(200);
-
-      const getRes = await authenticatedRequest(
-        `/runs/${created.id}`,
-        {},
-        accessToken,
-      );
-      expect(getRes.status).toBe(404);
+      const created = await createRun(accessToken, { testId });
+      await expectDeleteAndVerify('/runs', created.id as string, accessToken);
     });
   });
 
@@ -247,18 +146,7 @@ describe('Runs CRUD', () => {
 
   describe('GET /api/runs/:id/stats', () => {
     it('should return run stats', async () => {
-      // Create a run (results are added during test execution, not via API)
-      const createRes = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
         `/runs/${created.id}/stats`,
@@ -280,18 +168,7 @@ describe('Runs CRUD', () => {
 
   describe('GET /api/runs/:id/performance', () => {
     it('should return null performance stats for run without results', async () => {
-      // Create a run without any results
-      const createRes = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
         `/runs/${created.id}/performance`,
@@ -313,42 +190,19 @@ describe('Runs CRUD', () => {
 
     it('should return 404 for non-existent run', async () => {
       const response = await authenticatedRequest(
-        '/runs/00000000-0000-0000-0000-000000000000/performance',
+        `/runs/${NON_EXISTENT_UUID}/performance`,
         {},
         accessToken,
       );
-      expect(response.status).toBe(404);
+      expectNotFound(response);
     });
   });
 
   describe('GET /api/runs/:id/compare/:otherId', () => {
     it('should compare two runs of the same test', async () => {
-      // Create two runs for the same test
-      const run1Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run1 = await run1Res.json();
+      const run1 = await createRun(accessToken, { testId });
+      const run2 = await createRun(accessToken, { testId });
 
-      const run2Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run2 = await run2Res.json();
-
-      // Compare the runs
       const response = await authenticatedRequest(
         `/runs/${run1.id}/compare/${run2.id}`,
         {},
@@ -376,100 +230,32 @@ describe('Runs CRUD', () => {
     });
 
     it('should return 404 when left run does not exist', async () => {
-      const run2Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run2 = await run2Res.json();
+      const run2 = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
-        `/runs/00000000-0000-0000-0000-000000000000/compare/${run2.id}`,
+        `/runs/${NON_EXISTENT_UUID}/compare/${run2.id}`,
         {},
         accessToken,
       );
-      expect(response.status).toBe(404);
+      expectNotFound(response);
     });
 
     it('should return 404 when right run does not exist', async () => {
-      const run1Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run1 = await run1Res.json();
+      const run1 = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
-        `/runs/${run1.id}/compare/00000000-0000-0000-0000-000000000000`,
+        `/runs/${run1.id}/compare/${NON_EXISTENT_UUID}`,
         {},
         accessToken,
       );
-      expect(response.status).toBe(404);
+      expectNotFound(response);
     });
 
     it('should return 400 when comparing runs from different tests', async () => {
-      // Create a second test
-      const fcRes = await authenticatedRequest(
-        '/flow-configs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            name: 'Comparison Test Flow Config 2',
-            flowId: 'comparison-test-flow-2',
-            basePath: 'https://api.example.com',
-          }),
-        },
-        accessToken,
-      );
-      const fcData = await fcRes.json();
+      const test2 = await createTest(accessToken, { name: 'Comparison Test 2' });
 
-      const test2Res = await authenticatedRequest(
-        '/tests',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            name: 'Comparison Test 2',
-            flowConfigId: fcData.id,
-          }),
-        },
-        accessToken,
-      );
-      const test2 = await test2Res.json();
-
-      // Create runs for different tests
-      const run1Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run1 = await run1Res.json();
-
-      const run2Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId: test2.id,
-          }),
-        },
-        accessToken,
-      );
-      const run2 = await run2Res.json();
+      const run1 = await createRun(accessToken, { testId });
+      const run2 = await createRun(accessToken, { testId: test2.id });
 
       // Comparing runs from different tests should fail
       const response = await authenticatedRequest(
@@ -481,30 +267,8 @@ describe('Runs CRUD', () => {
     });
 
     it('should handle comparison with empty results', async () => {
-      // Create two runs with no results
-      const run1Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run1 = await run1Res.json();
-
-      const run2Res = await authenticatedRequest(
-        '/runs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            testId,
-          }),
-        },
-        accessToken,
-      );
-      const run2 = await run2Res.json();
+      const run1 = await createRun(accessToken, { testId });
+      const run2 = await createRun(accessToken, { testId });
 
       const response = await authenticatedRequest(
         `/runs/${run1.id}/compare/${run2.id}`,

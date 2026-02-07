@@ -1,4 +1,5 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createTest, createRun } from './support/factories';
 
 describe('Cleanup', () => {
   let accessToken: string;
@@ -10,27 +11,8 @@ describe('Cleanup', () => {
     accessToken = auth.accessToken;
     csrfToken = auth.csrfToken;
 
-    // Create a FlowConfig first
-    const fcRes = await authenticatedRequest('/flow-configs', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Cleanup Test Flow Config',
-        flowId: 'cleanup-test-flow',
-        basePath: 'https://api.example.com',
-      }),
-    }, accessToken);
-    const fcData = await fcRes.json();
-
-    // Create a test to associate runs with
-    const testRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Cleanup Test Parent',
-        flowConfigId: fcData.id,
-      }),
-    }, accessToken);
-    const testData = await testRes.json();
-    testId = testData.id;
+    const test = await createTest(accessToken, { name: 'Cleanup Test Parent' });
+    testId = test.id as string;
   });
 
   afterAll(async () => {
@@ -52,15 +34,7 @@ describe('Cleanup', () => {
 
   describe('POST /api/cleanup/runs', () => {
     it('should delete old completed runs', async () => {
-      // Create a run (always starts as pending)
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          totalQuestions: 1,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId, totalQuestions: 1 });
 
       // Update the run to completed status with an old completedAt date (100 days ago)
       const oldDate = new Date();
@@ -101,15 +75,7 @@ describe('Cleanup', () => {
     });
 
     it('should preserve recent completed runs', async () => {
-      // Create a run (always starts as pending)
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          totalQuestions: 1,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId, totalQuestions: 1 });
 
       // Update the run to completed status with a recent completedAt date (10 days ago)
       const recentDate = new Date();
@@ -134,15 +100,7 @@ describe('Cleanup', () => {
     });
 
     it('should preserve runs without completedAt', async () => {
-      // Create a pending run (no completedAt)
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          totalQuestions: 5,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId, totalQuestions: 5 });
 
       // Run cleanup
       await authenticatedRequest('/cleanup/runs', {
@@ -155,16 +113,7 @@ describe('Cleanup', () => {
     });
 
     it('should preserve running status runs even with old completedAt', async () => {
-      // This is an edge case - running status shouldn't have completedAt,
-      // but we should still protect it
-      const createRes = await authenticatedRequest('/runs', {
-        method: 'POST',
-        body: JSON.stringify({
-          testId,
-          totalQuestions: 5,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createRun(accessToken, { testId, totalQuestions: 5 });
 
       // Set status to running
       await authenticatedRequest(`/runs/${created.id}`, {

@@ -1,4 +1,12 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createQuestionSet } from './support/factories';
+import {
+  NON_EXISTENT_UUID,
+  expectNotFound,
+  expectPaginatedList,
+  expectValidationError,
+  expectDeleteAndVerify,
+} from './support/assertions';
 
 describe('Question Sets CRUD', () => {
   let accessToken: string;
@@ -16,22 +24,10 @@ describe('Question Sets CRUD', () => {
 
   describe('POST /api/questions', () => {
     it('should create a question set', async () => {
-      const response = await authenticatedRequest('/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test Question Set',
-          description: 'A test question set',
-          questions: [
-            { question: 'What is 2+2?', expectedAnswer: '4' },
-            { question: 'What is the capital of France?', expectedAnswer: 'Paris' },
-          ],
-        }),
-      }, accessToken);
+      const data = await createQuestionSet(accessToken, {
+        description: 'A test question set',
+      });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Question Set');
       expect(data.questions).toHaveLength(2);
     });
@@ -39,36 +35,22 @@ describe('Question Sets CRUD', () => {
 
   describe('GET /api/questions', () => {
     it('should list question sets', async () => {
-      // Create a question set first
-      await authenticatedRequest('/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'List Test',
-          questions: [{ question: 'Test?' }],
-        }),
-      }, accessToken);
+      await createQuestionSet(accessToken, {
+        name: 'List Test',
+        questions: [{ question: 'Test?' }],
+      });
 
       const response = await authenticatedRequest('/questions', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const result = await response.json();
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
-      expect(result.pagination).toBeDefined();
+      await expectPaginatedList(response, { minLength: 1 });
     });
   });
 
   describe('GET /api/questions/:id', () => {
     it('should get a single question set', async () => {
-      const createRes = await authenticatedRequest('/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Get Test',
-          questions: [{ question: 'Test?' }],
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createQuestionSet(accessToken, {
+        name: 'Get Test',
+        questions: [{ question: 'Test?' }],
+      });
 
       const response = await authenticatedRequest(`/questions/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -79,22 +61,17 @@ describe('Question Sets CRUD', () => {
     });
 
     it('should return 404 for non-existent question set', async () => {
-      // Use a valid UUID format that doesn't exist
-      const response = await authenticatedRequest('/questions/00000000-0000-0000-0000-000000000000', {}, accessToken);
-      expect(response.status).toBe(404);
+      const response = await authenticatedRequest(`/questions/${NON_EXISTENT_UUID}`, {}, accessToken);
+      expectNotFound(response);
     });
   });
 
   describe('PUT /api/questions/:id', () => {
     it('should update a question set', async () => {
-      const createRes = await authenticatedRequest('/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Update Test',
-          questions: [{ question: 'Original?' }],
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createQuestionSet(accessToken, {
+        name: 'Update Test',
+        questions: [{ question: 'Original?' }],
+      });
 
       const response = await authenticatedRequest(`/questions/${created.id}`, {
         method: 'PUT',
@@ -114,24 +91,12 @@ describe('Question Sets CRUD', () => {
 
   describe('DELETE /api/questions/:id', () => {
     it('should delete a question set', async () => {
-      const createRes = await authenticatedRequest('/questions', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Delete Test',
-          questions: [{ question: 'Delete me?' }],
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createQuestionSet(accessToken, {
+        name: 'Delete Test',
+        questions: [{ question: 'Delete me?' }],
+      });
 
-      const response = await authenticatedRequest(`/questions/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      // Verify it's deleted
-      const getRes = await authenticatedRequest(`/questions/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      await expectDeleteAndVerify('/questions', created.id as string, accessToken);
     });
   });
 
@@ -170,9 +135,7 @@ describe('Question Sets CRUD', () => {
         }),
       }, accessToken);
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.message).toMatch(/[Nn]ame/);
+      await expectValidationError(response, /[Nn]ame/);
     });
 
     it('should reject non-array questions', async () => {
@@ -184,9 +147,7 @@ describe('Question Sets CRUD', () => {
         }),
       }, accessToken);
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.message).toMatch(/[Qq]uestions/);
+      await expectValidationError(response, /[Qq]uestions/);
     });
 
     it('should reject empty questions array', async () => {
@@ -198,9 +159,7 @@ describe('Question Sets CRUD', () => {
         }),
       }, accessToken);
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.message).toContain('Questions array cannot be empty');
+      await expectValidationError(response, 'Questions array cannot be empty');
     });
 
     it('should reject question without question property', async () => {

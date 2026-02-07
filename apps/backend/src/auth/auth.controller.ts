@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { Response, Request } from 'express';
 import * as crypto from 'crypto';
 import { AuthService, AuthTokens } from './auth.service';
@@ -30,6 +31,7 @@ import {
   REFRESH_TOKEN_MAX_AGE,
 } from './auth.constants';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -73,6 +75,9 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or email already exists' })
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(
     @Body() registerDto: RegisterDto,
@@ -88,6 +93,10 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ schema: { properties: { email: { type: 'string' }, password: { type: 'string' } } } })
+  @ApiResponse({ status: 200, description: 'Login successful, returns user and CSRF token' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('local'))
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -105,6 +114,9 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @ApiOperation({ summary: 'Refresh authentication tokens' })
+  @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   @HttpCode(HttpStatus.OK)
   async refresh(
     @Req() req: Request,
@@ -125,6 +137,8 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiOperation({ summary: 'Logout and clear authentication cookies' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
   @HttpCode(HttpStatus.OK)
   async logout(@Res({ passthrough: true }) res: Response) {
     this.clearAuthCookies(res);
@@ -132,18 +146,26 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Returns user profile' })
+  @ApiResponse({ status: 401, description: 'Not authenticated' })
   @UseGuards(JwtAuthGuard)
   async getProfile(@CurrentUser() user: JwtPayload) {
     return this.authService.getProfile(user.userId);
   }
 
   @Get('account/stats')
+  @ApiOperation({ summary: 'Get account statistics (tests, runs, evaluations)' })
+  @ApiResponse({ status: 200, description: 'Returns account statistics' })
   @UseGuards(JwtAuthGuard)
   async getAccountStats(@CurrentUser() user: JwtPayload) {
     return this.authService.getAccountStats(user.userId);
   }
 
   @Post('account/change-password')
+  @ApiOperation({ summary: 'Change password (requires re-login)' })
+  @ApiResponse({ status: 200, description: 'Password changed, cookies cleared' })
+  @ApiResponse({ status: 400, description: 'Invalid current password or weak new password' })
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, CsrfGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -159,6 +181,8 @@ export class AuthController {
   }
 
   @Delete('account')
+  @ApiOperation({ summary: 'Delete user account and all associated data' })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully' })
   @UseGuards(JwtAuthGuard, CsrfGuard)
   async deleteAccount(
     @CurrentUser() user: JwtPayload,

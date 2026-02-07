@@ -14,7 +14,9 @@
       "Bash(grep:*)",
       "Bash(yarn migration:generate:*)",
       "Bash(yarn migration:run:*)",
-      "Bash(yarn nx reset:*)"
+      "Bash(yarn nx reset:*)",
+      "Bash(npx nx:*)",
+      "Bash(node -e:*)"
     ]
   },
   "hooks": {

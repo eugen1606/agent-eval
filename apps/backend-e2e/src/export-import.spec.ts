@@ -1,4 +1,5 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createFlowConfig, createTest, createRun, createQuestionSet, createTag, createAccessToken } from './support/factories';
 
 describe('Export/Import', () => {
   let accessToken: string;
@@ -14,68 +15,51 @@ describe('Export/Import', () => {
     accessToken = auth.accessToken;
     csrfToken = auth.csrfToken;
 
-    // Create test data
-    const flowConfigRes = await authenticatedRequest('/flow-configs', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Export Test Flow Config',
-        flowId: 'export-test-flow',
-        basePath: 'https://export-test.com',
-        description: 'Flow config for export tests',
-      }),
-    }, accessToken);
-    flowConfigId = (await flowConfigRes.json()).id;
+    const flowConfig = await createFlowConfig(accessToken, {
+      name: 'Export Test Flow Config',
+      flowId: 'export-test-flow',
+      basePath: 'https://export-test.com',
+      description: 'Flow config for export tests',
+    });
+    flowConfigId = flowConfig.id as string;
 
-    const questionSetRes = await authenticatedRequest('/questions', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Export Test Questions',
-        description: 'Question set for export tests',
-        questions: [
-          { question: 'What is 2+2?', expectedAnswer: '4' },
-          { question: 'What is 3+3?', expectedAnswer: '6' },
-        ],
-      }),
-    }, accessToken);
-    questionSetId = (await questionSetRes.json()).id;
+    const questionSet = await createQuestionSet(accessToken, {
+      name: 'Export Test Questions',
+      description: 'Question set for export tests',
+      questions: [
+        { question: 'What is 2+2?', expectedAnswer: '4' },
+        { question: 'What is 3+3?', expectedAnswer: '6' },
+      ],
+    });
+    questionSetId = questionSet.id as string;
 
-    const tagRes = await authenticatedRequest('/tags', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Export Test Tag',
-        color: '#3B82F6',
-      }),
-    }, accessToken);
-    tagId = (await tagRes.json()).id;
+    const tag = await createTag(accessToken, {
+      name: 'Export Test Tag',
+      color: '#3B82F6',
+    });
+    tagId = tag.id as string;
 
-    const testRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Export Test',
-        description: 'Test for export functionality',
-        flowConfigId,
-        questionSetId,
-        tagIds: [tagId],
-        multiStepEvaluation: true,
-      }),
-    }, accessToken);
-    testId = (await testRes.json()).id;
+    const test = await createTest(accessToken, {
+      name: 'Export Test',
+      description: 'Test for export functionality',
+      flowConfigId,
+      questionSetId,
+      tagIds: [tagId],
+      multiStepEvaluation: true,
+    });
+    testId = test.id as string;
 
-    // Create a run for export testing
-    const runRes = await authenticatedRequest('/runs', {
-      method: 'POST',
-      body: JSON.stringify({
-        testId,
-        results: [
-          { question: 'What is 2+2?', answer: '4', expectedAnswer: '4', humanEvaluation: 'correct' },
-          { question: 'What is 3+3?', answer: '6', expectedAnswer: '6', humanEvaluation: 'correct' },
-        ],
-        status: 'completed',
-        totalQuestions: 2,
-        completedQuestions: 2,
-      }),
-    }, accessToken);
-    runId = (await runRes.json()).id;
+    const run = await createRun(accessToken, {
+      testId,
+      results: [
+        { question: 'What is 2+2?', answer: '4', expectedAnswer: '4', humanEvaluation: 'correct' },
+        { question: 'What is 3+3?', answer: '6', expectedAnswer: '6', humanEvaluation: 'correct' },
+      ],
+      status: 'completed',
+      totalQuestions: 2,
+      completedQuestions: 2,
+    });
+    runId = run.id as string;
   });
 
   afterAll(async () => {
@@ -154,13 +138,10 @@ describe('Export/Import', () => {
 
     it('should not include access token values', async () => {
       // Create an access token
-      await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Export Test Token',
-          token: 'secret-token-value',
-        }),
-      }, accessToken);
+      await createAccessToken(accessToken, {
+        name: 'Export Test Token',
+        token: 'secret-token-value',
+      });
 
       // Export all types (no accessTokens type supported)
       const response = await authenticatedRequest(
@@ -388,14 +369,11 @@ describe('Export/Import', () => {
       const auth2 = await createTestUser('-import-overwrite');
 
       // Create initial flow config
-      await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Export Test Flow Config',
-          flowId: 'original-flow',
-          basePath: 'https://original.com',
-        }),
-      }, auth2.accessToken);
+      await createFlowConfig(auth2.accessToken, {
+        name: 'Export Test Flow Config',
+        flowId: 'original-flow',
+        basePath: 'https://original.com',
+      });
 
       // Export from user 1
       const exportRes = await authenticatedRequest(
@@ -433,14 +411,11 @@ describe('Export/Import', () => {
       const auth2 = await createTestUser('-import-rename');
 
       // Create initial flow config with same name
-      await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Export Test Flow Config',
-          flowId: 'original-flow',
-          basePath: 'https://original.com',
-        }),
-      }, auth2.accessToken);
+      await createFlowConfig(auth2.accessToken, {
+        name: 'Export Test Flow Config',
+        flowId: 'original-flow',
+        basePath: 'https://original.com',
+      });
 
       // Export from user 1
       const exportRes = await authenticatedRequest(
@@ -539,14 +514,11 @@ describe('Export/Import', () => {
       const auth2 = await createTestUser('-export-isolation');
 
       // Create data for user 2
-      await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'User 2 Flow Config',
-          flowId: 'user2-flow',
-          basePath: 'https://user2.com',
-        }),
-      }, auth2.accessToken);
+      await createFlowConfig(auth2.accessToken, {
+        name: 'User 2 Flow Config',
+        flowId: 'user2-flow',
+        basePath: 'https://user2.com',
+      });
 
       // Export from user 1 should not include user 2's data
       const response = await authenticatedRequest(

@@ -7,6 +7,7 @@ import {
   UseGuards,
   Res,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ExportService } from './export.service';
 import { ExportQueryDto, ImportRequestDto, ImportBundleDto } from './dto';
@@ -18,6 +19,7 @@ import {
   ImportResult,
 } from '@agent-eval/shared';
 
+@ApiTags('export')
 @Controller('export')
 @UseGuards(JwtAuthGuard)
 export class ExportController {

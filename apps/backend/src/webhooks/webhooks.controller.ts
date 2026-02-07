@@ -10,6 +10,7 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   WebhooksService,
   EntityUsage,
@@ -27,6 +28,7 @@ import { UrlValidationService } from '../common/validators/url-validation.servic
 const VALID_EVENTS: WebhookEvent[] = ['run.running', 'run.completed', 'run.failed', 'run.evaluated'];
 const VALID_METHODS: WebhookMethod[] = ['POST', 'PUT', 'PATCH'];
 
+@ApiTags('webhooks')
 @Controller('webhooks')
 @UseGuards(JwtAuthGuard)
 export class WebhooksController {

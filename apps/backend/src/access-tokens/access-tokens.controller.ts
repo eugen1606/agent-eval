@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AccessTokensService,
   AccessTokenResponse,
@@ -21,6 +22,7 @@ import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+@ApiTags('access-tokens')
 @Controller('access-tokens')
 @UseGuards(JwtAuthGuard)
 export class AccessTokensController {

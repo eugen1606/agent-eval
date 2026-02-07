@@ -12,6 +12,7 @@ import {
   MessageEvent,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
 import { TestsService, PaginatedTests } from './tests.service';
 import { CreateTestDto, UpdateTestDto } from './dto';
@@ -25,6 +26,7 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 import { FlowConfigsService } from '../flow-configs/flow-configs.service';
 import { v4 as uuidv4 } from 'uuid';
 
+@ApiTags('tests')
 @Controller('tests')
 @UseGuards(JwtAuthGuard)
 export class TestsController {
@@ -38,6 +40,9 @@ export class TestsController {
   ) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new test configuration' })
+  @ApiResponse({ status: 201, description: 'Test created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
   async create(
     @Body() dto: CreateTestDto,
     @CurrentUser() user: { userId: string; email: string },
@@ -48,6 +53,8 @@ export class TestsController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all tests with pagination and filtering' })
+  @ApiResponse({ status: 200, description: 'Paginated list of tests' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -78,6 +85,9 @@ export class TestsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a test by ID' })
+  @ApiResponse({ status: 200, description: 'Test found' })
+  @ApiResponse({ status: 404, description: 'Test not found' })
   async findOne(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -86,6 +96,9 @@ export class TestsController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Update a test configuration' })
+  @ApiResponse({ status: 200, description: 'Test updated' })
+  @ApiResponse({ status: 404, description: 'Test not found' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateTestDto,
@@ -99,6 +112,9 @@ export class TestsController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a test' })
+  @ApiResponse({ status: 200, description: 'Test deleted' })
+  @ApiResponse({ status: 404, description: 'Test not found' })
   async delete(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -107,6 +123,9 @@ export class TestsController {
   }
 
   @Post(':id/run')
+  @ApiOperation({ summary: 'Execute a test and stream results via SSE' })
+  @ApiResponse({ status: 200, description: 'SSE stream of run results' })
+  @ApiResponse({ status: 400, description: 'Test missing flow config or question set' })
   @Sse()
   runTest(
     @Param('id') id: string,

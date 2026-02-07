@@ -1,19 +1,39 @@
-export { AccessTokensManager } from './AccessTokensManager';
-export { QuestionSetsManager } from './QuestionSetsManager';
-export { FlowConfigsManager } from './FlowConfigsManager';
-export { WebhooksManager } from './WebhooksManager';
-export { Dashboard } from './Dashboard';
-export { Homepage } from './Homepage';
-export { Modal, ConfirmDialog, AlertDialog } from './Modal';
-export { LoginPage } from './LoginPage';
-export { RegisterPage } from './RegisterPage';
-export { ProtectedRoute } from './ProtectedRoute';
-export { AccountPage } from './AccountPage';
-export { TestsPage } from './TestsPage';
-export { RunsPage } from './RunsPage';
-export { RunDetailPage } from './RunDetailPage';
-export { RunComparisonPage } from './RunComparisonPage';
-export { Pagination, usePagination } from './Pagination';
-export { SearchableSelect } from './SearchableSelect';
-export { ScheduledTestsPage } from './ScheduledTestsPage';
-export { TagManager } from './TagManager';
+// UI Components (re-exported from @agent-eval/ui library)
+export {
+  Modal,
+  ConfirmDialog,
+  AlertDialog,
+  Pagination,
+  usePagination,
+  SearchableSelect,
+  FilterBar,
+} from '@agent-eval/ui';
+export type {
+  FilterDefinition,
+  SortOption,
+  ActiveFilter,
+} from '@agent-eval/ui';
+
+// Re-export from features for backward compatibility
+export { LoginPage } from '../features/auth/LoginPage';
+export { RegisterPage } from '../features/auth/RegisterPage';
+export { AccountPage } from '../features/auth/AccountPage';
+
+export { TestsPage } from '../features/tests/TestsPage';
+
+export { RunsPage } from '../features/runs/RunsPage';
+export { RunDetailPage } from '../features/runs/RunDetailPage';
+export { RunComparisonPage } from '../features/runs/RunComparisonPage';
+
+export { Dashboard } from '../features/dashboard/Dashboard';
+export { Homepage } from '../features/dashboard/Homepage';
+
+export { AccessTokensManager } from '../features/settings/AccessTokensManager';
+export { QuestionSetsManager } from '../features/settings/QuestionSetsManager';
+export { FlowConfigsManager } from '../features/settings/FlowConfigsManager';
+export { WebhooksManager } from '../features/settings/WebhooksManager';
+export { TagManager } from '../features/settings/TagManager';
+
+export { ScheduledTestsPage } from '../features/scheduled-tests/ScheduledTestsPage';
+
+export { ProtectedRoute } from '../shared/ProtectedRoute';

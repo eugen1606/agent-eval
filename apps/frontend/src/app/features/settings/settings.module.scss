@@ -1,0 +1,451 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+// Settings page styles (shared across settings components)
+
+.page {
+  padding: $spacing-xl;
+}
+
+.header {
+  @include flex-between;
+  margin-bottom: $spacing-lg;
+
+  h2 {
+    margin: 0;
+    font-size: $font-size-2xl;
+  }
+}
+
+.description {
+  color: var(--text-tertiary);
+  margin-bottom: $spacing-lg;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.card {
+  @include card;
+  padding: $spacing-lg;
+  @include card-hover;
+}
+
+.cardHeader {
+  @include flex-between;
+  margin-bottom: $spacing-sm;
+}
+
+.cardTitle {
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-lg;
+}
+
+.cardDescription {
+  color: var(--text-tertiary);
+  font-size: $font-size-sm;
+}
+
+.cardMeta {
+  font-size: $font-size-sm;
+  color: var(--text-muted);
+  margin-top: $spacing-sm;
+}
+
+.cardActions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+// Empty state
+.emptyState {
+  @include flex-center;
+  flex-direction: column;
+  padding: $spacing-2xl;
+  text-align: center;
+  color: var(--text-muted);
+
+  p {
+    margin: $spacing-md 0;
+  }
+}
+
+// Form modal styles
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  label {
+    font-weight: $font-weight-medium;
+    font-size: $font-size-sm;
+  }
+
+  input,
+  textarea,
+  select {
+    @include input-base;
+  }
+
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+
+  .hint {
+    font-size: $font-size-xs;
+    color: var(--text-muted);
+  }
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+// Manager section styles (used by all settings managers)
+.section {
+  margin-bottom: $spacing-md;
+}
+
+.managerHeader {
+  @include flex-between;
+  margin-bottom: $spacing-md;
+  padding-bottom: $spacing-sm;
+  border-bottom: 2px solid #667eea;
+
+  h3 {
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  button {
+    padding: $spacing-sm $spacing-md;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: $border-radius-sm;
+    cursor: pointer;
+    font-size: $font-size-sm;
+  }
+}
+
+.headerActions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.managerList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.emptyMessage {
+  color: var(--text-muted);
+  text-align: center;
+  padding: $spacing-xl;
+}
+
+.managerItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem $spacing-md;
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-md;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.itemInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.itemMeta {
+  color: var(--text-muted);
+  font-size: $font-size-sm;
+}
+
+.itemDesc {
+  color: var(--text-tertiary);
+  font-size: $font-size-sm;
+  font-style: italic;
+}
+
+.itemActions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+// Tag-specific styles
+.tagChip {
+  display: inline-block;
+  padding: $spacing-xs 0.75rem;
+  border-radius: $border-radius-full;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: white;
+}
+
+.colorPicker {
+  display: flex;
+  align-items: center;
+}
+
+.colorPreviewBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius-md;
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  transition: transform $transition-fast, border-color $transition-fast;
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: var(--text-secondary);
+  }
+}
+
+.colorInputHidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+// Webhook-specific styles
+.webhookEvents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.methodBadge {
+  padding: 0.2rem $spacing-sm;
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  font-family: $font-family-mono;
+  color: var(--text-primary);
+}
+
+// Loading state (shared across manager components)
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  gap: $spacing-md;
+}
+
+.loadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: var(--text-muted);
+  font-size: $font-size-sm;
+}
+
+// Action buttons (shared across manager components)
+.selectBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.deleteBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.editBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--accent-secondary, #667eea);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.eventBadge {
+  padding: 0.2rem $spacing-sm;
+  background: var(--bg-secondary);
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  color: var(--text-tertiary);
+}
+
+.enabledBadge {
+  padding: 0.2rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  &.active {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  &.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+}
+
+// Checkbox group for webhook events
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    cursor: pointer;
+    font-size: $font-size-sm;
+  }
+}
+
+// Key-value pair editor
+.kvPairs {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.kvRow {
+  display: flex;
+  gap: $spacing-sm;
+  align-items: center;
+
+  input {
+    flex: 1;
+    @include input-base;
+  }
+
+  button {
+    padding: $spacing-xs $spacing-sm;
+    background: var(--error);
+    color: white;
+    border: none;
+    border-radius: $border-radius-sm;
+    cursor: pointer;
+    font-size: $font-size-xs;
+  }
+}
+
+.addKvBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  align-self: flex-start;
+}
+
+.exportBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.importBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.testBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.toggleBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--warning, #f39c12);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+}
+
+.statusCompleted {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.2rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.statusPending {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.2rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}

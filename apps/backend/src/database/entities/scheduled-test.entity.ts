@@ -13,7 +13,7 @@ import { Test } from './test.entity';
 export type ScheduledTestStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ScheduleType = 'once' | 'cron';
 
-@Entity('scheduled_evaluations')
+@Entity('scheduled_tests')
 export class ScheduledTest {
   @PrimaryGeneratedColumn('uuid')
   id: string;

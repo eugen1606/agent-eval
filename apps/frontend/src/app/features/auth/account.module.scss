@@ -1,0 +1,174 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  max-width: 700px;
+  margin: 0 auto;
+
+  h2 {
+    margin-top: 0;
+    color: var(--text-primary);
+  }
+}
+
+.section {
+  @include card;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: 0 2px 4px var(--shadow);
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: $spacing-md;
+    color: var(--text-primary);
+    font-size: $font-size-lg;
+  }
+}
+
+.profileInfo {
+  @include flex-column;
+  gap: 0.75rem;
+}
+
+.infoRow {
+  @include flex-between;
+  padding: $spacing-sm 0;
+  border-bottom: 1px solid var(--border-light);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.label {
+  color: var(--text-tertiary);
+  font-weight: $font-weight-medium;
+}
+
+.value {
+  color: var(--text-primary);
+}
+
+.secondary {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: $spacing-md;
+}
+
+.statCard {
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-lg;
+  padding: $spacing-md;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 1.75rem;
+  font-weight: $font-weight-semibold;
+  color: var(--accent-primary);
+}
+
+.statLabel {
+  font-size: $font-size-sm;
+  color: var(--text-tertiary);
+  margin-top: $spacing-xs;
+}
+
+.passwordForm {
+  @include flex-column;
+  gap: $spacing-md;
+  max-width: 400px;
+
+  label {
+    font-size: $font-size-sm;
+    color: var(--text-tertiary);
+  }
+
+  input {
+    @include input-base;
+    padding: 0.6rem;
+  }
+
+  button {
+    padding: 0.75rem $spacing-lg;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-base;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background $transition-base;
+
+    &:hover {
+      background: #5a6fd6;
+    }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.formGroup {
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.errorMessage {
+  color: var(--error);
+  font-size: $font-size-sm;
+  padding: $spacing-sm;
+  background: #fdf2f2;
+  border-radius: $border-radius-sm;
+}
+
+.successMessage {
+  color: var(--success);
+  font-size: $font-size-sm;
+  padding: $spacing-sm;
+  background: #f0fdf4;
+  border-radius: $border-radius-sm;
+}
+
+.loading {
+  @include flex-center;
+  color: var(--text-tertiary);
+  padding: $spacing-2xl;
+}
+
+.dangerZone {
+  border: 1px solid #f5c6cb;
+  background: #fff5f5;
+
+  h3 {
+    color: #c0392b;
+  }
+
+  p {
+    color: var(--text-tertiary);
+    margin-bottom: $spacing-md;
+    font-size: $font-size-sm;
+  }
+}
+
+.deleteBtn {
+  background: var(--error);
+  color: white;
+  border: none;
+  padding: 0.75rem $spacing-lg;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-base;
+  transition: background $transition-base;
+
+  &:hover {
+    background: #c0392b;
+  }
+}

@@ -1,4 +1,6 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createAccessToken } from './support/factories';
+import { expectPaginatedList, expectDeleteAndVerify } from './support/assertions';
 
 describe('Access Tokens CRUD', () => {
   let accessToken: string;
@@ -16,19 +18,12 @@ describe('Access Tokens CRUD', () => {
 
   describe('POST /api/access-tokens', () => {
     it('should create an access token', async () => {
-      const response = await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test API Token',
-          token: 'super-secret-token-value',
-          description: 'A test API token',
-        }),
-      }, accessToken);
+      const data = await createAccessToken(accessToken, {
+        name: 'Test API Token',
+        token: 'super-secret-token-value',
+        description: 'A test API token',
+      });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test API Token');
       expect(data.description).toBe('A test API token');
       // Token should not be exposed
@@ -39,22 +34,13 @@ describe('Access Tokens CRUD', () => {
 
   describe('GET /api/access-tokens', () => {
     it('should list access tokens without exposing token values', async () => {
-      await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'List Test Token',
-          token: 'list-test-token-value',
-        }),
-      }, accessToken);
+      await createAccessToken(accessToken, {
+        name: 'List Test Token',
+        token: 'list-test-token-value',
+      });
 
       const response = await authenticatedRequest('/access-tokens', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const result = await response.json();
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
-      expect(result.pagination).toBeDefined();
+      const result = await expectPaginatedList(response, { minLength: 1 });
 
       // Verify no token values are exposed
       result.data.forEach((token: Record<string, unknown>) => {
@@ -66,14 +52,10 @@ describe('Access Tokens CRUD', () => {
 
   describe('GET /api/access-tokens/:id', () => {
     it('should get a single access token', async () => {
-      const createRes = await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Get Test Token',
-          token: 'get-test-token-value',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createAccessToken(accessToken, {
+        name: 'Get Test Token',
+        token: 'get-test-token-value',
+      });
 
       const response = await authenticatedRequest(`/access-tokens/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -86,14 +68,10 @@ describe('Access Tokens CRUD', () => {
 
   describe('PUT /api/access-tokens/:id', () => {
     it('should update an access token', async () => {
-      const createRes = await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Update Test Token',
-          token: 'original-token-value',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createAccessToken(accessToken, {
+        name: 'Update Test Token',
+        token: 'original-token-value',
+      });
 
       const response = await authenticatedRequest(`/access-tokens/${created.id}`, {
         method: 'PUT',
@@ -109,14 +87,10 @@ describe('Access Tokens CRUD', () => {
     });
 
     it('should update token value', async () => {
-      const createRes = await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Token Value Update Test',
-          token: 'original-token',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createAccessToken(accessToken, {
+        name: 'Token Value Update Test',
+        token: 'original-token',
+      });
 
       const response = await authenticatedRequest(`/access-tokens/${created.id}`, {
         method: 'PUT',
@@ -131,23 +105,12 @@ describe('Access Tokens CRUD', () => {
 
   describe('DELETE /api/access-tokens/:id', () => {
     it('should delete an access token', async () => {
-      const createRes = await authenticatedRequest('/access-tokens', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Delete Test Token',
-          token: 'delete-test-token',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createAccessToken(accessToken, {
+        name: 'Delete Test Token',
+        token: 'delete-test-token',
+      });
 
-      const response = await authenticatedRequest(`/access-tokens/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      const getRes = await authenticatedRequest(`/access-tokens/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      await expectDeleteAndVerify('/access-tokens', created.id as string, accessToken);
     });
   });
 });

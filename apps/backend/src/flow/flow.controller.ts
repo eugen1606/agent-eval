@@ -1,5 +1,6 @@
 import { Controller, Post, Body, UseGuards, Sse, MessageEvent } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 import { FlowService } from './flow.service';
 import { ExecuteFlowRequest } from '@agent-eval/shared';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +8,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Observable } from 'rxjs';
 
+@ApiTags('flow')
 @Controller('flow')
 @UseGuards(JwtAuthGuard)
 @Throttle({ default: { limit: 30, ttl: 60000 } })

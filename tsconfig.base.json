@@ -8,15 +8,16 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es2015",
+    "target": "ES2021",
     "module": "esnext",
-    "lib": ["es2020", "dom"],
+    "lib": ["ES2021", "DOM"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "@agent-eval/shared": ["libs/shared/src/index.ts"],
-      "@agent-eval/api-client": ["libs/api-client/src/index.ts"]
+      "@agent-eval/api-client": ["libs/api-client/src/index.ts"],
+      "@agent-eval/ui": ["libs/ui/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

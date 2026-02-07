@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   TagsService,
   PaginatedTags,
@@ -21,6 +22,7 @@ import { Tag } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+@ApiTags('tags')
 @Controller('tags')
 @UseGuards(JwtAuthGuard)
 export class TagsController {

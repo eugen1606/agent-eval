@@ -1,4 +1,11 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createFlowConfig, createTest } from './support/factories';
+import {
+  NON_EXISTENT_UUID,
+  expectNotFound,
+  expectPaginatedList,
+  expectDeleteAndVerify,
+} from './support/assertions';
 
 describe('Tests CRUD', () => {
   let accessToken: string;
@@ -10,17 +17,8 @@ describe('Tests CRUD', () => {
     accessToken = auth.accessToken;
     csrfToken = auth.csrfToken;
 
-    // Create a FlowConfig to use in tests
-    const fcResponse = await authenticatedRequest('/flow-configs', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Test Flow Config',
-        flowId: 'test-flow-123',
-        basePath: 'https://api.example.com',
-      }),
-    }, accessToken);
-    const fcData = await fcResponse.json();
-    flowConfigId = fcData.id;
+    const fc = await createFlowConfig(accessToken);
+    flowConfigId = fc.id as string;
   });
 
   afterAll(async () => {
@@ -29,20 +27,13 @@ describe('Tests CRUD', () => {
 
   describe('POST /api/tests', () => {
     it('should create a test with flowConfigId', async () => {
-      const response = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test Flow Evaluation',
-          description: 'A test for evaluating flow responses',
-          flowConfigId: flowConfigId,
-          multiStepEvaluation: false,
-        }),
-      }, accessToken);
+      const data = await createTest(accessToken, {
+        name: 'Test Flow Evaluation',
+        description: 'A test for evaluating flow responses',
+        flowConfigId,
+        multiStepEvaluation: false,
+      });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Flow Evaluation');
       expect(data.flowConfigId).toBe(flowConfigId);
       expect(data.multiStepEvaluation).toBe(false);
@@ -64,37 +55,28 @@ describe('Tests CRUD', () => {
         method: 'POST',
         body: JSON.stringify({
           name: 'Test with invalid FlowConfig',
-          flowConfigId: '00000000-0000-0000-0000-000000000000',
+          flowConfigId: NON_EXISTENT_UUID,
         }),
       }, accessToken);
 
-      expect(response.status).toBe(404);
+      expectNotFound(response);
     });
   });
 
   describe('GET /api/tests', () => {
     it('should list tests with pagination', async () => {
       const response = await authenticatedRequest('/tests', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-      expect(data.data).toBeDefined();
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.pagination).toBeDefined();
-      expect(data.pagination.page).toBe(1);
+      const result = await expectPaginatedList(response);
+      expect(result.pagination.page).toBe(1);
     });
   });
 
   describe('GET /api/tests/:id', () => {
     it('should get a single test with flowConfig relation', async () => {
-      const createRes = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Get Test With FlowConfig',
-          flowConfigId: flowConfigId,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTest(accessToken, {
+        name: 'Get Test With FlowConfig',
+        flowConfigId,
+      });
 
       const response = await authenticatedRequest(`/tests/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -109,21 +91,17 @@ describe('Tests CRUD', () => {
     });
 
     it('should return 404 for non-existent test', async () => {
-      const response = await authenticatedRequest('/tests/00000000-0000-0000-0000-000000000000', {}, accessToken);
-      expect(response.status).toBe(404);
+      const response = await authenticatedRequest(`/tests/${NON_EXISTENT_UUID}`, {}, accessToken);
+      expectNotFound(response);
     });
   });
 
   describe('PUT /api/tests/:id', () => {
     it('should update a test', async () => {
-      const createRes = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Update Test',
-          flowConfigId: flowConfigId,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTest(accessToken, {
+        name: 'Update Test',
+        flowConfigId,
+      });
 
       const response = await authenticatedRequest(`/tests/${created.id}`, {
         method: 'PUT',
@@ -143,25 +121,16 @@ describe('Tests CRUD', () => {
     });
 
     it('should update flowConfigId', async () => {
-      // Create a second flow config
-      const fc2Res = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Second Flow Config',
-          flowId: 'second-flow',
-          basePath: 'https://api2.example.com',
-        }),
-      }, accessToken);
-      const fc2 = await fc2Res.json();
+      const fc2 = await createFlowConfig(accessToken, {
+        name: 'Second Flow Config',
+        flowId: 'second-flow',
+        basePath: 'https://api2.example.com',
+      });
 
-      const createRes = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test to Update FlowConfig',
-          flowConfigId: flowConfigId,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTest(accessToken, {
+        name: 'Test to Update FlowConfig',
+        flowConfigId,
+      });
 
       const response = await authenticatedRequest(`/tests/${created.id}`, {
         method: 'PUT',
@@ -180,48 +149,27 @@ describe('Tests CRUD', () => {
 
   describe('DELETE /api/tests/:id', () => {
     it('should delete a test', async () => {
-      const createRes = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Delete Test',
-          flowConfigId: flowConfigId,
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTest(accessToken, {
+        name: 'Delete Test',
+        flowConfigId,
+      });
 
-      const response = await authenticatedRequest(`/tests/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      const getRes = await authenticatedRequest(`/tests/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      await expectDeleteAndVerify('/tests', created.id as string, accessToken);
     });
   });
 
   describe('FlowConfig SET NULL behavior', () => {
     it('should set flowConfigId to null when FlowConfig is deleted', async () => {
-      // Create a new FlowConfig
-      const fcRes = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Deletable Flow Config',
-          flowId: 'delete-test-flow',
-          basePath: 'https://delete.example.com',
-        }),
-      }, accessToken);
-      const fc = await fcRes.json();
+      const fc = await createFlowConfig(accessToken, {
+        name: 'Deletable Flow Config',
+        flowId: 'delete-test-flow',
+        basePath: 'https://delete.example.com',
+      });
 
-      // Create a test using it
-      const testRes = await authenticatedRequest('/tests', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test for SET NULL',
-          flowConfigId: fc.id,
-        }),
-      }, accessToken);
-      const test = await testRes.json();
+      const test = await createTest(accessToken, {
+        name: 'Test for SET NULL',
+        flowConfigId: fc.id,
+      });
 
       // Delete the FlowConfig
       await authenticatedRequest(`/flow-configs/${fc.id}`, {

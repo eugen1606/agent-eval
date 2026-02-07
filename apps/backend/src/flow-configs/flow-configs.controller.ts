@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   FlowConfigsService,
   CreateFlowConfigDto,
@@ -21,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UrlValidationService } from '../common/validators/url-validation.service';
 
+@ApiTags('flow-configs')
 @Controller('flow-configs')
 @UseGuards(JwtAuthGuard)
 export class FlowConfigsController {

@@ -8,6 +8,7 @@ import { GlobalExceptionFilter } from './common/filters';
 import { createLogger, LogFormat } from './common/logger';
 import { LoggingInterceptor } from './common/interceptors';
 import { MetricsService } from './metrics';
+import { setupSwagger } from './swagger';
 
 function getLogLevels(): LogLevel[] {
   const logLevel = process.env.LOG_LEVEL || 'info';
@@ -44,8 +45,8 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"], // Needed for inline styles
+          scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for Swagger UI
+          styleSrc: ["'self'", "'unsafe-inline'"], // Needed for inline styles and Swagger UI
           imgSrc: ["'self'", 'data:', 'blob:'],
           fontSrc: ["'self'"],
           objectSrc: ["'none'"],
@@ -114,10 +115,17 @@ async function bootstrap() {
 
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  // Setup Swagger documentation (available at /api/docs)
+  setupSwagger(app);
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
   Logger.log(
     `Application is running on: http://localhost:${port}/${globalPrefix}`,
+  );
+  Logger.log(
+    `Swagger documentation available at: http://localhost:${port}/api/docs`,
   );
 
   // Graceful shutdown handling

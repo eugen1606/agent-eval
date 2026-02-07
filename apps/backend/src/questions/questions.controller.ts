@@ -10,6 +10,7 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   QuestionsService,
   EntityUsage,
@@ -27,6 +28,7 @@ import { QuestionSet } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
+@ApiTags('questions')
 @Controller('questions')
 @UseGuards(JwtAuthGuard)
 export class QuestionsController {

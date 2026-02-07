@@ -43,5 +43,5 @@
       }
     }
   },
-  "tags": []
+  "tags": ["scope:backend", "type:app"]
 }

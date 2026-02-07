@@ -1,10 +1,12 @@
 import { Controller, Get, Post, HttpStatus, Res, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import { HealthService } from './health.service';
 import { ThrottlerStorageRedisService } from '../throttler/throttler-storage-redis.service';
 
+@ApiTags('health')
 @Controller('health')
 @SkipThrottle()
 export class HealthController {
@@ -15,11 +17,16 @@ export class HealthController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Basic health check' })
+  @ApiResponse({ status: 200, description: 'Service is running' })
   getHealth() {
     return this.healthService.getHealth();
   }
 
   @Get('ready')
+  @ApiOperation({ summary: 'Readiness check (database, Redis connectivity)' })
+  @ApiResponse({ status: 200, description: 'Service is ready' })
+  @ApiResponse({ status: 503, description: 'Service is not ready' })
   async getReadiness(@Res() res: Response) {
     const status = await this.healthService.getReadiness();
     const httpStatus = status.status === 'healthy'
@@ -29,6 +36,8 @@ export class HealthController {
   }
 
   @Get('live')
+  @ApiOperation({ summary: 'Liveness check' })
+  @ApiResponse({ status: 200, description: 'Service is alive' })
   getLiveness() {
     return this.healthService.getLiveness();
   }

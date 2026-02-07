@@ -1,4 +1,6 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createFlowConfig } from './support/factories';
+import { expectPaginatedList, expectDeleteAndVerify } from './support/assertions';
 
 describe('Flow Configs CRUD', () => {
   let accessToken: string;
@@ -16,20 +18,10 @@ describe('Flow Configs CRUD', () => {
 
   describe('POST /api/flow-configs', () => {
     it('should create a flow config', async () => {
-      const response = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test Flow Config',
-          flowId: 'test-flow-123',
-          basePath: 'https://api.example.com',
-          description: 'A test flow configuration',
-        }),
-      }, accessToken);
+      const data = await createFlowConfig(accessToken, {
+        description: 'A test flow configuration',
+      });
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Flow Config');
       expect(data.flowId).toBe('test-flow-123');
       expect(data.basePath).toBe('https://api.example.com');
@@ -38,35 +30,22 @@ describe('Flow Configs CRUD', () => {
 
   describe('GET /api/flow-configs', () => {
     it('should list flow configs', async () => {
-      await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'List Test Config',
-          flowId: 'list-flow-123',
-        }),
-      }, accessToken);
+      await createFlowConfig(accessToken, {
+        name: 'List Test Config',
+        flowId: 'list-flow-123',
+      });
 
       const response = await authenticatedRequest('/flow-configs', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const data = await response.json();
-      expect(data.data).toBeDefined();
-      expect(Array.isArray(data.data)).toBe(true);
-      expect(data.data.length).toBeGreaterThan(0);
-      expect(data.pagination).toBeDefined();
+      await expectPaginatedList(response, { minLength: 1 });
     });
   });
 
   describe('GET /api/flow-configs/:id', () => {
     it('should get a single flow config', async () => {
-      const createRes = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Get Test Config',
-          flowId: 'get-flow-123',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createFlowConfig(accessToken, {
+        name: 'Get Test Config',
+        flowId: 'get-flow-123',
+      });
 
       const response = await authenticatedRequest(`/flow-configs/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -79,14 +58,10 @@ describe('Flow Configs CRUD', () => {
 
   describe('PUT /api/flow-configs/:id', () => {
     it('should update a flow config', async () => {
-      const createRes = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Update Test Config',
-          flowId: 'update-flow-123',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createFlowConfig(accessToken, {
+        name: 'Update Test Config',
+        flowId: 'update-flow-123',
+      });
 
       const response = await authenticatedRequest(`/flow-configs/${created.id}`, {
         method: 'PUT',
@@ -106,23 +81,12 @@ describe('Flow Configs CRUD', () => {
 
   describe('DELETE /api/flow-configs/:id', () => {
     it('should delete a flow config', async () => {
-      const createRes = await authenticatedRequest('/flow-configs', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Delete Test Config',
-          flowId: 'delete-flow-123',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createFlowConfig(accessToken, {
+        name: 'Delete Test Config',
+        flowId: 'delete-flow-123',
+      });
 
-      const response = await authenticatedRequest(`/flow-configs/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      const getRes = await authenticatedRequest(`/flow-configs/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      await expectDeleteAndVerify('/flow-configs', created.id as string, accessToken);
     });
   });
 });

@@ -1,4 +1,12 @@
 import { authenticatedRequest, createTestUser, deleteTestUser } from './support/test-setup';
+import { createFlowConfig, createTest, createTag } from './support/factories';
+import {
+  NON_EXISTENT_UUID,
+  expectNotFound,
+  expectPaginatedList,
+  expectConflict,
+  expectDeleteAndVerify,
+} from './support/assertions';
 
 describe('Tags CRUD', () => {
   let accessToken: string;
@@ -16,31 +24,14 @@ describe('Tags CRUD', () => {
 
   describe('POST /api/tags', () => {
     it('should create a tag', async () => {
-      const response = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Test Tag',
-          color: '#3B82F6',
-        }),
-      }, accessToken);
+      const data = await createTag(accessToken);
 
-      expect(response.status).toBe(201);
-
-      const data = await response.json();
-      expect(data.id).toBeDefined();
       expect(data.name).toBe('Test Tag');
       expect(data.color).toBe('#3B82F6');
     });
 
     it('should reject duplicate tag name', async () => {
-      // Create first tag
-      await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Duplicate Tag',
-          color: '#EF4444',
-        }),
-      }, accessToken);
+      await createTag(accessToken, { name: 'Duplicate Tag', color: '#EF4444' });
 
       // Try to create duplicate
       const response = await authenticatedRequest('/tags', {
@@ -51,9 +42,7 @@ describe('Tags CRUD', () => {
         }),
       }, accessToken);
 
-      expect(response.status).toBe(409);
-      const data = await response.json();
-      expect(data.message).toContain('already exists');
+      await expectConflict(response, 'already exists');
     });
 
     it('should reject empty tag name', async () => {
@@ -98,34 +87,15 @@ describe('Tags CRUD', () => {
 
   describe('GET /api/tags', () => {
     it('should list tags', async () => {
-      // Create a tag first
-      await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'List Test Tag',
-          color: '#F59E0B',
-        }),
-      }, accessToken);
+      await createTag(accessToken, { name: 'List Test Tag', color: '#F59E0B' });
 
       const response = await authenticatedRequest('/tags', {}, accessToken);
-      expect(response.status).toBe(200);
-
-      const result = await response.json();
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data.length).toBeGreaterThan(0);
-      expect(result.pagination).toBeDefined();
+      await expectPaginatedList(response, { minLength: 1 });
     });
 
     it('should filter tags by search', async () => {
       const uniqueName = `Searchable-${Date.now()}`;
-      await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: uniqueName,
-          color: '#8B5CF6',
-        }),
-      }, accessToken);
+      await createTag(accessToken, { name: uniqueName, color: '#8B5CF6' });
 
       const response = await authenticatedRequest(`/tags?search=${uniqueName}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -138,14 +108,10 @@ describe('Tags CRUD', () => {
 
   describe('GET /api/tags/:id', () => {
     it('should get a single tag', async () => {
-      const createRes = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Get Test Tag',
-          color: '#EC4899',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTag(accessToken, {
+        name: 'Get Test Tag',
+        color: '#EC4899',
+      });
 
       const response = await authenticatedRequest(`/tags/${created.id}`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -157,21 +123,17 @@ describe('Tags CRUD', () => {
     });
 
     it('should return 404 for non-existent tag', async () => {
-      const response = await authenticatedRequest('/tags/00000000-0000-0000-0000-000000000000', {}, accessToken);
-      expect(response.status).toBe(404);
+      const response = await authenticatedRequest(`/tags/${NON_EXISTENT_UUID}`, {}, accessToken);
+      expectNotFound(response);
     });
   });
 
   describe('PUT /api/tags/:id', () => {
     it('should update a tag', async () => {
-      const createRes = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Update Test Tag',
-          color: '#06B6D4',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTag(accessToken, {
+        name: 'Update Test Tag',
+        color: '#06B6D4',
+      });
 
       const response = await authenticatedRequest(`/tags/${created.id}`, {
         method: 'PUT',
@@ -189,21 +151,9 @@ describe('Tags CRUD', () => {
     });
 
     it('should reject duplicate name on update', async () => {
-      // Create two tags
-      await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'First Tag For Update Test',
-        }),
-      }, accessToken);
+      await createTag(accessToken, { name: 'First Tag For Update Test' });
 
-      const secondRes = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Second Tag For Update Test',
-        }),
-      }, accessToken);
-      const second = await secondRes.json();
+      const second = await createTag(accessToken, { name: 'Second Tag For Update Test' });
 
       // Try to rename second to match first
       const response = await authenticatedRequest(`/tags/${second.id}`, {
@@ -219,35 +169,14 @@ describe('Tags CRUD', () => {
 
   describe('DELETE /api/tags/:id', () => {
     it('should delete a tag', async () => {
-      const createRes = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Delete Test Tag',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
-
-      const response = await authenticatedRequest(`/tags/${created.id}`, {
-        method: 'DELETE',
-      }, accessToken);
-
-      expect(response.status).toBe(200);
-
-      // Verify it's deleted
-      const getRes = await authenticatedRequest(`/tags/${created.id}`, {}, accessToken);
-      expect(getRes.status).toBe(404);
+      const created = await createTag(accessToken, { name: 'Delete Test Tag' });
+      await expectDeleteAndVerify('/tags', created.id as string, accessToken);
     });
   });
 
   describe('GET /api/tags/:id/usage', () => {
     it('should return empty usage for unused tag', async () => {
-      const createRes = await authenticatedRequest('/tags', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: 'Unused Tag',
-        }),
-      }, accessToken);
-      const created = await createRes.json();
+      const created = await createTag(accessToken, { name: 'Unused Tag' });
 
       const response = await authenticatedRequest(`/tags/${created.id}/usage`, {}, accessToken);
       expect(response.status).toBe(200);
@@ -269,28 +198,18 @@ describe('Tags with Tests', () => {
     accessToken = auth.accessToken;
     csrfToken = auth.csrfToken;
 
-    // Create a flow config for tests
-    const flowConfigRes = await authenticatedRequest('/flow-configs', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Tags Test Flow Config',
-        flowId: 'test-flow',
-        basePath: 'https://test.com',
-      }),
-    }, accessToken);
-    const flowConfig = await flowConfigRes.json();
-    flowConfigId = flowConfig.id;
+    const flowConfig = await createFlowConfig(accessToken, {
+      name: 'Tags Test Flow Config',
+      flowId: 'test-flow',
+      basePath: 'https://test.com',
+    });
+    flowConfigId = flowConfig.id as string;
 
-    // Create a tag
-    const tagRes = await authenticatedRequest('/tags', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Integration Tag',
-        color: '#3B82F6',
-      }),
-    }, accessToken);
-    const tag = await tagRes.json();
-    tagId = tag.id;
+    const tag = await createTag(accessToken, {
+      name: 'Integration Tag',
+      color: '#3B82F6',
+    });
+    tagId = tag.id as string;
   });
 
   afterAll(async () => {
@@ -298,34 +217,23 @@ describe('Tags with Tests', () => {
   });
 
   it('should create test with tags', async () => {
-    const response = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Test With Tags',
-        flowConfigId,
-        tagIds: [tagId],
-      }),
-    }, accessToken);
+    const data = await createTest(accessToken, {
+      name: 'Test With Tags',
+      flowConfigId,
+      tagIds: [tagId],
+    });
 
-    expect(response.status).toBe(201);
-
-    const data = await response.json();
     expect(data.tags).toBeDefined();
     expect(data.tags).toHaveLength(1);
-    expect(data.tags[0].id).toBe(tagId);
-    expect(data.tags[0].name).toBe('Integration Tag');
+    expect((data.tags as Array<{ id: string; name: string }>)[0].id).toBe(tagId);
+    expect((data.tags as Array<{ id: string; name: string }>)[0].name).toBe('Integration Tag');
   });
 
   it('should update test tags', async () => {
-    // Create test without tags
-    const createRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Test To Update Tags',
-        flowConfigId,
-      }),
-    }, accessToken);
-    const created = await createRes.json();
+    const created = await createTest(accessToken, {
+      name: 'Test To Update Tags',
+      flowConfigId,
+    });
     expect(created.tags).toEqual([]);
 
     // Update with tags
@@ -343,16 +251,11 @@ describe('Tags with Tests', () => {
   });
 
   it('should remove test tags', async () => {
-    // Create test with tag
-    const createRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Test To Remove Tags',
-        flowConfigId,
-        tagIds: [tagId],
-      }),
-    }, accessToken);
-    const created = await createRes.json();
+    const created = await createTest(accessToken, {
+      name: 'Test To Remove Tags',
+      flowConfigId,
+      tagIds: [tagId],
+    });
     expect(created.tags).toHaveLength(1);
 
     // Update to remove tags
@@ -369,26 +272,16 @@ describe('Tags with Tests', () => {
   });
 
   it('should filter tests by tag', async () => {
-    // Create a new tag for filtering test
-    const filterTagRes = await authenticatedRequest('/tags', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Filter Tag',
-        color: '#10B981',
-      }),
-    }, accessToken);
-    const filterTag = await filterTagRes.json();
+    const filterTag = await createTag(accessToken, {
+      name: 'Filter Tag',
+      color: '#10B981',
+    });
 
-    // Create test with this tag
-    const testRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Filtered Test',
-        flowConfigId,
-        tagIds: [filterTag.id],
-      }),
-    }, accessToken);
-    const test = await testRes.json();
+    const test = await createTest(accessToken, {
+      name: 'Filtered Test',
+      flowConfigId,
+      tagIds: [filterTag.id],
+    });
 
     // Filter tests by tag
     const response = await authenticatedRequest(`/tests?tagIds=${filterTag.id}`, {}, accessToken);
@@ -403,16 +296,11 @@ describe('Tags with Tests', () => {
   });
 
   it('should show tag usage', async () => {
-    // Create test with tag
-    const testRes = await authenticatedRequest('/tests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: 'Test For Usage Check',
-        flowConfigId,
-        tagIds: [tagId],
-      }),
-    }, accessToken);
-    const test = await testRes.json();
+    const test = await createTest(accessToken, {
+      name: 'Test For Usage Check',
+      flowConfigId,
+      tagIds: [tagId],
+    });
 
     // Check tag usage
     const response = await authenticatedRequest(`/tags/${tagId}/usage`, {}, accessToken);
@@ -428,11 +316,11 @@ describe('Tags with Tests', () => {
       body: JSON.stringify({
         name: 'Test With Invalid Tags',
         flowConfigId,
-        tagIds: ['00000000-0000-0000-0000-000000000000'],
+        tagIds: [NON_EXISTENT_UUID],
       }),
     }, accessToken);
 
-    expect(response.status).toBe(404);
+    expectNotFound(response);
     const data = await response.json();
     expect(data.message).toContain('tags not found');
   });

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import {
   RunsService,
   CreateRunDto,
@@ -21,12 +22,15 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RunComparison } from '@agent-eval/shared';
 
+@ApiTags('runs')
 @Controller('runs')
 @UseGuards(JwtAuthGuard)
 export class RunsController {
   constructor(private readonly runsService: RunsService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new run' })
+  @ApiResponse({ status: 201, description: 'Run created' })
   async create(
     @Body() dto: CreateRunDto,
     @CurrentUser() user: { userId: string; email: string },
@@ -35,6 +39,8 @@ export class RunsController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List all runs with pagination and filtering' })
+  @ApiResponse({ status: 200, description: 'Paginated list of runs' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -61,6 +67,9 @@ export class RunsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a run by ID' })
+  @ApiResponse({ status: 200, description: 'Run found' })
+  @ApiResponse({ status: 404, description: 'Run not found' })
   async findOne(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -69,6 +78,8 @@ export class RunsController {
   }
 
   @Get(':id/stats')
+  @ApiOperation({ summary: 'Get evaluation statistics for a run' })
+  @ApiResponse({ status: 200, description: 'Run evaluation stats (correct, partial, incorrect counts)' })
   async getStats(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -77,6 +88,8 @@ export class RunsController {
   }
 
   @Get(':id/performance')
+  @ApiOperation({ summary: 'Get performance statistics for a run (latency metrics)' })
+  @ApiResponse({ status: 200, description: 'Performance stats (avg, p50, p95, max latency)' })
   async getPerformance(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -85,6 +98,8 @@ export class RunsController {
   }
 
   @Get(':id/compare/:otherId')
+  @ApiOperation({ summary: 'Compare two runs side by side' })
+  @ApiResponse({ status: 200, description: 'Comparison of two runs with matched results' })
   async compareRuns(
     @Param('id') id: string,
     @Param('otherId') otherId: string,
@@ -94,6 +109,8 @@ export class RunsController {
   }
 
   @Put(':id')
+  @ApiOperation({ summary: 'Update a run' })
+  @ApiResponse({ status: 200, description: 'Run updated' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateRunDto,
@@ -103,6 +120,8 @@ export class RunsController {
   }
 
   @Put(':id/results/:resultId/evaluation')
+  @ApiOperation({ summary: 'Evaluate a single result (correct/partial/incorrect)' })
+  @ApiResponse({ status: 200, description: 'Evaluation saved' })
   async updateResultEvaluation(
     @Param('id') id: string,
     @Param('resultId') resultId: string,
@@ -117,6 +136,8 @@ export class RunsController {
   }
 
   @Put(':id/results/evaluations')
+  @ApiOperation({ summary: 'Bulk update evaluations for multiple results' })
+  @ApiResponse({ status: 200, description: 'Evaluations updated' })
   async bulkUpdateResultEvaluations(
     @Param('id') id: string,
     @Body() dto: { updates: UpdateResultEvaluationDto[] },
@@ -130,6 +151,8 @@ export class RunsController {
   }
 
   @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel a running test execution' })
+  @ApiResponse({ status: 200, description: 'Run canceled' })
   async cancel(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
@@ -138,6 +161,9 @@ export class RunsController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a run' })
+  @ApiResponse({ status: 200, description: 'Run deleted' })
+  @ApiResponse({ status: 404, description: 'Run not found' })
   async delete(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
