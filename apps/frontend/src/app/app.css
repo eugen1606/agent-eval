@@ -85,6 +85,12 @@ body {
   font-size: 0.9rem;
 }
 
+.app-version {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  font-weight: 400;
+}
+
 .app-header nav {
   margin-left: auto;
   display: flex;

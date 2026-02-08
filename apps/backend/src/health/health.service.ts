@@ -1,3 +1,5 @@
+declare const __APP_VERSION__: string | undefined;
+
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ThrottlerStorageRedisService } from '../throttler/throttler-storage-redis.service';
@@ -25,7 +27,10 @@ export interface ReadinessStatus extends HealthStatus {
 @Injectable()
 export class HealthService {
   private readonly startTime = Date.now();
-  private readonly version = process.env.npm_package_version || '1.0.0';
+  private readonly version =
+    typeof __APP_VERSION__ !== 'undefined'
+      ? __APP_VERSION__
+      : process.env.npm_package_version || '0.0.0';
 
   constructor(
     private dataSource: DataSource,

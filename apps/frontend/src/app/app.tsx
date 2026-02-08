@@ -143,7 +143,7 @@ function AppLayout() {
             <span className="logo-mark">Mark</span>
           </h1>
         </Link>
-        <p>Agent Evaluation</p>
+        <p>Agent Evaluation <span className="app-version">v{__APP_VERSION__}</span></p>
         <nav>
           <Link
             to="/tests"
