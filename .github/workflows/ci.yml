@@ -1,0 +1,234 @@
+# =============================================================================
+# CI Pipeline for BenchMark (Agent Eval)
+# =============================================================================
+#
+# This pipeline runs on every push and pull request to ensure code quality.
+# It uses Nx's "affected" commands to only lint/test/build projects that
+# changed, making CI faster as the monorepo grows.
+#
+# Stages:
+#   1. Install   - Install dependencies with Yarn (cached)
+#   2. Lint      - Run ESLint on affected projects
+#   3. Test      - Run unit tests on affected projects
+#   4. Build     - Build affected projects for production
+#
+# Caching strategy:
+#   - Yarn dependencies are cached by yarn.lock hash
+#   - Nx computation cache is preserved between runs
+#   Both caches drastically reduce CI time on subsequent runs.
+# =============================================================================
+
+name: CI
+
+# ── When does this pipeline run? ─────────────────────────────────────────────
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# ── Cancel previous runs on the same branch (saves CI minutes) ───────────────
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  STAGE 1: Install Dependencies                                          ║
+  # ║                                                                          ║
+  # ║  This job installs all npm packages and caches them. Subsequent jobs     ║
+  # ║  reuse the cache instead of installing from scratch.                     ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so Nx can compare against the base branch
+          # to determine which projects are "affected" (changed)
+          fetch-depth: 0
+
+      # Set up Node.js with Yarn caching built in
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+
+      # Install all project dependencies
+      # --immutable ensures yarn.lock is not modified (fails if it would be)
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Save node_modules so other jobs don't need to install again
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('yarn.lock') }}
+
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  STAGE 2: Lint                                                           ║
+  # ║                                                                          ║
+  # ║  Runs ESLint on all projects affected by the current changes.            ║
+  # ║  Catches code style issues, potential bugs, and enforces Nx module       ║
+  # ║  boundary rules (e.g., frontend can't import backend code).              ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: install  # Wait for dependencies to be installed
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Restore the cached node_modules from the install job
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('yarn.lock') }}
+
+      # Restore Nx's computation cache from previous CI runs
+      # This means if a project hasn't changed, Nx skips linting it entirely
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-cache-lint-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            nx-cache-lint-${{ github.ref }}-
+            nx-cache-lint-
+
+      # Tell Nx which branch to compare against to find affected projects
+      - name: Set Nx SHAs
+        uses: nrwl/nx-set-shas@v4
+
+      # Run ESLint only on projects that changed
+      # "affected" = projects where source files were modified in this PR/push
+      - name: Lint affected projects
+        run: yarn nx affected -t lint
+
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  STAGE 3: Test                                                           ║
+  # ║                                                                          ║
+  # ║  Runs unit tests (Jest/Vitest) on all affected projects.                 ║
+  # ║  Tests the shared library, api-client, UI components, etc.               ║
+  # ║  Note: E2E tests are NOT included here because they need a running       ║
+  # ║  backend + database. Those would go in a separate job/workflow.          ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: install
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('yarn.lock') }}
+
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-cache-test-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            nx-cache-test-${{ github.ref }}-
+            nx-cache-test-
+
+      - name: Set Nx SHAs
+        uses: nrwl/nx-set-shas@v4
+
+      # Run unit tests on affected projects
+      # --configuration=ci can be used if you add a "ci" config to jest
+      - name: Test affected projects
+        run: yarn nx affected -t test
+
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  STAGE 4: Build                                                          ║
+  # ║                                                                          ║
+  # ║  Builds all affected projects for production. This verifies that:        ║
+  # ║  - TypeScript compilation succeeds (catches type errors)                 ║
+  # ║  - All imports resolve correctly                                         ║
+  # ║  - The production bundle can be generated                                ║
+  # ║                                                                          ║
+  # ║  Build artifacts could be uploaded for deployment (see comments below).  ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: install
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('yarn.lock') }}
+
+      - name: Restore Nx cache
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-cache-build-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            nx-cache-build-${{ github.ref }}-
+            nx-cache-build-
+
+      - name: Set Nx SHAs
+        uses: nrwl/nx-set-shas@v4
+
+      # Build all affected projects for production
+      - name: Build affected projects
+        run: yarn nx affected -t build
+
+      # ── Optional: Upload build artifacts for deployment ──────────────────
+      # Uncomment to save build output for a deployment job:
+      #
+      # - name: Upload backend artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: backend-dist
+      #     path: dist/apps/backend
+      #     retention-days: 7
+      #
+      # - name: Upload frontend artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: frontend-dist
+      #     path: dist/apps/frontend
+      #     retention-days: 7
