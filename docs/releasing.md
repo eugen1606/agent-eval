@@ -36,18 +36,18 @@ Every commit message must follow the conventional commit format. This is enforce
 
 ### Common Types
 
-| Type | Purpose | Version Bump |
-|------|---------|--------------|
-| `feat` | New feature | minor (0.x.0) |
-| `fix` | Bug fix | patch (0.0.x) |
-| `docs` | Documentation only | patch |
-| `refactor` | Code change that neither fixes a bug nor adds a feature | patch |
-| `perf` | Performance improvement | patch |
-| `test` | Adding or updating tests | none (hidden) |
-| `style` | Code style changes (formatting, semicolons, etc.) | none (hidden) |
-| `build` | Changes to the build system or dependencies | patch |
-| `ci` | CI/CD configuration changes | patch |
-| `chore` | Other changes that don't modify src or test files | patch |
+| Type       | Purpose                                                 | Version Bump  |
+| ---------- | ------------------------------------------------------- | ------------- |
+| `feat`     | New feature                                             | minor (0.x.0) |
+| `fix`      | Bug fix                                                 | patch (0.0.x) |
+| `docs`     | Documentation only                                      | patch         |
+| `refactor` | Code change that neither fixes a bug nor adds a feature | patch         |
+| `perf`     | Performance improvement                                 | patch         |
+| `test`     | Adding or updating tests                                | none (hidden) |
+| `style`    | Code style changes (formatting, semicolons, etc.)       | none (hidden) |
+| `build`    | Changes to the build system or dependencies             | patch         |
+| `ci`       | CI/CD configuration changes                             | patch         |
+| `chore`    | Other changes that don't modify src or test files       | patch         |
 
 ### Breaking Changes
 
@@ -86,36 +86,37 @@ The current version is injected at build time and visible in two places:
 - **Backend**: Returned in the `/api/health` endpoint response under the `version` field
 
 The version is read from the root `package.json` at build time via:
+
 - Vite `define` option for the frontend
 - Webpack `DefinePlugin` for the backend
 
 ## Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `release-please-config.json` | Release-please settings: release type, changelog sections, tag format |
-| `.release-please-manifest.json` | Tracks the current released version |
-| `commitlint.config.js` | Commitlint configuration (extends `@commitlint/config-conventional`) |
-| `.husky/commit-msg` | Git hook that runs commitlint on every commit |
-| `.github/workflows/release.yml` | GitHub Actions workflow that runs release-please |
-| `.github/workflows/ci.yml` | Contains the `commitlint` job (PR-only) |
+| File                            | Purpose                                                               |
+| ------------------------------- | --------------------------------------------------------------------- |
+| `release-please-config.json`    | Release-please settings: release type, changelog sections, tag format |
+| `.release-please-manifest.json` | Tracks the current released version                                   |
+| `commitlint.config.js`          | Commitlint configuration (extends `@commitlint/config-conventional`)  |
+| `.husky/commit-msg`             | Git hook that runs commitlint on every commit                         |
+| `.github/workflows/release.yml` | GitHub Actions workflow that runs release-please                      |
+| `.github/workflows/ci.yml`      | Contains the `commitlint` job (PR-only)                               |
 
 ## Changelog Sections
 
 Commits are grouped into these sections in `CHANGELOG.md`:
 
-| Commit Type | Changelog Section |
-|-------------|-------------------|
-| `feat` | Features |
-| `fix` | Bug Fixes |
-| `perf` | Performance Improvements |
-| `refactor` | Code Refactoring |
-| `docs` | Documentation |
-| `build` | Build System |
-| `ci` | CI/CD |
-| `chore` | Miscellaneous |
-| `test` | *(hidden)* |
-| `style` | *(hidden)* |
+| Commit Type | Changelog Section        |
+| ----------- | ------------------------ |
+| `feat`      | Features                 |
+| `fix`       | Bug Fixes                |
+| `perf`      | Performance Improvements |
+| `refactor`  | Code Refactoring         |
+| `docs`      | Documentation            |
+| `build`     | Build System             |
+| `ci`        | CI/CD                    |
+| `chore`     | Miscellaneous            |
+| `test`      | _(hidden)_               |
+| `style`     | _(hidden)_               |
 
 ## Bootstrapping the First Release
 
