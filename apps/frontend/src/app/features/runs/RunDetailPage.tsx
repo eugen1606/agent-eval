@@ -9,9 +9,12 @@ import {
   PerformanceStats,
 } from '@agent-eval/shared';
 import { Pagination } from '../../components/Pagination';
+import { ConfirmDialog } from '../../components/Modal';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, generateExportFilename } from '../../shared/exportImportUtils';
+import { calculateSimilarity, getSimilarityLevel } from './similarity';
+import { DiffView } from './DiffView';
 import styles from './runs.module.scss';
 
 interface CompareableRun {
@@ -40,6 +43,10 @@ export function RunDetailPage() {
   const [saving, setSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingUpdates, setPendingUpdates] = useState<Map<string, Partial<RunResult>>>(new Map());
+  const [diffToggles, setDiffToggles] = useState<Set<string>>(new Set());
+  const [reRunning, setReRunning] = useState(false);
+  const [reRunProgress, setReRunProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [showReRunConfirm, setShowReRunConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -212,6 +219,127 @@ export function RunDetailPage() {
     }
   };
 
+  const toggleDiff = (resultId: string) => {
+    setDiffToggles((prev) => {
+      const next = new Set(prev);
+      if (next.has(resultId)) {
+        next.delete(resultId);
+      } else {
+        next.add(resultId);
+      }
+      return next;
+    });
+  };
+
+  const handleReRun = async (isRetry = false) => {
+    if (!run?.testId) return;
+
+    const testId = run.testId;
+    setReRunning(true);
+    setReRunProgress(null);
+
+    const csrfToken = apiClient.getAuthToken();
+    if (!csrfToken) {
+      setReRunning(false);
+      showNotification('error', 'Not authenticated. Please log in again.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiClient.getApiUrl()}/tests/${testId}/run`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          Accept: 'text/event-stream',
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401 && !isRetry) {
+        const refreshResponse = await fetch(`${apiClient.getApiUrl()}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+
+        if (refreshResponse.ok) {
+          setReRunning(false);
+          return handleReRun(true);
+        } else {
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        throw new Error(errorMessage);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let newRunId = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'run_start' && data.runId) {
+                newRunId = data.runId;
+                setReRunProgress({ completed: 0, total: data.totalQuestions || 0 });
+              }
+              if (data.type === 'result') {
+                setReRunProgress((prev) =>
+                  prev ? { ...prev, completed: prev.completed + 1 } : prev
+                );
+              }
+              if (data.type === 'complete') {
+                setReRunning(false);
+                setReRunProgress(null);
+                if (newRunId) {
+                  navigate(`/runs/${newRunId}`);
+                }
+              }
+              if (data.type === 'error') {
+                setReRunning(false);
+                setReRunProgress(null);
+                showNotification('error', data.message || 'Re-run failed');
+              }
+              if (data.type === 'canceled') {
+                setReRunning(false);
+                setReRunProgress(null);
+                showNotification('info', 'Re-run was canceled');
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+    } catch (error) {
+      setReRunning(false);
+      setReRunProgress(null);
+      showNotification('error', error instanceof Error ? error.message : 'Failed to re-run test');
+    }
+  };
+
   // Block all navigation (back button, links, etc.) when there are unsaved changes
   const blocker = useBlocker(hasUnsavedChanges);
 
@@ -293,6 +421,19 @@ export function RunDetailPage() {
         <button className={styles.exportBtn} onClick={handleExport}>
           Export
         </button>
+        {run.testId && (
+          <button
+            className={styles.reRunBtn}
+            onClick={() => setShowReRunConfirm(true)}
+            disabled={reRunning || run.status === 'running'}
+          >
+            {reRunning && reRunProgress
+              ? `Re-running... (${reRunProgress.completed}/${reRunProgress.total})`
+              : reRunning
+                ? 'Starting...'
+                : 'Re-Run Test'}
+          </button>
+        )}
         <button
           className={styles.saveBtn}
           onClick={saveEvaluations}
@@ -301,6 +442,16 @@ export function RunDetailPage() {
           {saving ? 'Saving...' : hasUnsavedChanges ? `Save (${pendingUpdates.size} changes)` : 'Save'}
         </button>
       </div>
+
+      <ConfirmDialog
+        isOpen={showReRunConfirm}
+        onClose={() => setShowReRunConfirm(false)}
+        onConfirm={handleReRun}
+        title="Re-Run Test"
+        message={`This will create a new run for "${run.test?.name || 'this test'}". The current run will not be affected.`}
+        confirmText="Re-Run"
+        variant="info"
+      />
 
       {/* Stats Summary */}
       {stats && run.status === 'completed' && (
@@ -435,7 +586,26 @@ export function RunDetailPage() {
                 <div className={styles.resultExpected}>
                   <strong>Expected:</strong>{' '}
                   {result.expectedAnswer || <span className={styles.naValue}>N/A</span>}
+                  {!result.isError && result.expectedAnswer && result.answer && (
+                    <>
+                      <span
+                        className={`${styles.similarityBadge} ${styles[getSimilarityLevel(calculateSimilarity(result.expectedAnswer, result.answer))]}`}
+                      >
+                        {calculateSimilarity(result.expectedAnswer, result.answer)}% match
+                      </span>
+                      <button
+                        className={`${styles.diffToggleBtn} ${diffToggles.has(result.id) ? styles.active : ''}`}
+                        onClick={() => toggleDiff(result.id)}
+                      >
+                        Diff
+                      </button>
+                    </>
+                  )}
                 </div>
+
+                {diffToggles.has(result.id) && result.expectedAnswer && result.answer && (
+                  <DiffView expected={result.expectedAnswer} actual={result.answer} />
+                )}
 
                 <div className={styles.resultMeta}>
                   {result.executionTimeMs !== undefined && (

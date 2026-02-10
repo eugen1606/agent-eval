@@ -1259,6 +1259,179 @@
   }
 }
 
+// ==============================================
+// Diff View & Similarity styles
+// ==============================================
+
+.diffView {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-md;
+  padding: $spacing-md;
+  margin-bottom: 0.75rem;
+}
+
+.diffLegend {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}
+
+.diffLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.diffSwatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+
+  &.diffAdded {
+    background: #d4edda;
+    border-color: #a3d9a5;
+  }
+
+  &.diffRemoved {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+  }
+}
+
+.diffContent {
+  font-family: $font-family-mono;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.diffAdded {
+  background: #d4edda;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.diffRemoved {
+  background: #f8d7da;
+  text-decoration: line-through;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.diffToggleBtn {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  font-size: $font-size-xs;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  margin-left: $spacing-sm;
+  color: var(--text-secondary);
+  transition: all $transition-base;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+  }
+}
+
+.similarityBadge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  border-radius: 10px;
+  margin-left: $spacing-sm;
+
+  &.high {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  &.medium {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  &.low {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+// Re-Run Button
+.reRunBtn {
+  padding: 0.4rem 0.75rem;
+  background: #e67e22;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background $transition-base;
+
+  &:hover {
+    background: #d35400;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// Dark mode adjustments for diff view
+:global([data-theme='dark']) {
+  .diffAdded {
+    background: rgba(39, 174, 96, 0.25);
+  }
+
+  .diffRemoved {
+    background: rgba(231, 76, 60, 0.25);
+  }
+
+  .diffSwatch.diffAdded {
+    background: rgba(39, 174, 96, 0.3);
+    border-color: rgba(39, 174, 96, 0.5);
+  }
+
+  .diffSwatch.diffRemoved {
+    background: rgba(231, 76, 60, 0.3);
+    border-color: rgba(231, 76, 60, 0.5);
+  }
+
+  .similarityBadge {
+    &.high {
+      background: rgba(39, 174, 96, 0.2);
+      color: #6dde89;
+    }
+
+    &.medium {
+      background: rgba(243, 156, 18, 0.2);
+      color: #f5d06c;
+    }
+
+    &.low {
+      background: rgba(231, 76, 60, 0.2);
+      color: #f1948a;
+    }
+  }
+}
+
 // Responsive adjustments for comparison page
 @media (max-width: 900px) {
   .comparisonRunsInfo {
