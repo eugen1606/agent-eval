@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun, StoredQuestionSet } from '@agent-eval/shared';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../../components/Pagination';
+import { useNotification } from '../../context/NotificationContext';
+import { downloadAuthenticatedFile } from '../../shared/exportImportUtils';
 import { apiClient } from '../../apiClient';
 import styles from './dashboard.module.scss';
 
@@ -316,6 +318,7 @@ function LatencyChart({ data }: { data: TestRunData[] }) {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [tests, setTests] = useState<StoredTest[]>([]);
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [runs, setRuns] = useState<StoredRun[]>([]);
@@ -552,6 +555,16 @@ export function Dashboard() {
     return sortDirection === 'asc' ? ' \u25B2' : ' \u25BC';
   };
 
+  const handleExportDashboardCsv = async () => {
+    if (!selectedTestId) return;
+    const date = new Date().toISOString().split('T')[0];
+    const ok = await downloadAuthenticatedFile(
+      apiClient.getDashboardExportCsvUrl(selectedTestId),
+      `dashboard-${date}.csv`,
+    );
+    showNotification(ok ? 'success' : 'error', ok ? 'CSV exported' : 'Failed to export CSV');
+  };
+
   return (
     <div className={styles.dashboardPage}>
       <div className={styles.dashboardHeader}>
@@ -673,6 +686,14 @@ export function Dashboard() {
           <div className={styles.analyticsTable}>
             <div className={styles.tableHeader}>
               <h3>Run History</h3>
+              {selectedTestId && (
+                <button
+                  className={styles.exportCsvBtn}
+                  onClick={handleExportDashboardCsv}
+                >
+                  Export CSV
+                </button>
+              )}
             </div>
             <table>
               <thead>

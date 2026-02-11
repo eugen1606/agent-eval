@@ -838,6 +838,19 @@ export class AgentEvalClient {
     return `${this.apiUrl}/runs/${runId}/stream`;
   }
 
+  // Run export URLs
+  getRunExportCsvUrl(runId: string): string {
+    return `${this.apiUrl}/runs/${runId}/export/csv`;
+  }
+
+  getRunExportPdfUrl(runId: string): string {
+    return `${this.apiUrl}/runs/${runId}/export/pdf`;
+  }
+
+  getDashboardExportCsvUrl(testId: string): string {
+    return `${this.apiUrl}/runs/export/dashboard-csv?testId=${encodeURIComponent(testId)}`;
+  }
+
   // Evaluators
   async createEvaluator(
     data: CreateEvaluatorRequest,

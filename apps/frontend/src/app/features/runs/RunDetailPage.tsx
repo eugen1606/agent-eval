@@ -13,7 +13,7 @@ import { Pagination } from '../../components/Pagination';
 import { ConfirmDialog, Modal } from '../../components/Modal';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
-import { downloadExportBundle, generateExportFilename } from '../../shared/exportImportUtils';
+import { downloadExportBundle, downloadAuthenticatedFile, generateExportFilename } from '../../shared/exportImportUtils';
 import { calculateSimilarity, getSimilarityLevel } from './similarity';
 import { DiffView } from './DiffView';
 import styles from './runs.module.scss';
@@ -70,6 +70,7 @@ export function RunDetailPage() {
   const [overrideExisting, setOverrideExisting] = useState(false);
   const [singleEvalResultId, setSingleEvalResultId] = useState<string | null>(null);
   const [expandedReasoning, setExpandedReasoning] = useState<Set<string>>(new Set());
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const loadRun = useCallback(async () => {
     if (!id) return;
@@ -114,6 +115,14 @@ export function RunDetailPage() {
   useEffect(() => {
     loadRun();
   }, [loadRun]);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = () => setExportMenuOpen(false);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [exportMenuOpen]);
 
   // Load evaluators
   useEffect(() => {
@@ -379,6 +388,7 @@ export function RunDetailPage() {
 
   const handleExport = async () => {
     if (!run) return;
+    setExportMenuOpen(false);
     const response = await apiClient.exportConfig({
       types: ['runs'],
       runIds: [run.id],
@@ -390,6 +400,30 @@ export function RunDetailPage() {
     } else {
       showNotification('error', response.error || 'Failed to export run');
     }
+  };
+
+  const handleExportCsv = async () => {
+    if (!run) return;
+    setExportMenuOpen(false);
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+    const ok = await downloadAuthenticatedFile(
+      apiClient.getRunExportCsvUrl(run.id),
+      `run-${shortId}-${date}.csv`,
+    );
+    showNotification(ok ? 'success' : 'error', ok ? 'CSV exported' : 'Failed to export CSV');
+  };
+
+  const handleExportPdf = async () => {
+    if (!run) return;
+    setExportMenuOpen(false);
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+    const ok = await downloadAuthenticatedFile(
+      apiClient.getRunExportPdfUrl(run.id),
+      `run-report-${shortId}-${date}.pdf`,
+    );
+    showNotification(ok ? 'success' : 'error', ok ? 'PDF exported' : 'Failed to export PDF');
   };
 
   const toggleDiff = (resultId: string) => {
@@ -596,9 +630,21 @@ export function RunDetailPage() {
               ))}
             </select>
           )}
-          <button className={styles.exportBtn} onClick={handleExport}>
-            Export
-          </button>
+          <div className={styles.exportDropdown} onClick={(e) => e.stopPropagation()}>
+            <button
+              className={styles.exportBtn}
+              onClick={() => setExportMenuOpen((prev) => !prev)}
+            >
+              Export &#9662;
+            </button>
+            {exportMenuOpen && (
+              <div className={styles.exportMenu}>
+                <button onClick={handleExport}>Export JSON</button>
+                <button onClick={handleExportCsv}>Export CSV</button>
+                <button onClick={handleExportPdf}>Export PDF</button>
+              </div>
+            )}
+          </div>
           {run.testId && (
             <button
               className={styles.reRunBtn}

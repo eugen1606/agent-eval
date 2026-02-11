@@ -22,6 +22,29 @@ export function downloadExportBundle(bundle: ExportBundle, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+// Helper function to download an authenticated file (CSV, PDF, etc.)
+export async function downloadAuthenticatedFile(
+  url: string,
+  filename: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) return false;
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Generate a filename for export
 export function generateExportFilename(type: string, name: string): string {
   const date = new Date().toISOString().split('T')[0];

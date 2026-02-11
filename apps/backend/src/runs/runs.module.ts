@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Run, Test } from '../database/entities';
 import { RunsController } from './runs.controller';
 import { RunsService } from './runs.service';
+import { ReportService } from './report.service';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { EvaluationModule } from '../evaluation/evaluation.module';
 import { EvaluatorsModule } from '../evaluators/evaluators.module';
@@ -17,7 +18,7 @@ import { AccessTokensModule } from '../access-tokens/access-tokens.module';
     AccessTokensModule,
   ],
   controllers: [RunsController],
-  providers: [RunsService],
+  providers: [RunsService, ReportService],
   exports: [RunsService],
 })
 export class RunsModule {}

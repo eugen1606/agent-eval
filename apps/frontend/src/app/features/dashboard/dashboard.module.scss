@@ -498,6 +498,21 @@
   }
 }
 
+.exportCsvBtn {
+  padding: $spacing-sm $spacing-md;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+
+  &:hover {
+    background: #5a6fd6;
+  }
+}
+
 .dashboardEmpty {
   text-align: center;
   padding: $spacing-2xl;

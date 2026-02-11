@@ -406,6 +406,18 @@ export class RunsService {
     return this.calculatePerformanceStats(run);
   }
 
+  getStatsFromRun(run: Run): {
+    total: number;
+    evaluated: number;
+    correct: number;
+    partial: number;
+    incorrect: number;
+    errors: number;
+    accuracy: number | null;
+  } {
+    return this.calculateStats(run);
+  }
+
   getPerformanceStatsFromRun(run: Run): {
     count: number;
     min: number | null;

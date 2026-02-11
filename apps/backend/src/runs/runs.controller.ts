@@ -7,11 +7,14 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   Sse,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Observable, Subject } from 'rxjs';
@@ -26,6 +29,7 @@ import { Run, RunStatus } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RunComparison, LLMEvaluationResult, BulkLLMEvaluationRequest } from '@agent-eval/shared';
+import { ReportService } from './report.service';
 import { EvaluationService } from '../evaluation/evaluation.service';
 import { EvaluatorsService } from '../evaluators/evaluators.service';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
@@ -42,6 +46,7 @@ export class RunsController {
 
   constructor(
     private readonly runsService: RunsService,
+    private readonly reportService: ReportService,
     private readonly evaluationService: EvaluationService,
     private readonly evaluatorsService: EvaluatorsService,
     private readonly accessTokensService: AccessTokensService,
@@ -83,6 +88,108 @@ export class RunsController {
       sortBy: sortBy as 'createdAt' | 'startedAt' | 'completedAt' | 'status' | undefined,
       sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
+  }
+
+  @Get('export/dashboard-csv')
+  @ApiOperation({ summary: 'Export dashboard analytics as CSV' })
+  @ApiQuery({ name: 'testId', required: true })
+  @ApiResponse({ status: 200, description: 'CSV file' })
+  @ApiResponse({ status: 400, description: 'testId is required' })
+  async exportDashboardCsv(
+    @Query('testId') testId: string,
+    @CurrentUser() user: { userId: string; email: string },
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!testId) {
+      throw new BadRequestException('testId is required');
+    }
+
+    const { data: runs } = await this.runsService.findAll(user.userId, {
+      testId,
+      status: 'completed' as const,
+      limit: 1000,
+    });
+
+    const rows = runs.map((run) => {
+      const stats = this.runsService.getStatsFromRun(run);
+      const perfStats = this.runsService.getPerformanceStatsFromRun(run);
+      return {
+        runId: run.id,
+        date: run.completedAt
+          ? new Date(run.completedAt).toISOString()
+          : new Date(run.createdAt).toISOString(),
+        accuracy: stats.accuracy,
+        correct: stats.correct,
+        partial: stats.partial,
+        incorrect: stats.incorrect,
+        errors: stats.errors,
+        total: stats.total,
+        avgLatencyMs: perfStats.avg,
+      };
+    });
+
+    const testName = runs[0]?.test?.name || 'dashboard';
+    const csv = this.reportService.generateDashboardCsv(testName, rows);
+    const date = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="dashboard-${date}.csv"`,
+    );
+    res.send(csv);
+  }
+
+  @Get(':id/export/csv')
+  @ApiOperation({ summary: 'Export run results as CSV' })
+  @ApiParam({ name: 'id', description: 'Run ID' })
+  @ApiResponse({ status: 200, description: 'CSV file' })
+  @ApiResponse({ status: 404, description: 'Run not found' })
+  async exportRunCsv(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+    @Res() res: Response,
+  ): Promise<void> {
+    const run = await this.runsService.findOne(id, user.userId);
+    const stats = this.runsService.getStatsFromRun(run);
+    const perfStats = this.runsService.getPerformanceStatsFromRun(run);
+    const csv = this.reportService.generateRunCsv(run, stats, perfStats);
+
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="run-${shortId}-${date}.csv"`,
+    );
+    res.send(csv);
+  }
+
+  @Get(':id/export/pdf')
+  @ApiOperation({ summary: 'Export run report as PDF' })
+  @ApiParam({ name: 'id', description: 'Run ID' })
+  @ApiResponse({ status: 200, description: 'PDF file' })
+  @ApiResponse({ status: 404, description: 'Run not found' })
+  async exportRunPdf(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string; email: string },
+    @Res() res: Response,
+  ): Promise<void> {
+    const run = await this.runsService.findOne(id, user.userId);
+    const stats = this.runsService.getStatsFromRun(run);
+    const perfStats = this.runsService.getPerformanceStatsFromRun(run);
+    const pdf = await this.reportService.generateRunPdf(run, stats, perfStats);
+
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="run-report-${shortId}-${date}.pdf"`,
+    );
+    res.send(pdf);
   }
 
   @Get(':id')
