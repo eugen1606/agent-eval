@@ -33,6 +33,7 @@ export { QuestionSetsManager } from '../features/settings/QuestionSetsManager';
 export { FlowConfigsManager } from '../features/settings/FlowConfigsManager';
 export { WebhooksManager } from '../features/settings/WebhooksManager';
 export { TagManager } from '../features/settings/TagManager';
+export { EvaluatorsManager } from '../features/settings/EvaluatorsManager';
 
 export { ScheduledTestsPage } from '../features/scheduled-tests/ScheduledTestsPage';
 

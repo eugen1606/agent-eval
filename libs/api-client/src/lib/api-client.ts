@@ -44,6 +44,12 @@ import {
   ImportPreviewResult,
   ImportResult,
   ConflictStrategy,
+  StoredEvaluator,
+  CreateEvaluatorRequest,
+  UpdateEvaluatorRequest,
+  EvaluatorsFilterParams,
+  LLMJudgeStatusResponse,
+  LLMEvaluationResult,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -357,6 +363,7 @@ export class AgentEvalClient {
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.type) params.append('type', filters.type);
     if (filters?.sortBy) params.append('sortBy', filters.sortBy);
     if (filters?.sortDirection)
       params.append('sortDirection', filters.sortDirection);
@@ -829,6 +836,75 @@ export class AgentEvalClient {
   // Stream run execution (returns EventSource URL for SSE)
   getRunStreamUrl(runId: string): string {
     return `${this.apiUrl}/runs/${runId}/stream`;
+  }
+
+  // Evaluators
+  async createEvaluator(
+    data: CreateEvaluatorRequest,
+  ): Promise<ApiResponse<StoredEvaluator>> {
+    return this.request<StoredEvaluator>('/evaluators', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getEvaluators(
+    filters?: EvaluatorsFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredEvaluator>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredEvaluator>>(
+      `/evaluators${query ? `?${query}` : ''}`,
+    );
+  }
+
+  async getEvaluator(id: string): Promise<ApiResponse<StoredEvaluator>> {
+    return this.request<StoredEvaluator>(`/evaluators/${id}`);
+  }
+
+  async updateEvaluator(
+    id: string,
+    data: Partial<UpdateEvaluatorRequest>,
+  ): Promise<ApiResponse<StoredEvaluator>> {
+    return this.request<StoredEvaluator>(`/evaluators/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEvaluator(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/evaluators/${id}`, { method: 'DELETE' });
+  }
+
+  async getEvaluatorUsage(
+    id: string,
+  ): Promise<ApiResponse<{ runs: number }>> {
+    return this.request<{ runs: number }>(`/evaluators/${id}/usage`);
+  }
+
+  // LLM Judge
+  async getLLMJudgeStatus(): Promise<ApiResponse<LLMJudgeStatusResponse>> {
+    return this.request<LLMJudgeStatusResponse>('/evaluate/llm-judge/status');
+  }
+
+  async evaluateSingleResultWithLLM(
+    runId: string,
+    resultId: string,
+    evaluatorId: string,
+  ): Promise<ApiResponse<LLMEvaluationResult>> {
+    return this.request<LLMEvaluationResult>(
+      `/runs/${runId}/results/${resultId}/evaluate-llm`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ evaluatorId }),
+      },
+    );
   }
 
   // Export/Import

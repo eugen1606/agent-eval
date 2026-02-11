@@ -16,6 +16,7 @@ import {
   FlowConfigsManager,
   WebhooksManager,
   TagManager,
+  EvaluatorsManager,
   Dashboard,
   Homepage,
   LoginPage,
@@ -33,7 +34,7 @@ import './app.css';
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'webhooks' | 'tags'
+    'tokens' | 'questions' | 'flows' | 'webhooks' | 'tags' | 'evaluators'
   >('tokens');
 
   return (
@@ -43,7 +44,7 @@ function SettingsPage() {
           className={activeTab === 'tokens' ? 'active' : ''}
           onClick={() => setActiveTab('tokens')}
         >
-          Access Tokens
+          Credentials
         </button>
         <button
           className={activeTab === 'questions' ? 'active' : ''}
@@ -69,6 +70,12 @@ function SettingsPage() {
         >
           Tags
         </button>
+        <button
+          className={activeTab === 'evaluators' ? 'active' : ''}
+          onClick={() => setActiveTab('evaluators')}
+        >
+          Evaluators
+        </button>
       </div>
 
       <div className="settings-content">
@@ -77,6 +84,7 @@ function SettingsPage() {
         {activeTab === 'flows' && <FlowConfigsManager />}
         {activeTab === 'webhooks' && <WebhooksManager />}
         {activeTab === 'tags' && <TagManager />}
+        {activeTab === 'evaluators' && <EvaluatorsManager />}
       </div>
     </div>
   );

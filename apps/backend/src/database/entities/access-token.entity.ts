@@ -33,6 +33,9 @@ export class AccessToken {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ default: 'ai_studio' })
+  type: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

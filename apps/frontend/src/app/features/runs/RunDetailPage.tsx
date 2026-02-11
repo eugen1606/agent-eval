@@ -7,9 +7,10 @@ import {
   IncorrectSeverity,
   RunStats,
   PerformanceStats,
+  LLMJudgeStatusResponse,
 } from '@agent-eval/shared';
 import { Pagination } from '../../components/Pagination';
-import { ConfirmDialog } from '../../components/Modal';
+import { ConfirmDialog, Modal } from '../../components/Modal';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, generateExportFilename } from '../../shared/exportImportUtils';
@@ -21,6 +22,12 @@ interface CompareableRun {
   id: string;
   completedAt?: string;
   status: string;
+}
+
+function scoreToEvaluation(score: number): HumanEvaluationStatus {
+  if (score >= 80) return 'correct';
+  if (score >= 40) return 'partial';
+  return 'incorrect';
 }
 
 const statusBadgeMap: Record<string, string> = {
@@ -45,10 +52,24 @@ export function RunDetailPage() {
   const [pendingUpdates, setPendingUpdates] = useState<Map<string, Partial<RunResult>>>(new Map());
   const [diffToggles, setDiffToggles] = useState<Set<string>>(new Set());
   const [reRunning, setReRunning] = useState(false);
-  const [reRunProgress, setReRunProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [reRunProgress, setReRunProgress] = useState<{ completed: number; total: number } | null>(
+    null
+  );
   const [showReRunConfirm, setShowReRunConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  // LLM evaluation state
+  const [evaluators, setEvaluators] = useState<LLMJudgeStatusResponse['evaluators']>([]);
+  const [showEvaluatorPicker, setShowEvaluatorPicker] = useState(false);
+  const [llmEvaluating, setLlmEvaluating] = useState(false);
+  const [llmEvalProgress, setLlmEvalProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  const [overrideExisting, setOverrideExisting] = useState(false);
+  const [singleEvalResultId, setSingleEvalResultId] = useState<string | null>(null);
+  const [expandedReasoning, setExpandedReasoning] = useState<Set<string>>(new Set());
 
   const loadRun = useCallback(async () => {
     if (!id) return;
@@ -93,6 +114,17 @@ export function RunDetailPage() {
   useEffect(() => {
     loadRun();
   }, [loadRun]);
+
+  // Load evaluators
+  useEffect(() => {
+    const loadEvaluators = async () => {
+      const res = await apiClient.getLLMJudgeStatus();
+      if (res.success && res.data) {
+        setEvaluators(res.data.evaluators);
+      }
+    };
+    loadEvaluators();
+  }, []);
 
   // Apply pending updates locally to run state
   const getResultWithUpdates = (result: RunResult): RunResult => {
@@ -196,6 +228,147 @@ export function RunDetailPage() {
     }
     setSaving(false);
   };
+
+  const handleBulkLLMEvaluation = async (evaluatorId: string, isRetry = false) => {
+    if (!id) return;
+    setShowEvaluatorPicker(false);
+    setLlmEvaluating(true);
+    setLlmEvalProgress(null);
+
+    const csrfToken = apiClient.getAuthToken();
+    if (!csrfToken) {
+      setLlmEvaluating(false);
+      showNotification('error', 'Not authenticated. Please log in again.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiClient.getApiUrl()}/runs/${id}/evaluate-llm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+          Accept: 'text/event-stream',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          evaluatorId,
+          overrideExisting,
+          resultIds: singleEvalResultId ? [singleEvalResultId] : undefined,
+        }),
+      });
+
+      if (response.status === 401 && !isRetry) {
+        const refreshResponse = await fetch(`${apiClient.getApiUrl()}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (refreshResponse.ok) {
+          setLlmEvaluating(false);
+          return handleBulkLLMEvaluation(evaluatorId, true);
+        } else {
+          throw new Error('Session expired. Please log in again.');
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // Use default
+        }
+        throw new Error(errorMessage);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'eval_start') {
+                setLlmEvalProgress({ completed: 0, total: data.totalResults || 0 });
+              }
+              if (data.type === 'eval_result') {
+                setLlmEvalProgress((prev) =>
+                  prev ? { ...prev, completed: prev.completed + 1 } : prev
+                );
+              }
+              if (data.type === 'eval_complete') {
+                setLlmEvaluating(false);
+                setLlmEvalProgress(null);
+                setSingleEvalResultId(null);
+                loadRun();
+                showNotification(
+                  'success',
+                  `LLM evaluation complete: ${data.evaluatedCount} results evaluated`
+                );
+              }
+              if (data.type === 'eval_error' && !data.resultId) {
+                setLlmEvaluating(false);
+                setLlmEvalProgress(null);
+                setSingleEvalResultId(null);
+                showNotification('error', data.error || 'LLM evaluation failed');
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+    } catch (error) {
+      setLlmEvaluating(false);
+      setLlmEvalProgress(null);
+      setSingleEvalResultId(null);
+      showNotification('error', error instanceof Error ? error.message : 'LLM evaluation failed');
+    }
+  };
+
+  const handleAcceptAllLLM = () => {
+    if (!run) return;
+    run.results.forEach((result) => {
+      if (result.llmJudgeScore !== undefined && result.llmJudgeScore !== null && !result.isError) {
+        updateLocalResult(result.id, {
+          humanEvaluation: scoreToEvaluation(result.llmJudgeScore),
+        });
+      }
+    });
+    showNotification('info', 'LLM suggestions applied. Click Save to persist.');
+  };
+
+  const handleOpenSingleEval = (resultId: string) => {
+    setSingleEvalResultId(resultId);
+    setShowEvaluatorPicker(true);
+  };
+
+  const toggleReasoningExpanded = (resultId: string) => {
+    setExpandedReasoning((prev) => {
+      const next = new Set(prev);
+      if (next.has(resultId)) next.delete(resultId);
+      else next.add(resultId);
+      return next;
+    });
+  };
+
+  const hasLLMResults = allResults.some(
+    (r) => r.llmJudgeScore !== undefined && r.llmJudgeScore !== null
+  );
 
   const evaluatedCount = evaluatableResults.filter((r) => {
     const updated = getResultWithUpdates(r);
@@ -391,56 +564,86 @@ export function RunDetailPage() {
   return (
     <div className={styles.runDetailPage}>
       <div className={styles.runDetailHeader}>
-        <button className={styles.backBtn} onClick={() => navigate('/runs')}>
-          &larr; Back to Runs
-        </button>
-        <div className={styles.runTitle}>
-          <h2>{run.test?.name || 'Unknown Test'}</h2>
-          <span className={`${styles.statusBadge} ${statusBadgeMap[run.status] || ''}`}>{run.status}</span>
-        </div>
-        {otherRuns.length > 0 && run.status === 'completed' && (
-          <select
-            className={styles.compareDropdown}
-            value=""
-            onChange={(e) => {
-              if (e.target.value) {
-                navigate(`/runs/${id}/compare/${e.target.value}`);
-              }
-            }}
-          >
-            <option value="">Compare with...</option>
-            {otherRuns.map((otherRun) => (
-              <option key={otherRun.id} value={otherRun.id}>
-                {otherRun.completedAt
-                  ? new Date(otherRun.completedAt).toLocaleString()
-                  : `Run ${otherRun.id.slice(0, 8)}`}
-              </option>
-            ))}
-          </select>
-        )}
-        <button className={styles.exportBtn} onClick={handleExport}>
-          Export
-        </button>
-        {run.testId && (
-          <button
-            className={styles.reRunBtn}
-            onClick={() => setShowReRunConfirm(true)}
-            disabled={reRunning || run.status === 'running'}
-          >
-            {reRunning && reRunProgress
-              ? `Re-running... (${reRunProgress.completed}/${reRunProgress.total})`
-              : reRunning
-                ? 'Starting...'
-                : 'Re-Run Test'}
+        <div className={styles.headerTopRow}>
+          <button className={styles.backBtn} onClick={() => navigate('/runs')}>
+            &larr; Back to Runs
           </button>
-        )}
-        <button
-          className={styles.saveBtn}
-          onClick={saveEvaluations}
-          disabled={saving || !hasUnsavedChanges}
-        >
-          {saving ? 'Saving...' : hasUnsavedChanges ? `Save (${pendingUpdates.size} changes)` : 'Save'}
-        </button>
+          <div className={styles.runTitle}>
+            <h2>{run.test?.name || 'Unknown Test'}</h2>
+            <span className={`${styles.statusBadge} ${statusBadgeMap[run.status] || ''}`}>
+              {run.status}
+            </span>
+          </div>
+        </div>
+        <div className={styles.headerActions}>
+          {otherRuns.length > 0 && run.status === 'completed' && (
+            <select
+              className={styles.compareDropdown}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  navigate(`/runs/${id}/compare/${e.target.value}`);
+                }
+              }}
+            >
+              <option value="">Compare with...</option>
+              {otherRuns.map((otherRun) => (
+                <option key={otherRun.id} value={otherRun.id}>
+                  {otherRun.completedAt
+                    ? new Date(otherRun.completedAt).toLocaleString()
+                    : `Run ${otherRun.id.slice(0, 8)}`}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className={styles.exportBtn} onClick={handleExport}>
+            Export
+          </button>
+          {run.testId && (
+            <button
+              className={styles.reRunBtn}
+              onClick={() => setShowReRunConfirm(true)}
+              disabled={reRunning || run.status === 'running'}
+            >
+              {reRunning && reRunProgress
+                ? `Re-running... (${reRunProgress.completed}/${reRunProgress.total})`
+                : reRunning
+                  ? 'Starting...'
+                  : 'Re-Run Test'}
+            </button>
+          )}
+          {run.status === 'completed' && evaluatableResults.length > 0 && (
+            <button
+              className={styles.llmEvalBtn}
+              onClick={() => {
+                if (evaluators.length === 0) {
+                  showNotification(
+                    'info',
+                    'No evaluators configured. Go to Settings to create one.'
+                  );
+                  navigate('/settings');
+                  return;
+                }
+                setSingleEvalResultId(null);
+                setShowEvaluatorPicker(true);
+              }}
+              disabled={llmEvaluating}
+            >
+              {llmEvaluating ? 'Evaluating...' : 'AI Evaluate'}
+            </button>
+          )}
+          <button
+            className={styles.saveBtn}
+            onClick={saveEvaluations}
+            disabled={saving || !hasUnsavedChanges}
+          >
+            {saving
+              ? 'Saving...'
+              : hasUnsavedChanges
+                ? `Save (${pendingUpdates.size} changes)`
+                : 'Save'}
+          </button>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -452,6 +655,84 @@ export function RunDetailPage() {
         confirmText="Re-Run"
         variant="info"
       />
+
+      {/* Evaluator Picker Modal */}
+      <Modal
+        isOpen={showEvaluatorPicker}
+        onClose={() => {
+          setShowEvaluatorPicker(false);
+          setSingleEvalResultId(null);
+        }}
+        title={singleEvalResultId ? 'Select Evaluator' : 'Evaluate with LLM'}
+      >
+        <div className={styles.evaluatorPicker}>
+          {evaluators.map((ev) => (
+            <div key={ev.id} className={styles.evaluatorPicker + ' ' + ''}>
+              <div
+                className={styles.evaluatorPicker}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.75rem',
+                  background: 'var(--bg-tertiary)',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  marginBottom: '0.5rem',
+                }}
+                onClick={() => handleBulkLLMEvaluation(ev.id)}
+              >
+                <span style={{ fontWeight: 500 }}>{ev.name}</span>
+                <span
+                  style={{
+                    padding: '0.2rem 0.5rem',
+                    background: 'var(--bg-secondary)',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {ev.model}
+                </span>
+              </div>
+            </div>
+          ))}
+          {!singleEvalResultId && (
+            <div className={styles.evaluatorPicker}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  paddingTop: '0.5rem',
+                  borderTop: '1px solid var(--border-color)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={overrideExisting}
+                  onChange={(e) => setOverrideExisting(e.target.checked)}
+                />
+                Override existing LLM evaluations
+              </label>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* LLM Evaluation Progress */}
+      {llmEvaluating && llmEvalProgress && (
+        <div className={styles.llmEvalProgress}>
+          <div className={styles.progressSpinner}></div>
+          <span>
+            Evaluating... {llmEvalProgress.completed}/{llmEvalProgress.total}
+          </span>
+        </div>
+      )}
 
       {/* Stats Summary */}
       {stats && run.status === 'completed' && (
@@ -542,16 +823,30 @@ export function RunDetailPage() {
           {selectedIds.size > 0 && (
             <div className={styles.bulkButtons}>
               <span>Bulk assign:</span>
-              <button className={`${styles.evalBtn} ${styles.correct}`} onClick={() => bulkAssign('correct')}>
+              <button
+                className={`${styles.evalBtn} ${styles.correct}`}
+                onClick={() => bulkAssign('correct')}
+              >
                 Correct
               </button>
-              <button className={`${styles.evalBtn} ${styles.partial}`} onClick={() => bulkAssign('partial')}>
+              <button
+                className={`${styles.evalBtn} ${styles.partial}`}
+                onClick={() => bulkAssign('partial')}
+              >
                 Partial
               </button>
-              <button className={`${styles.evalBtn} ${styles.incorrect}`} onClick={() => bulkAssign('incorrect')}>
+              <button
+                className={`${styles.evalBtn} ${styles.incorrect}`}
+                onClick={() => bulkAssign('incorrect')}
+              >
                 Incorrect
               </button>
             </div>
+          )}
+          {hasLLMResults && (
+            <button className={styles.llmAcceptAll} onClick={handleAcceptAllLLM}>
+              Accept All AI
+            </button>
           )}
         </div>
       )}
@@ -666,6 +961,76 @@ export function RunDetailPage() {
                           Minor
                         </button>
                       </div>
+                    )}
+
+                    {/* LLM Judge Section */}
+                    {displayResult.llmJudgeScore !== undefined &&
+                      displayResult.llmJudgeScore !== null && (
+                        <div className={styles.llmJudgeSection}>
+                          <span className={styles.llmScore}>{displayResult.llmJudgeScore}/100</span>
+                          <span
+                            className={`${styles.llmSuggestion} ${styles[scoreToEvaluation(displayResult.llmJudgeScore)]}`}
+                          >
+                            {scoreToEvaluation(displayResult.llmJudgeScore)
+                              .charAt(0)
+                              .toUpperCase() +
+                              scoreToEvaluation(displayResult.llmJudgeScore).slice(1)}
+                          </span>
+                          <button
+                            className={styles.acceptBtn}
+                            onClick={() =>
+                              updateLocalResult(result.id, {
+                                humanEvaluation: scoreToEvaluation(
+                                  displayResult.llmJudgeScore ?? 0
+                                ),
+                              })
+                            }
+                          >
+                            Accept
+                          </button>
+                          {displayResult.llmJudgeReasoning && (
+                            <div className={styles.llmReasoning}>
+                              <div
+                                className={`reasoningText ${expandedReasoning.has(result.id) ? 'expanded' : ''}`}
+                                style={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: expandedReasoning.has(result.id) ? 'unset' : 3,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: expandedReasoning.has(result.id) ? 'visible' : 'hidden',
+                                  whiteSpace: 'pre-wrap',
+                                }}
+                              >
+                                {displayResult.llmJudgeReasoning}
+                              </div>
+                              <button
+                                className={styles.llmReasoning + ' '}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--accent-primary)',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  padding: 0,
+                                  marginTop: '0.25rem',
+                                }}
+                                onClick={() => toggleReasoningExpanded(result.id)}
+                              >
+                                {expandedReasoning.has(result.id) ? 'Show less' : 'Show more'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                    {/* Single result AI eval button */}
+                    {evaluators.length > 0 && !displayResult.llmJudgeScore && !llmEvaluating && (
+                      <button
+                        className={styles.llmEvalSingleBtn}
+                        onClick={() => handleOpenSingleEval(result.id)}
+                        style={{ marginTop: '0.5rem' }}
+                      >
+                        AI Evaluate
+                      </button>
                     )}
 
                     <div className={styles.resultDescription}>

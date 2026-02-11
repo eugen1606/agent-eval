@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, MinLength, IsIn } from 'class-validator';
 import { MAX_LENGTHS } from '../../common/validation.constants';
 
 export class CreateAccessTokenDto {
@@ -16,4 +16,9 @@ export class CreateAccessTokenDto {
   @IsString()
   @MaxLength(MAX_LENGTHS.DESCRIPTION)
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['ai_studio', 'openai', 'anthropic'])
+  type?: string;
 }

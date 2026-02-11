@@ -103,6 +103,58 @@ describe('Access Tokens CRUD', () => {
     });
   });
 
+  describe('Type field', () => {
+    it('should create an access token with type', async () => {
+      const data = await createAccessToken(accessToken, {
+        name: 'OpenAI Key',
+        token: 'sk-test-openai-key',
+        type: 'openai',
+      });
+
+      expect(data.name).toBe('OpenAI Key');
+      expect(data.type).toBe('openai');
+    });
+
+    it('should default type to ai_studio', async () => {
+      const data = await createAccessToken(accessToken, {
+        name: 'Default Type Token',
+        token: 'default-type-token-value',
+      });
+
+      expect(data.type).toBe('ai_studio');
+    });
+
+    it('should create anthropic type token', async () => {
+      const data = await createAccessToken(accessToken, {
+        name: 'Anthropic Key',
+        token: 'sk-ant-test-key',
+        type: 'anthropic',
+      });
+
+      expect(data.type).toBe('anthropic');
+    });
+
+    it('should filter by type', async () => {
+      await createAccessToken(accessToken, {
+        name: 'Filter Type OpenAI',
+        token: 'filter-type-openai-token',
+        type: 'openai',
+      });
+
+      const response = await authenticatedRequest(
+        '/access-tokens?type=openai',
+        {},
+        accessToken,
+      );
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.data.length).toBeGreaterThanOrEqual(1);
+      result.data.forEach((token: Record<string, unknown>) => {
+        expect(token.type).toBe('openai');
+      });
+    });
+  });
+
   describe('DELETE /api/access-tokens/:id', () => {
     it('should delete an access token', async () => {
       const created = await createAccessToken(accessToken, {

@@ -22,6 +22,7 @@ import { CleanupModule } from '../cleanup/cleanup.module';
 import { MetricsModule } from '../metrics';
 import { TagsModule } from '../tags/tags.module';
 import { ExportModule } from '../export/export.module';
+import { EvaluatorsModule } from '../evaluators/evaluators.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ExportModule } from '../export/export.module';
     MetricsModule,
     TagsModule,
     ExportModule,
+    EvaluatorsModule,
   ],
   controllers: [AppController],
   providers: [

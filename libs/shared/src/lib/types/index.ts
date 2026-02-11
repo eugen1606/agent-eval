@@ -13,3 +13,4 @@ export * from './test.types';
 export * from './run.types';
 export * from './scheduled-test.types';
 export * from './export.types';
+export * from './evaluator.types';

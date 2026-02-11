@@ -245,9 +245,21 @@
 
 .runDetailHeader {
   display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-lg;
+}
+
+.headerTopRow {
+  display: flex;
   align-items: center;
   gap: $spacing-md;
-  margin-bottom: $spacing-lg;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
   flex-wrap: wrap;
 }
 
@@ -1370,6 +1382,229 @@
   &.low {
     background: #f8d7da;
     color: #721c24;
+  }
+}
+
+// LLM Evaluation Button
+.llmEvalBtn {
+  padding: 0.4rem 0.75rem;
+  background: #8e44ad;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background $transition-base;
+
+  &:hover {
+    background: #7d3c98;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// LLM Judge Section within result card
+.llmJudgeSection {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-md;
+  border-left: 3px solid #8e44ad;
+}
+
+.llmScore {
+  display: inline-block;
+  padding: 0.2rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  background: #f3e5f5;
+  color: #8e44ad;
+  margin-right: $spacing-sm;
+}
+
+.llmSuggestion {
+  display: inline-block;
+  padding: 0.2rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  margin-right: $spacing-sm;
+
+  &.correct {
+    background: #e8f5e9;
+    color: #27ae60;
+  }
+
+  &.partial {
+    background: #fff8e1;
+    color: #f39c12;
+  }
+
+  &.incorrect {
+    background: #ffebee;
+    color: #e74c3c;
+  }
+}
+
+.llmReasoning {
+  margin-top: $spacing-sm;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+
+  .reasoningText {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-wrap;
+
+    &.expanded {
+      -webkit-line-clamp: unset;
+    }
+  }
+
+  .showMoreBtn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0;
+    margin-top: 0.25rem;
+  }
+}
+
+.acceptBtn {
+  padding: 0.3rem 0.6rem;
+  background: #8e44ad;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: $spacing-sm;
+  transition: background $transition-base;
+
+  &:hover {
+    background: #7d3c98;
+  }
+}
+
+.llmAcceptAll {
+  padding: 0.4rem 0.75rem;
+  background: #8e44ad;
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background $transition-base;
+
+  &:hover {
+    background: #7d3c98;
+  }
+}
+
+.llmEvalSingleBtn {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  color: #8e44ad;
+  border: 1px solid #8e44ad;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: all $transition-base;
+
+  &:hover {
+    background: #8e44ad;
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Evaluator Picker Modal
+.evaluatorPicker {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+
+  .evaluatorOption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: $border-radius-md;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: all $transition-base;
+
+    &:hover {
+      border-color: #8e44ad;
+      background: var(--bg-hover);
+    }
+
+    .evaluatorName {
+      font-weight: $font-weight-medium;
+      color: var(--text-primary);
+    }
+
+    .evaluatorModel {
+      padding: 0.2rem $spacing-sm;
+      background: var(--bg-secondary);
+      border-radius: $border-radius-sm;
+      font-size: $font-size-xs;
+      color: var(--text-muted);
+    }
+  }
+
+  .evalPickerOptions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding-top: $spacing-sm;
+    border-top: 1px solid var(--border-color);
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+  }
+}
+
+// LLM evaluation progress
+.llmEvalProgress {
+  padding: 0.5rem $spacing-md;
+  background: #f3e5f5;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-md;
+  font-size: 0.9rem;
+  color: #8e44ad;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+
+  .progressSpinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e1bee7;
+    border-top-color: #8e44ad;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 }
 

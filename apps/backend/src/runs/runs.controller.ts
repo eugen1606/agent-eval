@@ -8,8 +8,13 @@ import {
   Param,
   Query,
   UseGuards,
+  Sse,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { Observable, Subject } from 'rxjs';
 import {
   RunsService,
   CreateRunDto,
@@ -20,13 +25,27 @@ import {
 import { Run, RunStatus } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { RunComparison } from '@agent-eval/shared';
+import { RunComparison, LLMEvaluationResult, BulkLLMEvaluationRequest } from '@agent-eval/shared';
+import { EvaluationService } from '../evaluation/evaluation.service';
+import { EvaluatorsService } from '../evaluators/evaluators.service';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
+
+interface MessageEvent {
+  data: string;
+}
 
 @ApiTags('runs')
 @Controller('runs')
 @UseGuards(JwtAuthGuard)
 export class RunsController {
-  constructor(private readonly runsService: RunsService) {}
+  private readonly logger = new Logger(RunsController.name);
+
+  constructor(
+    private readonly runsService: RunsService,
+    private readonly evaluationService: EvaluationService,
+    private readonly evaluatorsService: EvaluatorsService,
+    private readonly accessTokensService: AccessTokensService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new run' })
@@ -170,5 +189,167 @@ export class RunsController {
   ): Promise<{ success: boolean }> {
     await this.runsService.delete(id, user.userId);
     return { success: true };
+  }
+
+  @Post(':id/evaluate-llm')
+  @Sse()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Bulk evaluate run results with LLM (SSE stream)' })
+  evaluateBulkLLM(
+    @Param('id') id: string,
+    @Body() body: BulkLLMEvaluationRequest,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Observable<MessageEvent> {
+    const subject = new Subject<MessageEvent>();
+
+    this.handleBulkEvaluation(id, body, user.userId, subject).catch((error) => {
+      subject.next({
+        data: JSON.stringify({ type: 'eval_error', error: error.message }),
+      });
+      subject.complete();
+    });
+
+    return subject.asObservable();
+  }
+
+  private async handleBulkEvaluation(
+    runId: string,
+    body: BulkLLMEvaluationRequest,
+    userId: string,
+    subject: Subject<MessageEvent>,
+  ): Promise<void> {
+    try {
+      // 1. Fetch run
+      const run = await this.runsService.findOne(runId, userId);
+
+      // 2. Fetch evaluator (validates ownership)
+      const evaluator = await this.evaluatorsService.findOneEntity(body.evaluatorId, userId);
+      if (!evaluator.accessTokenId) {
+        throw new Error('Evaluator has no associated credential');
+      }
+
+      // 3. Decrypt API key
+      const apiKey = await this.accessTokensService.getDecryptedToken(evaluator.accessTokenId, userId);
+
+      // 4. Determine provider from access token type
+      const tokenInfo = await this.accessTokensService.findOne(evaluator.accessTokenId, userId);
+      const provider = tokenInfo.type as 'openai' | 'anthropic';
+
+      // 5. Filter results
+      let results = run.results.filter((r) => !r.isError);
+      if (body.resultIds && body.resultIds.length > 0) {
+        const idSet = new Set(body.resultIds);
+        results = results.filter((r) => idSet.has(r.id));
+      }
+      if (!body.overrideExisting) {
+        results = results.filter((r) => r.llmJudgeScore === undefined || r.llmJudgeScore === null);
+      }
+
+      subject.next({
+        data: JSON.stringify({ type: 'eval_start', runId, totalResults: results.length }),
+      });
+
+      let evaluatedCount = 0;
+
+      // 6. Iterate and evaluate
+      for (const result of results) {
+        try {
+          const llmResult = await this.evaluationService.evaluateWithLLM(
+            result.question,
+            result.answer,
+            result.expectedAnswer,
+            { apiKey, provider, model: evaluator.model, systemPrompt: evaluator.systemPrompt, reasoningModel: evaluator.reasoningModel, reasoningEffort: evaluator.reasoningEffort },
+          );
+
+          const suggestedEvaluation = EvaluationService.scoreToEvaluation(llmResult.score);
+
+          // 7. Save to run JSONB
+          await this.runsService.updateResultEvaluation(runId, {
+            resultId: result.id,
+            llmJudgeScore: llmResult.score,
+            llmJudgeReasoning: llmResult.reasoning,
+          }, userId);
+
+          evaluatedCount++;
+
+          subject.next({
+            data: JSON.stringify({
+              type: 'eval_result',
+              resultId: result.id,
+              llmJudgeScore: llmResult.score,
+              llmJudgeReasoning: llmResult.reasoning,
+              suggestedEvaluation,
+            }),
+          });
+        } catch (error) {
+          this.logger.error(`Failed to evaluate result ${result.id}`, error);
+          subject.next({
+            data: JSON.stringify({
+              type: 'eval_error',
+              resultId: result.id,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            }),
+          });
+        }
+      }
+
+      subject.next({
+        data: JSON.stringify({ type: 'eval_complete', runId, evaluatedCount }),
+      });
+    } finally {
+      subject.complete();
+    }
+  }
+
+  @Post(':id/results/:resultId/evaluate-llm')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @ApiOperation({ summary: 'Evaluate a single result with LLM' })
+  async evaluateSingleLLM(
+    @Param('id') id: string,
+    @Param('resultId') resultId: string,
+    @Body() body: { evaluatorId: string },
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<LLMEvaluationResult> {
+    // Fetch run and find the result
+    const run = await this.runsService.findOne(id, user.userId);
+    const result = run.results.find((r) => r.id === resultId);
+    if (!result) {
+      throw new NotFoundException(`Result not found: ${resultId}`);
+    }
+
+    // Fetch evaluator
+    const evaluator = await this.evaluatorsService.findOneEntity(body.evaluatorId, user.userId);
+    if (!evaluator.accessTokenId) {
+      throw new NotFoundException('Evaluator has no associated credential');
+    }
+
+    // Decrypt API key
+    const apiKey = await this.accessTokensService.getDecryptedToken(evaluator.accessTokenId, user.userId);
+    const tokenInfo = await this.accessTokensService.findOne(evaluator.accessTokenId, user.userId);
+    const provider = tokenInfo.type as 'openai' | 'anthropic';
+
+    // Evaluate
+    const llmResult = await this.evaluationService.evaluateWithLLM(
+      result.question,
+      result.answer,
+      result.expectedAnswer,
+      { apiKey, provider, model: evaluator.model, systemPrompt: evaluator.systemPrompt, reasoningModel: evaluator.reasoningModel, reasoningEffort: evaluator.reasoningEffort },
+    );
+
+    const suggestedEvaluation = EvaluationService.scoreToEvaluation(llmResult.score);
+
+    // Save
+    await this.runsService.updateResultEvaluation(id, {
+      resultId,
+      llmJudgeScore: llmResult.score,
+      llmJudgeReasoning: llmResult.reasoning,
+    }, user.userId);
+
+    return {
+      resultId,
+      llmJudgeScore: llmResult.score,
+      llmJudgeReasoning: llmResult.reasoning,
+      suggestedEvaluation,
+    };
   }
 }

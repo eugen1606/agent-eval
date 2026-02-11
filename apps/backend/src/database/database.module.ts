@@ -11,6 +11,7 @@ import {
   Test,
   Run,
   Tag,
+  Evaluator,
 } from './entities';
 import * as migrations from './migrations';
 
@@ -44,6 +45,7 @@ import * as migrations from './migrations';
             Test,
             Run,
             Tag,
+            Evaluator,
           ],
           migrations: Object.values(migrations),
           migrationsRun: true,

@@ -4,6 +4,7 @@ import {
   StoredTest,
   SortDirection,
   AccessTokensSortField,
+  AccessTokenType,
 } from '@agent-eval/shared';
 import { Modal, ConfirmDialog } from '../../components/Modal';
 import { useNotification } from '../../context/NotificationContext';
@@ -25,6 +26,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
     name: '',
     token: '',
     description: '',
+    type: 'ai_studio' as AccessTokenType,
   });
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,10 +47,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const resetForm = () => {
-    setFormData({ name: '', token: '', description: '' });
+    setFormData({ name: '', token: '', description: '', type: 'ai_studio' });
     setShowForm(false);
     setFormSubmitAttempted(false);
   };
+
+  const tokenLabel = formData.type === 'ai_studio' ? 'Bearer Token' : 'API Key';
 
   const loadTokens = useCallback(async () => {
     setIsLoading(true);
@@ -120,6 +124,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
       name: formData.name,
       token: formData.token,
       description: formData.description || undefined,
+      type: formData.type,
     });
 
     if (response.success) {
@@ -166,7 +171,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
   return (
     <div className={styles.section}>
       <div className={styles.managerHeader}>
-        <h3>AI Studio Access Tokens</h3>
+        <h3>Credentials</h3>
         <button onClick={() => setShowForm(true)}>+ Add Token</button>
       </div>
 
@@ -227,10 +232,23 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
             )}
           </div>
           <div className="form-group">
-            <label>Bearer Token *</label>
+            <label>Type</label>
+            <select
+              value={formData.type}
+              onChange={(e) =>
+                setFormData({ ...formData, type: e.target.value as AccessTokenType })
+              }
+            >
+              <option value="ai_studio">AI Studio</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>{tokenLabel} *</label>
             <input
               type="password"
-              placeholder="Enter bearer token (will be encrypted)"
+              placeholder={`Enter ${tokenLabel.toLowerCase()} (will be encrypted)`}
               value={formData.token}
               onChange={(e) =>
                 setFormData({ ...formData, token: e.target.value })
@@ -240,10 +258,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
               }
             />
             <span className="form-hint">
-              The bearer token used for API authentication
+              {formData.type === 'ai_studio'
+                ? 'The bearer token used for API authentication'
+                : `Your ${formData.type === 'openai' ? 'OpenAI' : 'Anthropic'} API key`}
             </span>
             {formSubmitAttempted && !formData.token && (
-              <span className="field-error">Bearer token is required</span>
+              <span className="field-error">{tokenLabel} is required</span>
             )}
           </div>
           <div className="form-group">
@@ -275,6 +295,9 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
             <div key={token.id} className={styles.managerItem}>
               <div className={styles.itemInfo}>
                 <strong>{token.name}</strong>
+                <span className={styles.methodBadge}>
+                  {token.type === 'openai' ? 'OpenAI' : token.type === 'anthropic' ? 'Anthropic' : 'AI Studio'}
+                </span>
                 {token.description && (
                   <span className={styles.itemDesc}>{token.description}</span>
                 )}

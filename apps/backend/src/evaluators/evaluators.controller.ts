@@ -11,29 +11,28 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
-  AccessTokensService,
-  AccessTokenResponse,
-  EntityUsage,
-  PaginatedAccessTokens,
-  AccessTokensSortField,
+  EvaluatorsService,
+  EvaluatorResponse,
+  PaginatedEvaluators,
+  EvaluatorsSortField,
   SortDirection,
-} from './access-tokens.service';
-import { CreateAccessTokenDto, UpdateAccessTokenDto } from './dto';
+} from './evaluators.service';
+import { CreateEvaluatorDto, UpdateEvaluatorDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
-@ApiTags('access-tokens')
-@Controller('access-tokens')
+@ApiTags('evaluators')
+@Controller('evaluators')
 @UseGuards(JwtAuthGuard)
-export class AccessTokensController {
-  constructor(private readonly accessTokensService: AccessTokensService) {}
+export class EvaluatorsController {
+  constructor(private readonly evaluatorsService: EvaluatorsService) {}
 
   @Post()
   async create(
-    @Body() dto: CreateAccessTokenDto,
+    @Body() dto: CreateEvaluatorDto,
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<AccessTokenResponse> {
-    return this.accessTokensService.create(dto, user.userId);
+  ): Promise<EvaluatorResponse> {
+    return this.evaluatorsService.create(dto, user.userId);
   }
 
   @Get()
@@ -42,15 +41,13 @@ export class AccessTokensController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Query('type') type?: string,
-    @Query('sortBy') sortBy?: AccessTokensSortField,
+    @Query('sortBy') sortBy?: EvaluatorsSortField,
     @Query('sortDirection') sortDirection?: SortDirection,
-  ): Promise<PaginatedAccessTokens> {
-    return this.accessTokensService.findAll(user.userId, {
+  ): Promise<PaginatedEvaluators> {
+    return this.evaluatorsService.findAll(user.userId, {
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       search,
-      type,
       sortBy,
       sortDirection,
     });
@@ -60,25 +57,25 @@ export class AccessTokensController {
   async findOne(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<AccessTokenResponse> {
-    return this.accessTokensService.findOne(id, user.userId);
+  ): Promise<EvaluatorResponse> {
+    return this.evaluatorsService.findOne(id, user.userId);
   }
 
   @Put(':id')
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdateAccessTokenDto,
+    @Body() dto: UpdateEvaluatorDto,
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<AccessTokenResponse> {
-    return this.accessTokensService.update(id, dto, user.userId);
+  ): Promise<EvaluatorResponse> {
+    return this.evaluatorsService.update(id, dto, user.userId);
   }
 
   @Get(':id/usage')
   async getUsage(
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
-  ): Promise<EntityUsage> {
-    return this.accessTokensService.getUsage(id, user.userId);
+  ): Promise<{ runs: number }> {
+    return this.evaluatorsService.getUsage(id, user.userId);
   }
 
   @Delete(':id')
@@ -86,6 +83,6 @@ export class AccessTokensController {
     @Param('id') id: string,
     @CurrentUser() user: { userId: string; email: string },
   ): Promise<void> {
-    return this.accessTokensService.delete(id, user.userId);
+    return this.evaluatorsService.delete(id, user.userId);
   }
 }

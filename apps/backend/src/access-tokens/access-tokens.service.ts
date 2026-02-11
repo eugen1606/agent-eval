@@ -13,6 +13,7 @@ export interface AccessTokenResponse {
   id: string;
   name: string;
   description?: string;
+  type: string;
   createdAt: Date;
   updatedAt: Date;
   // Token is never exposed
@@ -25,6 +26,7 @@ export interface AccessTokensFilterDto {
   page?: number;
   limit?: number;
   search?: string;
+  type?: string;
   sortBy?: AccessTokensSortField;
   sortDirection?: SortDirection;
 }
@@ -57,6 +59,7 @@ export class AccessTokensService {
       encryptedToken,
       iv,
       description: dto.description,
+      type: dto.type || 'ai_studio',
       userId,
     });
 
@@ -75,6 +78,11 @@ export class AccessTokensService {
     const queryBuilder = this.accessTokenRepository
       .createQueryBuilder('accessToken')
       .where('accessToken.userId = :userId', { userId });
+
+    // Apply type filter
+    if (filters.type) {
+      queryBuilder.andWhere('accessToken.type = :type', { type: filters.type });
+    }
 
     // Apply search filter
     if (filters.search) {
@@ -137,6 +145,7 @@ export class AccessTokensService {
 
     if (dto.name) token.name = dto.name;
     if (dto.description !== undefined) token.description = dto.description;
+    if (dto.type) token.type = dto.type;
 
     const saved = await this.accessTokenRepository.save(token);
     return this.toResponse(saved);
@@ -181,6 +190,7 @@ export class AccessTokensService {
       id: token.id,
       name: token.name,
       description: token.description,
+      type: token.type || 'ai_studio',
       createdAt: token.createdAt,
       updatedAt: token.updatedAt,
     };
