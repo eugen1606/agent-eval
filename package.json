@@ -1,6 +1,6 @@
 {
   "name": "@agent-eval/source",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "MIT",
   "packageManager": "yarn@4.9.1",
   "private": true,
