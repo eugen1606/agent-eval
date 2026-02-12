@@ -203,6 +203,8 @@ export class TestsService {
 
     // Handle tags update separately (ManyToMany relation)
     if (dto.tagIds !== undefined) {
+      // Re-fetch to get the updated entity (avoid .save() overwriting field updates)
+      const updatedTest = await this.findOne(id, userId);
       let tags: Tag[] = [];
       if (dto.tagIds.length > 0) {
         tags = await this.tagsService.findByIds(dto.tagIds, userId);
@@ -210,8 +212,8 @@ export class TestsService {
           throw new NotFoundException('One or more tags not found');
         }
       }
-      test.tags = tags;
-      await this.testRepository.save(test);
+      updatedTest.tags = tags;
+      await this.testRepository.save(updatedTest);
     }
 
     return this.findOne(id, userId);
