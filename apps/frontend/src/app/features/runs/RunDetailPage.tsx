@@ -116,6 +116,53 @@ export function RunDetailPage() {
     loadRun();
   }, [loadRun]);
 
+  // Detect in-progress evaluation on load and start polling
+  useEffect(() => {
+    if (!run) return;
+    if (run.evaluationInProgress && !llmEvaluating) {
+      setLlmEvaluating(true);
+      const completed = run.results.filter(
+        (r) => r.llmJudgeScore !== undefined && r.llmJudgeScore !== null
+      ).length;
+      setLlmEvalProgress({
+        completed,
+        total: run.evaluationTotal ?? 0,
+      });
+    }
+  }, [run?.evaluationInProgress]); // only trigger when evaluationInProgress changes
+
+  // Poll for evaluation progress when evaluating in background
+  useEffect(() => {
+    if (!id || !run?.evaluationInProgress) return;
+
+    const interval = setInterval(async () => {
+      const [runRes, statsRes] = await Promise.all([
+        apiClient.getRun(id),
+        apiClient.getRunStats(id),
+      ]);
+      if (runRes.success && runRes.data) {
+        setRun(runRes.data);
+        const completed = runRes.data.results.filter(
+          (r) => r.llmJudgeScore !== undefined && r.llmJudgeScore !== null
+        ).length;
+        setLlmEvalProgress({
+          completed,
+          total: runRes.data.evaluationTotal ?? 0,
+        });
+        if (!runRes.data.evaluationInProgress) {
+          setLlmEvaluating(false);
+          setLlmEvalProgress(null);
+          showNotification('success', 'AI evaluation complete');
+        }
+      }
+      if (statsRes.success && statsRes.data) {
+        setStats(statsRes.data);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [id, run?.evaluationInProgress, showNotification]);
+
   // Close export menu on outside click
   useEffect(() => {
     if (!exportMenuOpen) return;

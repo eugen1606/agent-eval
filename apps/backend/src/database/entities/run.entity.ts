@@ -78,6 +78,12 @@ export class Run {
   @Column({ type: 'timestamp', nullable: true })
   evaluatedAt: Date;
 
+  @Column({ default: false })
+  evaluationInProgress: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  evaluationTotal: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

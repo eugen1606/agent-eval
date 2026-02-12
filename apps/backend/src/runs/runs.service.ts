@@ -205,6 +205,19 @@ export class RunsService {
     return this.runRepository.save(run);
   }
 
+  async startEvaluation(id: string, total: number, userId: string): Promise<Run> {
+    const run = await this.findOne(id, userId);
+    run.evaluationInProgress = true;
+    run.evaluationTotal = total;
+    return this.runRepository.save(run);
+  }
+
+  async completeEvaluation(id: string, userId: string): Promise<Run> {
+    const run = await this.findOne(id, userId);
+    run.evaluationInProgress = false;
+    return this.runRepository.save(run);
+  }
+
   async cancel(id: string, userId: string): Promise<Run> {
     const run = await this.findOne(id, userId);
     if (run.status !== 'running' && run.status !== 'pending') {
@@ -657,6 +670,8 @@ export class RunsService {
       completedAt: run.completedAt?.toISOString(),
       isFullyEvaluated: run.isFullyEvaluated,
       evaluatedAt: run.evaluatedAt?.toISOString(),
+      evaluationInProgress: run.evaluationInProgress,
+      evaluationTotal: run.evaluationTotal,
       createdAt: run.createdAt?.toISOString(),
       updatedAt: run.updatedAt?.toISOString(),
     };

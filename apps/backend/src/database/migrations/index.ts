@@ -6,3 +6,4 @@ export { RenameScheduledEvaluationsToScheduledTests1769200000000 } from './17692
 export { AddTypeToAccessToken1769300000000 } from './1769300000000-AddTypeToAccessToken';
 export { CreateEvaluatorTable1769300000001 } from './1769300000001-CreateEvaluatorTable';
 export { AddReasoningModelToEvaluator1769300000002 } from './1769300000002-AddReasoningModelToEvaluator';
+export { AddEvaluationProgressToRun1770911462989 } from '././1770911462989-AddEvaluationProgressToRun';

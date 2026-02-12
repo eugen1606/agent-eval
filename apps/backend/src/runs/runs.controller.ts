@@ -352,6 +352,9 @@ export class RunsController {
         results = results.filter((r) => r.llmJudgeScore === undefined || r.llmJudgeScore === null);
       }
 
+      // Track evaluation progress on the run entity
+      await this.runsService.startEvaluation(runId, results.length, userId);
+
       subject.next({
         data: JSON.stringify({ type: 'eval_start', runId, totalResults: results.length }),
       });
@@ -404,6 +407,10 @@ export class RunsController {
         data: JSON.stringify({ type: 'eval_complete', runId, evaluatedCount }),
       });
     } finally {
+      // Always mark evaluation as complete, even on error
+      await this.runsService.completeEvaluation(runId, userId).catch((err) => {
+        this.logger.error(`Failed to complete evaluation for run ${runId}`, err);
+      });
       subject.complete();
     }
   }

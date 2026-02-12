@@ -53,6 +53,8 @@ export interface StoredRun {
   completedAt?: string;
   isFullyEvaluated: boolean;
   evaluatedAt?: string;
+  evaluationInProgress: boolean;
+  evaluationTotal?: number;
   createdAt: string;
   updatedAt: string;
 }
