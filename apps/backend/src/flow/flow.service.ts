@@ -39,12 +39,13 @@ export class FlowService {
     const sharedSessionId = config.multiStepEvaluation ? uuidv4() : null;
 
     for (const question of questions) {
+      const sessionId = sharedSessionId || uuidv4();
       const startTime = Date.now();
       try {
         const { answer, executionId } = await this.callFlowEndpoint(
           resolvedConfig,
           question.question,
-          sharedSessionId,
+          sessionId,
         );
         const executionTimeMs = Date.now() - startTime;
 
@@ -53,6 +54,7 @@ export class FlowService {
           question: question.question,
           answer,
           executionId,
+          sessionId,
           executionTimeMs,
           expectedAnswer: question.expectedAnswer,
           timestamp: new Date().toISOString(),
@@ -69,6 +71,7 @@ export class FlowService {
           question: question.question,
           answer: `Error: ${errorMessage}`,
           expectedAnswer: question.expectedAnswer,
+          sessionId,
           executionTimeMs,
           isError: true,
           errorMessage,
@@ -81,7 +84,7 @@ export class FlowService {
   private async callFlowEndpoint(
     config: FlowConfig,
     question: string,
-    sharedSessionId: string | null,
+    sessionId: string,
   ): Promise<{ answer: string; executionId?: string }> {
     const url = `${config.basePath}/api/lflow-engine/${config.flowId}/run`;
 
@@ -91,9 +94,7 @@ export class FlowService {
       skipDnsCheck: false, // Perform DNS check at execution time
     });
 
-    // Use shared session ID for multi-step, or generate new one for single-step
-    const sessionId = sharedSessionId || uuidv4();
-    const persistAllMessages = !!sharedSessionId; // Persist messages in multi-step mode
+    const persistAllMessages = config.multiStepEvaluation ?? false;
 
     const response = await fetch(url, {
       method: 'POST',

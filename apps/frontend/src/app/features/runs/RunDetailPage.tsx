@@ -928,24 +928,24 @@ export function RunDetailPage() {
                   <strong>Expected:</strong>{' '}
                   {result.expectedAnswer || <span className={styles.naValue}>N/A</span>}
                   {!result.isError && result.expectedAnswer && result.answer && (
-                    <>
-                      <span
-                        className={`${styles.similarityBadge} ${styles[getSimilarityLevel(calculateSimilarity(result.expectedAnswer, result.answer))]}`}
-                      >
-                        {calculateSimilarity(result.expectedAnswer, result.answer)}% match
-                      </span>
-                      <button
-                        className={`${styles.diffToggleBtn} ${diffToggles.has(result.id) ? styles.active : ''}`}
-                        onClick={() => toggleDiff(result.id)}
-                      >
-                        Diff
-                      </button>
-                    </>
+                    <button
+                      className={`${styles.diffToggleBtn} ${diffToggles.has(result.id) ? styles.active : ''}`}
+                      onClick={() => toggleDiff(result.id)}
+                    >
+                      Diff
+                    </button>
                   )}
                 </div>
 
                 {diffToggles.has(result.id) && result.expectedAnswer && result.answer && (
-                  <DiffView expected={result.expectedAnswer} actual={result.answer} />
+                  <>
+                    <span
+                      className={`${styles.similarityBadge} ${styles[getSimilarityLevel(calculateSimilarity(result.expectedAnswer, result.answer))]}`}
+                    >
+                      {calculateSimilarity(result.expectedAnswer, result.answer)}% match
+                    </span>
+                    <DiffView expected={result.expectedAnswer} actual={result.answer} />
+                  </>
                 )}
 
                 <div className={styles.resultMeta}>
@@ -957,6 +957,11 @@ export function RunDetailPage() {
                   {result.executionId && (
                     <span className={styles.resultExecutionId}>
                       <strong>Execution ID:</strong> <code>{result.executionId}</code>
+                    </span>
+                  )}
+                  {result.sessionId && (
+                    <span className={styles.resultExecutionId}>
+                      <strong>Session ID:</strong> <code>{result.sessionId}</code>
                     </span>
                   )}
                 </div>

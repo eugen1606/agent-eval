@@ -17,6 +17,7 @@ export interface RunResult {
   answer: string;
   expectedAnswer?: string;
   executionId?: string;
+  sessionId?: string;
   executionTimeMs?: number;
   isError?: boolean;
   errorMessage?: string;

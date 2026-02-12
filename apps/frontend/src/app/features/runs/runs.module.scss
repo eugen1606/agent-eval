@@ -642,11 +642,11 @@
 // Result metadata
 .resultMeta {
   display: flex;
-  gap: $spacing-lg;
+  flex-direction: column;
+  gap: $spacing-xs;
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-top: $spacing-sm;
-  flex-wrap: wrap;
 }
 
 .resultLatency {

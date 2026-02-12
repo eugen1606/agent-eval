@@ -1,4 +1,12 @@
-import { IsString, IsOptional, MaxLength, MinLength, IsUUID, IsBoolean, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MaxLength,
+  MinLength,
+  IsUUID,
+  IsBoolean,
+  IsIn,
+} from 'class-validator';
 import { MAX_LENGTHS } from '../../common/validation.constants';
 
 export class CreateEvaluatorDto {
