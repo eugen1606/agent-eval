@@ -1,0 +1,109 @@
+version: '3.8'
+
+# Deploy-only compose file for VMs without source code.
+# Usage:
+#   1. Copy this file + .env to your VM
+#   2. docker login ghcr.io -u <github-username> -p <github-pat>
+#   3. docker compose -f docker-compose.deploy.yml up -d
+#
+# To update after a new release:
+#   docker compose -f docker-compose.deploy.yml pull
+#   docker compose -f docker-compose.deploy.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-eval-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent_eval}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_eval_password}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_eval}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_eval}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-eval-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
+
+  redis:
+    image: redis:7-alpine
+    container_name: agent-eval-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-eval-network
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    image: ghcr.io/eugen1606/agent-eval/backend:${IMAGE_TAG:-latest}
+    container_name: agent-eval-backend
+    env_file: .env
+    environment:
+      # These override .env values to point to Docker internal services
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_eval}:${POSTGRES_PASSWORD:-agent_eval_password}@postgres:5432/${POSTGRES_DB:-agent_eval}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - agent-eval-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+  frontend:
+    image: ghcr.io/eugen1606/agent-eval/frontend:${IMAGE_TAG:-latest}
+    container_name: agent-eval-frontend
+    ports:
+      - "${PORT:-80}:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - agent-eval-network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run/nginx
+    cap_drop:
+      - ALL
+
+networks:
+  agent-eval-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
