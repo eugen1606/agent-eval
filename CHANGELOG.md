@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/eugen1606/agent-eval/compare/v1.0.0...v1.1.0) (2026-02-12)
+
+
+### Features
+
+* add option to automatically evaluate run with AI Evaluator ([f313c38](https://github.com/eugen1606/agent-eval/commit/f313c38bce706f76866d3a61956274c211220a04))
+* add sessionId in run details for each question ([d291342](https://github.com/eugen1606/agent-eval/commit/d29134224045e29a4455e5556a2375d788ef70e6))
+
+
+### Bug Fixes
+
+* fixed AI evaluation progress disappearing when leaving run detail page ([ebb9623](https://github.com/eugen1606/agent-eval/commit/ebb96236a60998de4c827d8d2c33c97d32626f23))
+* fixed editing tests ([fbf071c](https://github.com/eugen1606/agent-eval/commit/fbf071c56b2b754962ebb2f4ffc76a36915372c7))
+
+
+### CI/CD
+
+* add Docker image build on release and deploy compose file ([7d56446](https://github.com/eugen1606/agent-eval/commit/7d564469acd060e6244604c4bc3939ab5b950b59))
+
 ## [1.0.0](https://github.com/eugen1606/agent-eval/compare/v0.1.0...v1.0.0) (2026-02-11)
 
 
