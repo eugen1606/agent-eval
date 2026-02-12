@@ -47,6 +47,11 @@ export class CreateTestDto {
   @IsUUID()
   webhookId?: string;
 
+  @ApiPropertyOptional({ description: 'Evaluator ID for automatic AI evaluation after run completes' })
+  @IsOptional()
+  @IsUUID()
+  evaluatorId?: string;
+
   @ApiPropertyOptional({ description: 'Tag IDs to associate with this test', type: [String] })
   @IsOptional()
   @IsArray()

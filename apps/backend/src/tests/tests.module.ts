@@ -9,6 +9,9 @@ import { QuestionsModule } from '../questions/questions.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { FlowConfigsModule } from '../flow-configs/flow-configs.module';
 import { TagsModule } from '../tags/tags.module';
+import { EvaluatorsModule } from '../evaluators/evaluators.module';
+import { EvaluationModule } from '../evaluation/evaluation.module';
+import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { TagsModule } from '../tags/tags.module';
     WebhooksModule,
     FlowConfigsModule,
     TagsModule,
+    EvaluatorsModule,
+    EvaluationModule,
+    AccessTokensModule,
   ],
   controllers: [TestsController],
   providers: [TestsService],

@@ -15,6 +15,7 @@ import { QuestionSet } from './question-set.entity';
 import { Webhook } from './webhook.entity';
 import { FlowConfig } from './flow-config.entity';
 import { Tag } from './tag.entity';
+import { Evaluator } from './evaluator.entity';
 
 @Entity('tests')
 export class Test {
@@ -64,6 +65,13 @@ export class Test {
   @ManyToOne(() => Webhook, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'webhookId' })
   webhook: Webhook;
+
+  @Column({ nullable: true })
+  evaluatorId: string;
+
+  @ManyToOne(() => Evaluator, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'evaluatorId' })
+  evaluator: Evaluator;
 
   @ManyToMany(() => Tag)
   @JoinTable({

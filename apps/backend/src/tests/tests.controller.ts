@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Sse,
+  Logger,
   MessageEvent,
   BadRequestException,
 } from '@nestjs/common';
@@ -24,12 +25,17 @@ import { RunsService } from '../runs/runs.service';
 import { QuestionsService } from '../questions/questions.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { FlowConfigsService } from '../flow-configs/flow-configs.service';
+import { EvaluatorsService } from '../evaluators/evaluators.service';
+import { EvaluationService } from '../evaluation/evaluation.service';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('tests')
 @Controller('tests')
 @UseGuards(JwtAuthGuard)
 export class TestsController {
+  private readonly logger = new Logger(TestsController.name);
+
   constructor(
     private readonly testsService: TestsService,
     private readonly flowService: FlowService,
@@ -37,6 +43,9 @@ export class TestsController {
     private readonly questionsService: QuestionsService,
     private readonly webhooksService: WebhooksService,
     private readonly flowConfigsService: FlowConfigsService,
+    private readonly evaluatorsService: EvaluatorsService,
+    private readonly evaluationService: EvaluationService,
+    private readonly accessTokensService: AccessTokensService,
   ) {}
 
   @Post()
@@ -247,6 +256,13 @@ export class TestsController {
             });
           }
 
+          // Fire-and-forget auto AI evaluation if evaluator is configured
+          if (test.evaluatorId) {
+            this.autoEvaluate(completedRun.id, test.evaluatorId, user.userId).catch((err) => {
+              this.logger.error(`Auto-evaluation failed for run ${completedRun.id}`, err);
+            });
+          }
+
           // Send completion event
           subscriber.next({
             data: JSON.stringify({ type: 'complete', runId: run.id }),
@@ -288,5 +304,48 @@ export class TestsController {
         }
       })();
     });
+  }
+
+  private async autoEvaluate(runId: string, evaluatorId: string, userId: string): Promise<void> {
+    try {
+      const run = await this.runsService.findOne(runId, userId);
+      const evaluator = await this.evaluatorsService.findOneEntity(evaluatorId, userId);
+      if (!evaluator.accessTokenId) {
+        this.logger.warn(`Auto-evaluation skipped: evaluator ${evaluatorId} has no credential`);
+        return;
+      }
+
+      const apiKey = await this.accessTokensService.getDecryptedToken(evaluator.accessTokenId, userId);
+      const tokenInfo = await this.accessTokensService.findOne(evaluator.accessTokenId, userId);
+      const provider = tokenInfo.type as 'openai' | 'anthropic';
+
+      const results = run.results.filter((r) => !r.isError);
+      if (results.length === 0) return;
+
+      await this.runsService.startEvaluation(runId, results.length, userId);
+
+      for (const result of results) {
+        try {
+          const llmResult = await this.evaluationService.evaluateWithLLM(
+            result.question,
+            result.answer,
+            result.expectedAnswer,
+            { apiKey, provider, model: evaluator.model, systemPrompt: evaluator.systemPrompt, reasoningModel: evaluator.reasoningModel, reasoningEffort: evaluator.reasoningEffort },
+          );
+
+          await this.runsService.updateResultEvaluation(runId, {
+            resultId: result.id,
+            llmJudgeScore: llmResult.score,
+            llmJudgeReasoning: llmResult.reasoning,
+          }, userId);
+        } catch (error) {
+          this.logger.error(`Auto-evaluation failed for result ${result.id}`, error);
+        }
+      }
+    } finally {
+      await this.runsService.completeEvaluation(runId, userId).catch((err) => {
+        this.logger.error(`Failed to complete auto-evaluation for run ${runId}`, err);
+      });
+    }
   }
 }

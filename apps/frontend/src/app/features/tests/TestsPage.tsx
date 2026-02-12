@@ -6,6 +6,7 @@ import {
   StoredFlowConfig,
   StoredWebhook,
   StoredTag,
+  LLMJudgeStatusResponse,
   TestsSortField,
   SortDirection,
 } from '@agent-eval/shared';
@@ -25,6 +26,7 @@ export function TestsPage() {
   const [questionSets, setQuestionSets] = useState<StoredQuestionSet[]>([]);
   const [flowConfigs, setFlowConfigs] = useState<StoredFlowConfig[]>([]);
   const [webhooks, setWebhooks] = useState<StoredWebhook[]>([]);
+  const [evaluators, setEvaluators] = useState<LLMJudgeStatusResponse['evaluators']>([]);
   const [tags, setTags] = useState<StoredTag[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export function TestsPage() {
     questionSetId: '',
     multiStepEvaluation: false,
     webhookId: '',
+    evaluatorId: '',
     tagIds: [] as string[],
   });
   const [loading, setLoading] = useState(false);
@@ -68,11 +71,12 @@ export function TestsPage() {
   // Load supporting data (tokens, questions, configs, webhooks, tags) once
   useEffect(() => {
     const loadSupportingData = async () => {
-      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes, tagsRes] = await Promise.all([
+      const [tokensRes, questionsRes, flowConfigsRes, webhooksRes, evaluatorsRes, tagsRes] = await Promise.all([
         apiClient.getAccessTokens(),
         apiClient.getQuestionSets(),
         apiClient.getFlowConfigs(),
         apiClient.getWebhooks(),
+        apiClient.getLLMJudgeStatus(),
         apiClient.getTags({ limit: 100 }),
       ]);
 
@@ -87,6 +91,9 @@ export function TestsPage() {
       }
       if (webhooksRes.success && webhooksRes.data) {
         setWebhooks(webhooksRes.data.data);
+      }
+      if (evaluatorsRes.success && evaluatorsRes.data) {
+        setEvaluators(evaluatorsRes.data.evaluators);
       }
       if (tagsRes.success && tagsRes.data) {
         setTags(tagsRes.data.data);
@@ -266,6 +273,7 @@ export function TestsPage() {
       questionSetId: formData.questionSetId || null,
       multiStepEvaluation: formData.multiStepEvaluation,
       webhookId: formData.webhookId || null,
+      evaluatorId: formData.evaluatorId || null,
       tagIds: formData.tagIds,
     };
 
@@ -296,6 +304,7 @@ export function TestsPage() {
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
       webhookId: test.webhookId || '',
+      evaluatorId: test.evaluatorId || '',
       tagIds: test.tags?.map((t) => t.id) || [],
     });
     setShowForm(true);
@@ -310,6 +319,7 @@ export function TestsPage() {
       questionSetId: '',
       multiStepEvaluation: false,
       webhookId: '',
+      evaluatorId: '',
       tagIds: [],
     });
     setShowForm(false);
@@ -477,6 +487,12 @@ export function TestsPage() {
     return webhook?.name || 'Unknown';
   };
 
+  const getEvaluatorName = (id?: string) => {
+    if (!id) return 'None';
+    const evaluator = evaluators.find((e) => e.id === id);
+    return evaluator?.name || 'Unknown';
+  };
+
   const handleExport = async (test: StoredTest) => {
     const response = await apiClient.exportConfig({
       types: ['tests'],
@@ -610,6 +626,21 @@ export function TestsPage() {
               allOptionLabel="No webhook"
             />
             <span className="form-hint">Trigger webhook on run events (running, completed, failed, evaluated)</span>
+          </div>
+          <div className="form-group">
+            <label>Auto AI Evaluator</label>
+            <SearchableSelect
+              value={formData.evaluatorId}
+              onChange={(value) => setFormData({ ...formData, evaluatorId: value })}
+              options={evaluators.map((ev) => ({
+                value: ev.id,
+                label: ev.name,
+                sublabel: ev.model,
+              }))}
+              placeholder="Search evaluators..."
+              allOptionLabel="No auto-evaluation"
+            />
+            <span className="form-hint">Automatically evaluate results with AI after run completes</span>
           </div>
           <div className="form-group">
             <label>Tags</label>
@@ -765,6 +796,10 @@ export function TestsPage() {
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Webhook:</span>
                   <span className={styles.detailValue}>{getWebhookName(test.webhookId)}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Auto Evaluator:</span>
+                  <span className={styles.detailValue}>{getEvaluatorName(test.evaluatorId)}</span>
                 </div>
                 {test.tags && test.tags.length > 0 && (
                   <div className={styles.detailRow}>

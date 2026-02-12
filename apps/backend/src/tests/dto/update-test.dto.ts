@@ -54,6 +54,12 @@ export class UpdateTestDto {
   @IsUUID()
   webhookId?: string | null;
 
+  @ApiPropertyOptional({ description: 'Evaluator ID (set null to clear)' })
+  @IsOptional()
+  @ValidateIf((o) => o.evaluatorId !== null)
+  @IsUUID()
+  evaluatorId?: string | null;
+
   @ApiPropertyOptional({ description: 'Tag IDs to associate with this test', type: [String] })
   @IsOptional()
   @IsArray()

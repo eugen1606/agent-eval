@@ -7,3 +7,4 @@ export { AddTypeToAccessToken1769300000000 } from './1769300000000-AddTypeToAcce
 export { CreateEvaluatorTable1769300000001 } from './1769300000001-CreateEvaluatorTable';
 export { AddReasoningModelToEvaluator1769300000002 } from './1769300000002-AddReasoningModelToEvaluator';
 export { AddEvaluationProgressToRun1770911462989 } from '././1770911462989-AddEvaluationProgressToRun';
+export { AddEvaluatorToTest1770912311405 } from './1770912311405-AddEvaluatorToTest';

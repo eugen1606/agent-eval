@@ -58,6 +58,7 @@ export class TestsService {
       questionSetId: dto.questionSetId,
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
       webhookId: dto.webhookId,
+      evaluatorId: dto.evaluatorId,
       userId,
       tags,
     });
@@ -197,6 +198,10 @@ export class TestsService {
     }
     if (dto.webhookId !== undefined) {
       updateData.webhookId = dto.webhookId || (null as unknown as string);
+    }
+    if (dto.evaluatorId !== undefined) {
+      updateData.evaluatorId =
+        dto.evaluatorId || (null as unknown as string);
     }
 
     await this.testRepository.update({ id, userId }, updateData);
