@@ -140,8 +140,6 @@ agent-eval/
 | `JWT_REFRESH_SECRET` | Refresh token secret | Yes |
 | `ADMIN_EMAIL` | Initial admin email | No |
 | `ADMIN_PASSWORD` | Initial admin password | No |
-| `OPENAI_API_KEY` | For LLM-as-judge | No |
-| `ANTHROPIC_API_KEY` | For LLM-as-judge | No |
 
 ## Development
 

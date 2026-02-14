@@ -10,7 +10,8 @@ export type ExportEntityType =
   | 'flowConfigs'
   | 'tags'
   | 'webhooks'
-  | 'runs';
+  | 'runs'
+  | 'personas';
 
 export type ConflictStrategy = 'skip' | 'overwrite' | 'rename';
 
@@ -18,6 +19,21 @@ export interface ExportMetadata {
   version: string;
   exportedAt: string;
   exportedBy?: string;
+}
+
+export interface ExportedScenario {
+  name: string;
+  goal: string;
+  maxTurns: number;
+  orderIndex: number;
+  personaExportId?: string;
+}
+
+export interface ExportedPersona {
+  exportId: string;
+  name: string;
+  description?: string;
+  systemPrompt: string;
 }
 
 export interface ExportedTest {
@@ -29,6 +45,15 @@ export interface ExportedTest {
   webhookExportId?: string;
   tagExportIds?: string[];
   multiStepEvaluation: boolean;
+  // Conversation test fields
+  type?: 'qa' | 'conversation';
+  executionMode?: string;
+  delayBetweenTurns?: number;
+  simulatedUserModel?: string;
+  simulatedUserModelConfig?: { temperature?: number; maxTokens?: number };
+  simulatedUserReasoningModel?: boolean;
+  simulatedUserReasoningEffort?: string;
+  scenarios?: ExportedScenario[];
 }
 
 export interface ExportedQuestionSet {
@@ -80,6 +105,18 @@ export interface ExportedRunResult {
   timestamp?: string;
 }
 
+export interface ExportedConversation {
+  scenarioName?: string;
+  status: string;
+  goalAchieved?: boolean;
+  totalTurns: number;
+  turns: Array<{ index: number; role: 'user' | 'agent'; message: string; timestamp: string }>;
+  summary?: string;
+  endReason?: string;
+  humanEvaluation?: string;
+  humanEvaluationNotes?: string;
+}
+
 export interface ExportedRun {
   exportId: string;
   testName?: string;
@@ -94,6 +131,10 @@ export interface ExportedRun {
   completedAt?: string;
   evaluatedAt?: string;
   createdAt: string;
+  // Conversation run fields
+  totalScenarios?: number;
+  completedScenarios?: number;
+  conversations?: ExportedConversation[];
 }
 
 export interface ExportBundle {
@@ -104,6 +145,7 @@ export interface ExportBundle {
   tags?: ExportedTag[];
   webhooks?: ExportedWebhook[];
   runs?: ExportedRun[];
+  personas?: ExportedPersona[];
 }
 
 export interface ExportOptions {
@@ -114,6 +156,7 @@ export interface ExportOptions {
   tagIds?: string[];
   webhookIds?: string[];
   runIds?: string[];
+  personaIds?: string[];
 }
 
 export interface ImportOptions {
@@ -134,6 +177,7 @@ export interface ImportPreviewResult {
     flowConfigs: number;
     tags: number;
     webhooks: number;
+    personas: number;
   };
   conflicts: ImportConflict[];
   errors: string[];
@@ -146,6 +190,7 @@ export interface ImportResult {
     flowConfigs: number;
     tags: number;
     webhooks: number;
+    personas: number;
   };
   skipped: {
     tests: number;
@@ -153,6 +198,7 @@ export interface ImportResult {
     flowConfigs: number;
     tags: number;
     webhooks: number;
+    personas: number;
   };
   overwritten: {
     tests: number;
@@ -160,6 +206,7 @@ export interface ImportResult {
     flowConfigs: number;
     tags: number;
     webhooks: number;
+    personas: number;
   };
   renamed: {
     tests: number;
@@ -167,6 +214,7 @@ export interface ImportResult {
     flowConfigs: number;
     tags: number;
     webhooks: number;
+    personas: number;
   };
   errors: string[];
 }

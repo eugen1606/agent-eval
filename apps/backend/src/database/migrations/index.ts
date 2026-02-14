@@ -8,3 +8,5 @@ export { CreateEvaluatorTable1769300000001 } from './1769300000001-CreateEvaluat
 export { AddReasoningModelToEvaluator1769300000002 } from './1769300000002-AddReasoningModelToEvaluator';
 export { AddEvaluationProgressToRun1770911462989 } from '././1770911462989-AddEvaluationProgressToRun';
 export { AddEvaluatorToTest1770912311405 } from './1770912311405-AddEvaluatorToTest';
+export { AddConversationTesting1770994210427 } from './1770994210427-AddConversationTesting';
+export { AddSimulatedUserCredential1771000000000 } from './1771000000000-AddSimulatedUserCredential';

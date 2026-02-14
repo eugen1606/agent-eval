@@ -17,6 +17,7 @@ import {
   WebhooksManager,
   TagManager,
   EvaluatorsManager,
+  PersonasManager,
   Dashboard,
   Homepage,
   LoginPage,
@@ -34,7 +35,7 @@ import './app.css';
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState<
-    'tokens' | 'questions' | 'flows' | 'webhooks' | 'tags' | 'evaluators'
+    'tokens' | 'questions' | 'flows' | 'webhooks' | 'tags' | 'evaluators' | 'personas'
   >('tokens');
 
   return (
@@ -76,6 +77,12 @@ function SettingsPage() {
         >
           Evaluators
         </button>
+        <button
+          className={activeTab === 'personas' ? 'active' : ''}
+          onClick={() => setActiveTab('personas')}
+        >
+          Personas
+        </button>
       </div>
 
       <div className="settings-content">
@@ -85,6 +92,7 @@ function SettingsPage() {
         {activeTab === 'webhooks' && <WebhooksManager />}
         {activeTab === 'tags' && <TagManager />}
         {activeTab === 'evaluators' && <EvaluatorsManager />}
+        {activeTab === 'personas' && <PersonasManager />}
       </div>
     </div>
   );

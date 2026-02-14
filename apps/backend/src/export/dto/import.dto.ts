@@ -131,7 +131,7 @@ class ExportedWebhookDto {
 
   @IsArray()
   @IsEnum(
-    ['run.running', 'run.completed', 'run.failed', 'run.evaluated'] as const,
+    ['run.running', 'run.completed', 'run.failed', 'run.evaluated', 'conversation.completed', 'conversation.evaluated'] as const,
     { each: true },
   )
   events: WebhookEvent[];
@@ -153,6 +153,21 @@ class ExportedWebhookDto {
   @IsOptional()
   @IsObject()
   bodyTemplate?: Record<string, unknown>;
+}
+
+class ExportedPersonaDto {
+  @IsString()
+  exportId: string;
+
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsString()
+  systemPrompt: string;
 }
 
 export class ImportBundleDto implements ExportBundle {
@@ -189,6 +204,12 @@ export class ImportBundleDto implements ExportBundle {
   @ValidateNested({ each: true })
   @Type(() => ExportedWebhookDto)
   webhooks?: ExportedWebhookDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExportedPersonaDto)
+  personas?: ExportedPersonaDto[];
 }
 
 export class ImportOptionsDto {

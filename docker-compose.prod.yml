@@ -74,8 +74,6 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@benchmark.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:80}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
     depends_on:

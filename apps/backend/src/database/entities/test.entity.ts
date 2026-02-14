@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   ManyToMany,
   JoinColumn,
   JoinTable,
@@ -16,6 +17,10 @@ import { Webhook } from './webhook.entity';
 import { FlowConfig } from './flow-config.entity';
 import { Tag } from './tag.entity';
 import { Evaluator } from './evaluator.entity';
+import { Scenario } from './scenario.entity';
+
+export type TestType = 'qa' | 'conversation';
+export type ConversationExecutionMode = 'sequential' | 'parallel';
 
 @Entity('tests')
 export class Test {
@@ -80,6 +85,37 @@ export class Test {
     inverseJoinColumn: { name: 'tagId', referencedColumnName: 'id' },
   })
   tags: Tag[];
+
+  @Column({ default: 'qa' })
+  type: TestType;
+
+  @Column({ nullable: true })
+  executionMode: ConversationExecutionMode;
+
+  @Column({ type: 'int', nullable: true, default: 0 })
+  delayBetweenTurns: number;
+
+  @Column({ nullable: true })
+  simulatedUserModel: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  simulatedUserModelConfig: { temperature?: number; maxTokens?: number };
+
+  @Column({ nullable: true })
+  simulatedUserAccessTokenId: string;
+
+  @ManyToOne(() => AccessToken, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'simulatedUserAccessTokenId' })
+  simulatedUserAccessToken: AccessToken;
+
+  @Column({ default: false })
+  simulatedUserReasoningModel: boolean;
+
+  @Column({ nullable: true })
+  simulatedUserReasoningEffort: string;
+
+  @OneToMany(() => Scenario, (scenario) => scenario.test, { cascade: true })
+  scenarios: Scenario[];
 
   @CreateDateColumn()
   createdAt: Date;

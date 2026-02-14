@@ -21,11 +21,22 @@ export interface WebhookContext {
   avgLatencyMs?: number | null;
   p95LatencyMs?: number | null;
   maxLatencyMs?: number | null;
+  // Conversation-specific variables
+  conversationId?: string;
+  conversationStatus?: string;
+  goalAchieved?: boolean;
+  totalTurns?: number;
+  scenarioName?: string;
+  personaName?: string;
+  humanEvaluation?: string;
+  humanEvaluationNotes?: string;
 }
 
-const ALL_EVENTS: WebhookEvent[] = ['run.running', 'run.completed', 'run.failed', 'run.evaluated'];
+const ALL_EVENTS: WebhookEvent[] = ['run.running', 'run.completed', 'run.failed', 'run.evaluated', 'conversation.completed', 'conversation.evaluated'];
 const COMPLETION_EVENTS: WebhookEvent[] = ['run.completed', 'run.failed', 'run.evaluated'];
 const EVALUATION_EVENT: WebhookEvent[] = ['run.evaluated'];
+const CONVERSATION_EVENTS: WebhookEvent[] = ['conversation.completed', 'conversation.evaluated'];
+const CONVERSATION_EVAL_EVENT: WebhookEvent[] = ['conversation.evaluated'];
 
 const VARIABLE_DEFINITIONS: WebhookVariableDefinition[] = [
   {
@@ -117,6 +128,55 @@ const VARIABLE_DEFINITIONS: WebhookVariableDefinition[] = [
     description: 'Error message when a run fails',
     example: 'Connection timeout',
     events: ['run.failed'],
+  },
+  // Conversation-specific variables
+  {
+    name: 'conversationId',
+    description: 'The unique identifier of the conversation',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'conversationStatus',
+    description: 'The status of the conversation (goal_achieved, goal_not_achieved, max_turns_reached, error)',
+    example: 'goal_achieved',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'goalAchieved',
+    description: 'Whether the conversation goal was achieved',
+    example: 'true',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'totalTurns',
+    description: 'Total number of turns in the conversation',
+    example: '12',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'scenarioName',
+    description: 'The name of the scenario',
+    example: 'TV not working',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'personaName',
+    description: 'The name of the persona used in the scenario',
+    example: 'Confused User',
+    events: CONVERSATION_EVENTS,
+  },
+  {
+    name: 'humanEvaluation',
+    description: 'Human evaluation rating (good, acceptable, poor)',
+    example: 'good',
+    events: CONVERSATION_EVAL_EVENT,
+  },
+  {
+    name: 'humanEvaluationNotes',
+    description: 'Human evaluation notes',
+    example: 'Agent handled the issue well',
+    events: CONVERSATION_EVAL_EVENT,
   },
   {
     name: 'avgLatencyMs',

@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type WebhookEvent = 'run.running' | 'run.completed' | 'run.failed' | 'run.evaluated';
+export type WebhookEvent = 'run.running' | 'run.completed' | 'run.failed' | 'run.evaluated' | 'conversation.completed' | 'conversation.evaluated';
 export type WebhookMethod = 'POST' | 'PUT' | 'PATCH';
 
 @Entity('webhooks')

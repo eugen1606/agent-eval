@@ -6,7 +6,9 @@ export type WebhookEvent =
   | 'run.running'
   | 'run.completed'
   | 'run.failed'
-  | 'run.evaluated';
+  | 'run.evaluated'
+  | 'conversation.completed'
+  | 'conversation.evaluated';
 export type WebhookMethod = 'POST' | 'PUT' | 'PATCH';
 
 export interface WebhookVariableDefinition {

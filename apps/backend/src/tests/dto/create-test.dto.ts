@@ -4,11 +4,32 @@ import {
   IsBoolean,
   IsUUID,
   IsArray,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsNumber,
+  Min,
   MaxLength,
   MinLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { MAX_LENGTHS } from '../../common/validation.constants';
+import { CreateScenarioDto } from './create-scenario.dto';
+
+export class SimulatedUserModelConfigDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  temperature?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxTokens?: number;
+}
 
 export class CreateTestDto {
   @ApiProperty({ description: 'Test name', example: 'Customer Support Flow Test' })
@@ -57,4 +78,63 @@ export class CreateTestDto {
   @IsArray()
   @IsUUID('4', { each: true })
   tagIds?: string[];
+
+  @ApiPropertyOptional({ description: 'Test type', enum: ['qa', 'conversation'], default: 'qa' })
+  @IsOptional()
+  @IsIn(['qa', 'conversation'])
+  type?: 'qa' | 'conversation';
+
+  @ApiPropertyOptional({ description: 'Execution mode for conversation tests', enum: ['sequential', 'parallel'] })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsIn(['sequential', 'parallel'])
+  executionMode?: 'sequential' | 'parallel';
+
+  @ApiPropertyOptional({ description: 'Delay between turns in milliseconds', default: 0 })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  delayBetweenTurns?: number;
+
+  @ApiPropertyOptional({ description: 'Model for simulated user (e.g. gpt-4o, claude-sonnet)' })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  simulatedUserModel?: string;
+
+  @ApiPropertyOptional({ description: 'Configuration for simulated user model' })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SimulatedUserModelConfigDto)
+  simulatedUserModelConfig?: SimulatedUserModelConfigDto;
+
+  @ApiPropertyOptional({ description: 'Access token ID for simulated user LLM calls' })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsUUID()
+  simulatedUserAccessTokenId?: string;
+
+  @ApiPropertyOptional({ description: 'Whether the simulated user model is a reasoning model', default: false })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsBoolean()
+  simulatedUserReasoningModel?: boolean;
+
+  @ApiPropertyOptional({ description: 'Reasoning effort for simulated user model', enum: ['none', 'minimal', 'low', 'medium', 'high'] })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsIn(['none', 'minimal', 'low', 'medium', 'high'])
+  simulatedUserReasoningEffort?: string;
+
+  @ApiPropertyOptional({ description: 'Scenarios for conversation tests', type: [CreateScenarioDto] })
+  @ValidateIf((o) => o.type === 'conversation')
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateScenarioDto)
+  scenarios?: CreateScenarioDto[];
 }

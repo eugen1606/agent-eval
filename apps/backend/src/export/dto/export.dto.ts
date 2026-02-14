@@ -19,7 +19,7 @@ export class ExportQueryDto {
   @IsArray()
   @ArrayMinSize(1)
   @IsEnum(
-    ['tests', 'questionSets', 'flowConfigs', 'tags', 'webhooks', 'runs'] as const,
+    ['tests', 'questionSets', 'flowConfigs', 'tags', 'webhooks', 'runs', 'personas'] as const,
     { each: true },
   )
   types: ExportEntityType[];
@@ -59,4 +59,10 @@ export class ExportQueryDto {
   @IsArray()
   @IsUUID('4', { each: true })
   runIds?: string[];
+
+  @IsOptional()
+  @Transform(({ value }) => toArray(value))
+  @IsArray()
+  @IsUUID('4', { each: true })
+  personaIds?: string[];
 }

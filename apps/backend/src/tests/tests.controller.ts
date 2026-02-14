@@ -16,8 +16,9 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { Observable } from 'rxjs';
 import { TestsService, PaginatedTests } from './tests.service';
-import { CreateTestDto, UpdateTestDto } from './dto';
-import { Test } from '../database/entities';
+import { ScenariosService } from './scenarios.service';
+import { CreateTestDto, UpdateTestDto, CreateScenarioDto, UpdateScenarioDto, ReorderScenariosDto } from './dto';
+import { Test, Scenario } from '../database/entities';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { FlowService } from '../flow/flow.service';
@@ -28,6 +29,7 @@ import { FlowConfigsService } from '../flow-configs/flow-configs.service';
 import { EvaluatorsService } from '../evaluators/evaluators.service';
 import { EvaluationService } from '../evaluation/evaluation.service';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
+import { ConversationRunService } from '../conversation/conversation-run.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @ApiTags('tests')
@@ -38,6 +40,7 @@ export class TestsController {
 
   constructor(
     private readonly testsService: TestsService,
+    private readonly scenariosService: ScenariosService,
     private readonly flowService: FlowService,
     private readonly runsService: RunsService,
     private readonly questionsService: QuestionsService,
@@ -46,6 +49,7 @@ export class TestsController {
     private readonly evaluatorsService: EvaluatorsService,
     private readonly evaluationService: EvaluationService,
     private readonly accessTokensService: AccessTokensService,
+    private readonly conversationRunService: ConversationRunService,
   ) {}
 
   @Post()
@@ -74,6 +78,7 @@ export class TestsController {
     @Query('multiStep') multiStep?: string,
     @Query('flowConfigId') flowConfigId?: string,
     @Query('tagIds') tagIds?: string,
+    @Query('type') type?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
@@ -88,6 +93,7 @@ export class TestsController {
       multiStep: multiStep !== undefined ? multiStep === 'true' : undefined,
       flowConfigId,
       tagIds: tagIds ? tagIds.split(',') : undefined,
+      type: type as 'qa' | 'conversation' | undefined,
       sortBy: sortBy as 'name' | 'createdAt' | 'updatedAt' | undefined,
       sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });
@@ -131,6 +137,66 @@ export class TestsController {
     return this.testsService.delete(id, user.userId);
   }
 
+  // --- Scenario sub-endpoints ---
+
+  @Get(':id/scenarios')
+  @ApiOperation({ summary: 'List scenarios for a test' })
+  @ApiResponse({ status: 200, description: 'List of scenarios' })
+  async getScenarios(
+    @Param('id') testId: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<Scenario[]> {
+    return this.scenariosService.findAll(testId, user.userId);
+  }
+
+  @Post(':id/scenarios')
+  @ApiOperation({ summary: 'Add a scenario to a conversation test' })
+  @ApiResponse({ status: 201, description: 'Scenario created' })
+  @ApiResponse({ status: 400, description: 'Test is not a conversation type' })
+  async createScenario(
+    @Param('id') testId: string,
+    @Body() dto: CreateScenarioDto,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<Scenario> {
+    return this.scenariosService.create(testId, dto, user.userId);
+  }
+
+  @Put(':id/scenarios/reorder')
+  @ApiOperation({ summary: 'Reorder scenarios' })
+  @ApiResponse({ status: 200, description: 'Scenarios reordered' })
+  async reorderScenarios(
+    @Param('id') testId: string,
+    @Body() dto: ReorderScenariosDto,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<void> {
+    return this.scenariosService.reorder(testId, dto.scenarioIds, user.userId);
+  }
+
+  @Put(':id/scenarios/:scenarioId')
+  @ApiOperation({ summary: 'Update a scenario' })
+  @ApiResponse({ status: 200, description: 'Scenario updated' })
+  @ApiResponse({ status: 404, description: 'Scenario not found' })
+  async updateScenario(
+    @Param('id') testId: string,
+    @Param('scenarioId') scenarioId: string,
+    @Body() dto: UpdateScenarioDto,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<Scenario> {
+    return this.scenariosService.update(testId, scenarioId, dto, user.userId);
+  }
+
+  @Delete(':id/scenarios/:scenarioId')
+  @ApiOperation({ summary: 'Delete a scenario' })
+  @ApiResponse({ status: 200, description: 'Scenario deleted' })
+  @ApiResponse({ status: 404, description: 'Scenario not found' })
+  async deleteScenario(
+    @Param('id') testId: string,
+    @Param('scenarioId') scenarioId: string,
+    @CurrentUser() user: { userId: string; email: string },
+  ): Promise<void> {
+    return this.scenariosService.delete(testId, scenarioId, user.userId);
+  }
+
   @Post(':id/run')
   @ApiOperation({ summary: 'Execute a test and stream results via SSE' })
   @ApiResponse({ status: 200, description: 'SSE stream of run results' })
@@ -152,6 +218,12 @@ export class TestsController {
           // Validate test has FlowConfig
           if (!test.flowConfigId || !test.flowConfig) {
             throw new BadRequestException('Test has no flow configuration');
+          }
+
+          // Branch based on test type
+          if (test.type === 'conversation') {
+            await this.runConversationTest(test, user, subscriber);
+            return;
           }
 
           if (!test.questionSetId) {
@@ -304,6 +376,121 @@ export class TestsController {
         }
       })();
     });
+  }
+
+  private async runConversationTest(
+    test: Test,
+    user: { userId: string; email: string },
+    subscriber: import('rxjs').Subscriber<MessageEvent>,
+  ): Promise<void> {
+    let runId: string | null = null;
+
+    try {
+      // Validate conversation test requirements
+      if (!test.scenarios || test.scenarios.length === 0) {
+        throw new BadRequestException('Conversation test has no scenarios configured');
+      }
+
+      if (!test.simulatedUserModel) {
+        throw new BadRequestException('Conversation test has no simulated user model configured');
+      }
+
+      // Resolve API key for the simulated user model
+      let apiKey: string | null = null;
+      if (!test.simulatedUserAccessTokenId) {
+        throw new BadRequestException(
+          'No credential configured for simulated user model. Assign a credential to the conversation test.',
+        );
+      }
+      try {
+        apiKey = await this.accessTokensService.getDecryptedToken(
+          test.simulatedUserAccessTokenId,
+          user.userId,
+        );
+      } catch {
+        throw new BadRequestException(
+          'Failed to decrypt simulated user credential. The credential may have been deleted.',
+        );
+      }
+
+      // Create a new run
+      const run = await this.runsService.create(
+        { testId: test.id, totalQuestions: 0 },
+        user.userId,
+      );
+      runId = run.id;
+
+      // Start the run
+      await this.runsService.start(run.id, user.userId);
+
+      // Trigger run.running webhook
+      if (test.webhookId) {
+        this.webhooksService.triggerWebhooks(user.userId, 'run.running', {
+          runId: run.id,
+          runStatus: 'running',
+          testId: test.id,
+          testName: test.name,
+        });
+      }
+
+      // Execute conversation run (returns Observable, we subscribe and forward)
+      const conversationObservable = this.conversationRunService.executeConversationRun(
+        test,
+        run,
+        user.userId,
+        apiKey,
+      );
+
+      conversationObservable.subscribe({
+        next: (event) => subscriber.next(event),
+        error: (err) => {
+          subscriber.next({
+            data: JSON.stringify({
+              type: 'error',
+              error: err instanceof Error ? err.message : 'Unknown error',
+              runId,
+            }),
+          });
+          subscriber.complete();
+        },
+        complete: () => {
+          // Trigger completed webhook
+          if (test.webhookId) {
+            this.webhooksService.triggerWebhooks(user.userId, 'run.completed', {
+              runId: run.id,
+              runStatus: 'completed',
+              testId: test.id,
+              testName: test.name,
+            });
+          }
+          subscriber.complete();
+        },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (runId) {
+        try {
+          await this.runsService.fail(runId, errorMessage, user.userId);
+          if (test.webhookId) {
+            this.webhooksService.triggerWebhooks(user.userId, 'run.failed', {
+              runId,
+              runStatus: 'failed',
+              testId: test.id,
+              testName: test.name,
+              errorMessage,
+            });
+          }
+        } catch {
+          // Ignore
+        }
+      }
+
+      subscriber.next({
+        data: JSON.stringify({ type: 'error', error: errorMessage, runId }),
+      });
+      subscriber.complete();
+    }
   }
 
   private async autoEvaluate(runId: string, evaluatorId: string, userId: string): Promise<void> {

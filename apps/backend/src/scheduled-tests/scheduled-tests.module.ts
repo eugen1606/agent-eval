@@ -10,6 +10,8 @@ import { FlowModule } from '../flow/flow.module';
 import { QuestionsModule } from '../questions/questions.module';
 import { TestsModule } from '../tests/tests.module';
 import { RunsModule } from '../runs/runs.module';
+import { ConversationModule } from '../conversation/conversation.module';
+import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { RunsModule } from '../runs/runs.module';
     QuestionsModule,
     forwardRef(() => TestsModule),
     forwardRef(() => RunsModule),
+    ConversationModule,
+    AccessTokensModule,
   ],
   controllers: [ScheduledTestsController],
   providers: [ScheduledTestsService, SchedulerService],

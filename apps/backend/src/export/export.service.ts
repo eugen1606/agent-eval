@@ -9,6 +9,8 @@ import {
   Tag,
   Webhook,
   Run,
+  Persona,
+  Conversation,
 } from '../database/entities';
 import {
   ExportBundle,
@@ -19,6 +21,7 @@ import {
   ExportedTag,
   ExportedWebhook,
   ExportedRun,
+  ExportedPersona,
   ImportPreviewResult,
   ImportResult,
   ConflictStrategy,
@@ -42,6 +45,10 @@ export class ExportService {
     private webhookRepository: Repository<Webhook>,
     @InjectRepository(Run)
     private runRepository: Repository<Run>,
+    @InjectRepository(Persona)
+    private personaRepository: Repository<Persona>,
+    @InjectRepository(Conversation)
+    private conversationRepository: Repository<Conversation>,
   ) {}
 
   async export(query: ExportQueryDto, userId: string): Promise<ExportBundle> {
@@ -59,9 +66,21 @@ export class ExportService {
       flowConfigs: new Map<string, string>(),
       tags: new Map<string, string>(),
       webhooks: new Map<string, string>(),
+      personas: new Map<string, string>(),
     };
 
-    // Export in dependency order: flowConfigs, questionSets, tags, webhooks, tests
+    // Export in dependency order: flowConfigs, questionSets, tags, webhooks, personas, tests
+
+    if (query.types.includes('personas')) {
+      const personas = await this.exportPersonas(
+        userId,
+        query.personaIds,
+        idMaps.personas,
+      );
+      if (personas.length > 0) {
+        bundle.personas = personas;
+      }
+    }
 
     if (query.types.includes('flowConfigs')) {
       const flowConfigs = await this.exportFlowConfigs(
@@ -104,9 +123,14 @@ export class ExportService {
     }
 
     if (query.types.includes('tests')) {
+      // Auto-export personas referenced by conversation tests if not already exported
       const tests = await this.exportTests(userId, query.testIds, idMaps);
       if (tests.length > 0) {
         bundle.tests = tests;
+      }
+      // If we exported personas referenced by scenarios, include them in bundle
+      if (!bundle.personas && idMaps.personas.size > 0) {
+        // Personas were already exported above or auto-collected via test export
       }
     }
 
@@ -226,6 +250,32 @@ export class ExportService {
     });
   }
 
+  private async exportPersonas(
+    userId: string,
+    ids: string[] | undefined,
+    idMap: Map<string, string>,
+  ): Promise<ExportedPersona[]> {
+    const whereClause: Record<string, unknown> = { userId };
+    if (ids && ids.length > 0) {
+      whereClause['id'] = In(ids);
+    }
+
+    const personas = await this.personaRepository.find({
+      where: whereClause,
+    });
+
+    return personas.map((p) => {
+      const exportId = uuidv4();
+      idMap.set(p.id, exportId);
+      return {
+        exportId,
+        name: p.name,
+        description: p.description ?? undefined,
+        systemPrompt: p.systemPrompt,
+      };
+    });
+  }
+
   private async exportTests(
     userId: string,
     ids: string[] | undefined,
@@ -235,11 +285,14 @@ export class ExportService {
       flowConfigs: Map<string, string>;
       tags: Map<string, string>;
       webhooks: Map<string, string>;
+      personas: Map<string, string>;
     },
   ): Promise<ExportedTest[]> {
     const queryBuilder = this.testRepository
       .createQueryBuilder('test')
       .leftJoinAndSelect('test.tags', 'tags')
+      .leftJoinAndSelect('test.scenarios', 'scenarios')
+      .leftJoinAndSelect('scenarios.persona', 'persona')
       .where('test.userId = :userId', { userId });
 
     if (ids && ids.length > 0) {
@@ -258,6 +311,17 @@ export class ExportService {
         description: test.description ?? undefined,
         multiStepEvaluation: test.multiStepEvaluation,
       };
+
+      // Include conversation test fields
+      if (test.type && test.type !== 'qa') {
+        exported.type = test.type as 'qa' | 'conversation';
+        exported.executionMode = test.executionMode ?? undefined;
+        exported.delayBetweenTurns = test.delayBetweenTurns ?? undefined;
+        exported.simulatedUserModel = test.simulatedUserModel ?? undefined;
+        exported.simulatedUserModelConfig = test.simulatedUserModelConfig ?? undefined;
+        exported.simulatedUserReasoningModel = test.simulatedUserReasoningModel ?? undefined;
+        exported.simulatedUserReasoningEffort = test.simulatedUserReasoningEffort ?? undefined;
+      }
 
       // Map references to export IDs
       if (test.flowConfigId) {
@@ -290,6 +354,33 @@ export class ExportService {
         }
       }
 
+      // Export scenarios for conversation tests
+      if (test.scenarios && test.scenarios.length > 0) {
+        exported.scenarios = test.scenarios
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map((scenario) => {
+            const exportedScenario: ExportedTest['scenarios'][0] = {
+              name: scenario.name,
+              goal: scenario.goal,
+              maxTurns: scenario.maxTurns,
+              orderIndex: scenario.orderIndex,
+            };
+
+            // Map persona reference
+            if (scenario.personaId && scenario.persona) {
+              let personaExportId = idMaps.personas.get(scenario.personaId);
+              if (!personaExportId) {
+                // Auto-add persona to export
+                personaExportId = uuidv4();
+                idMaps.personas.set(scenario.personaId, personaExportId);
+              }
+              exportedScenario.personaExportId = personaExportId;
+            }
+
+            return exportedScenario;
+          });
+      }
+
       return exported;
     });
   }
@@ -310,7 +401,8 @@ export class ExportService {
 
     const runs = await queryBuilder.getMany();
 
-    return runs.map((run) => {
+    const exportedRuns: ExportedRun[] = [];
+    for (const run of runs) {
       const exportId = uuidv4();
 
       const exported: ExportedRun = {
@@ -342,8 +434,36 @@ export class ExportService {
         createdAt: run.createdAt.toISOString(),
       };
 
-      return exported;
-    });
+      // Include conversation data for conversation-type runs
+      if (run.totalScenarios && run.totalScenarios > 0) {
+        exported.totalScenarios = run.totalScenarios;
+        exported.completedScenarios = run.completedScenarios ?? 0;
+
+        const conversations = await this.conversationRepository.find({
+          where: { runId: run.id },
+          relations: ['scenario'],
+          order: { startedAt: 'ASC' },
+        });
+
+        if (conversations.length > 0) {
+          exported.conversations = conversations.map((conv) => ({
+            scenarioName: conv.scenario?.name,
+            status: conv.status,
+            goalAchieved: conv.goalAchieved ?? undefined,
+            totalTurns: conv.totalTurns,
+            turns: conv.turns || [],
+            summary: conv.summary ?? undefined,
+            endReason: conv.endReason ?? undefined,
+            humanEvaluation: conv.humanEvaluation ?? undefined,
+            humanEvaluationNotes: conv.humanEvaluationNotes ?? undefined,
+          }));
+        }
+      }
+
+      exportedRuns.push(exported);
+    }
+
+    return exportedRuns;
   }
 
   async previewImport(
@@ -359,6 +479,7 @@ export class ExportService {
         flowConfigs: 0,
         tags: 0,
         webhooks: 0,
+        personas: 0,
       },
       conflicts: [],
       errors: [],
@@ -437,6 +558,24 @@ export class ExportService {
       }
     }
 
+    if (bundle.personas) {
+      for (const persona of bundle.personas) {
+        const existing = await this.personaRepository.findOne({
+          where: { name: persona.name, userId },
+        });
+        if (existing) {
+          result.conflicts.push({
+            type: 'personas',
+            exportId: persona.exportId,
+            name: persona.name,
+            existingId: existing.id,
+          });
+        } else {
+          result.toCreate.personas++;
+        }
+      }
+    }
+
     if (bundle.tests) {
       for (const test of bundle.tests) {
         const existing = await this.testRepository.findOne({
@@ -475,6 +614,7 @@ export class ExportService {
         flowConfigs: 0,
         tags: 0,
         webhooks: 0,
+        personas: 0,
       },
       skipped: {
         tests: 0,
@@ -482,6 +622,7 @@ export class ExportService {
         flowConfigs: 0,
         tags: 0,
         webhooks: 0,
+        personas: 0,
       },
       overwritten: {
         tests: 0,
@@ -489,6 +630,7 @@ export class ExportService {
         flowConfigs: 0,
         tags: 0,
         webhooks: 0,
+        personas: 0,
       },
       renamed: {
         tests: 0,
@@ -496,6 +638,7 @@ export class ExportService {
         flowConfigs: 0,
         tags: 0,
         webhooks: 0,
+        personas: 0,
       },
       errors: [],
     };
@@ -506,6 +649,7 @@ export class ExportService {
       questionSets: new Map<string, string>(),
       tags: new Map<string, string>(),
       webhooks: new Map<string, string>(),
+      personas: new Map<string, string>(),
     };
 
     // Import in dependency order
@@ -549,6 +693,16 @@ export class ExportService {
       );
     }
 
+    if (bundle.personas) {
+      await this.importPersonas(
+        bundle.personas,
+        userId,
+        conflictStrategy,
+        idMaps.personas,
+        result,
+      );
+    }
+
     if (bundle.tests) {
       await this.importTests(
         bundle.tests,
@@ -560,6 +714,67 @@ export class ExportService {
     }
 
     return result;
+  }
+
+  private async importPersonas(
+    personas: ImportBundleDto['personas'],
+    userId: string,
+    strategy: ConflictStrategy,
+    idMap: Map<string, string>,
+    result: ImportResult,
+  ): Promise<void> {
+    if (!personas) return;
+
+    for (const persona of personas) {
+      try {
+        const existing = await this.personaRepository.findOne({
+          where: { name: persona.name, userId },
+        });
+
+        if (existing) {
+          const handled = await this.handleConflict(
+            'personas',
+            persona,
+            existing,
+            userId,
+            strategy,
+            idMap,
+            result,
+            async (name) => {
+              const entity = this.personaRepository.create({
+                name,
+                description: persona.description,
+                systemPrompt: persona.systemPrompt,
+                userId,
+              });
+              return this.personaRepository.save(entity);
+            },
+            async (id, data) => {
+              await this.personaRepository.update(id, {
+                description: data.description,
+                systemPrompt: data.systemPrompt,
+              });
+              return id;
+            },
+          );
+          if (!handled) continue;
+        } else {
+          const entity = this.personaRepository.create({
+            name: persona.name,
+            description: persona.description,
+            systemPrompt: persona.systemPrompt,
+            userId,
+          });
+          const saved = await this.personaRepository.save(entity);
+          idMap.set(persona.exportId, saved.id);
+          result.created.personas++;
+        }
+      } catch (error) {
+        result.errors.push(
+          `Failed to import persona "${persona.name}": ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
+    }
   }
 
   private async importFlowConfigs(
@@ -979,6 +1194,10 @@ export class ExportService {
           }));
         case 'webhooks':
           return !!(await this.webhookRepository.findOne({
+            where: { name, userId },
+          }));
+        case 'personas':
+          return !!(await this.personaRepository.findOne({
             where: { name, userId },
           }));
         case 'tests':

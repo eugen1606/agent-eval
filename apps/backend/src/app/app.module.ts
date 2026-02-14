@@ -23,6 +23,8 @@ import { MetricsModule } from '../metrics';
 import { TagsModule } from '../tags/tags.module';
 import { ExportModule } from '../export/export.module';
 import { EvaluatorsModule } from '../evaluators/evaluators.module';
+import { PersonasModule } from '../personas/personas.module';
+import { ConversationModule } from '../conversation/conversation.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { EvaluatorsModule } from '../evaluators/evaluators.module';
     TagsModule,
     ExportModule,
     EvaluatorsModule,
+    PersonasModule,
+    ConversationModule,
   ],
   controllers: [AppController],
   providers: [

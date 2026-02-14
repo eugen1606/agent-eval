@@ -207,6 +207,16 @@
   color: #92400e;
 }
 
+.runTypeBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
 // Accuracy displays
 .accuracyPending {
   color: var(--text-muted);
@@ -1749,5 +1759,722 @@
 
   .expandIcon {
     order: 4;
+  }
+}
+
+// ==============================================
+// ConversationRunDetailPage styles
+// ==============================================
+
+.convRunPage {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.convTypeBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+// Stats Bar
+.convStatsBar {
+  display: flex;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: var(--bg-secondary);
+  border-radius: $border-radius-lg;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.convStatItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $border-radius-md;
+  min-width: 70px;
+
+  &.goalAchieved {
+    background: #e8f5e9;
+
+    .convStatValue {
+      color: #27ae60;
+    }
+  }
+
+  &.goalNotAchieved {
+    background: #ffebee;
+
+    .convStatValue {
+      color: #e74c3c;
+    }
+  }
+
+  &.maxTurns {
+    background: #fff8e1;
+
+    .convStatValue {
+      color: #f39c12;
+    }
+  }
+
+  &.convErrors {
+    background: #f3e5f5;
+
+    .convStatValue {
+      color: #8e44ad;
+    }
+  }
+
+  &.avgTurns {
+    background: #e3f2fd;
+
+    .convStatValue {
+      color: #1565c0;
+    }
+  }
+
+  &.evalStat {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    .convStatValue {
+      color: white;
+    }
+
+    .convStatLabel {
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+}
+
+.convStatValue {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: var(--text-primary);
+}
+
+.convStatLabel {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// Running progress
+.convProgress {
+  padding: 0.75rem $spacing-md;
+  background: #dbeafe;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-md;
+  font-size: 0.9rem;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+// Main layout
+.convLayout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: $spacing-md;
+  min-height: 500px;
+}
+
+// Sidebar
+.convSidebar {
+  background: var(--bg-secondary);
+  border-radius: $border-radius-lg;
+  box-shadow: 0 2px 4px var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.convSidebarHeader {
+  padding: 0.75rem $spacing-md;
+  border-bottom: 1px solid var(--border-color);
+
+  h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.convScenarioList {
+  overflow-y: auto;
+  flex: 1;
+  @include custom-scrollbar;
+}
+
+.convScenarioItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  width: 100%;
+  padding: 0.75rem $spacing-md;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background $transition-base;
+  border-left: 3px solid transparent;
+  color: var(--text-primary);
+  font-size: $font-size-sm;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &.active {
+    background: var(--bg-tertiary);
+    border-left-color: var(--accent-primary);
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+  }
+}
+
+.convScenarioIcon {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.convStatus_goal_achieved .convScenarioIcon {
+  color: #27ae60;
+}
+
+.convStatus_goal_not_achieved .convScenarioIcon {
+  color: #e74c3c;
+}
+
+.convStatus_max_turns_reached .convScenarioIcon {
+  color: #f39c12;
+}
+
+.convStatus_error .convScenarioIcon {
+  color: #e74c3c;
+}
+
+.convStatus_running .convScenarioIcon {
+  color: #1e40af;
+}
+
+.convStatus_completed .convScenarioIcon {
+  color: #27ae60;
+}
+
+.convSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-color);
+  border-top-color: #1e40af;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.convScenarioInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.convScenarioName {
+  @include text-truncate;
+  font-weight: $font-weight-medium;
+  color: var(--text-primary);
+}
+
+.convScenarioMeta {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+  @include text-truncate;
+}
+
+.convEvalBadge {
+  flex-shrink: 0;
+  padding: 0.15rem 0.4rem;
+  border-radius: $border-radius-sm;
+  font-size: 0.65rem;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+
+  &.convEval_good {
+    background: #e8f5e9;
+    color: #27ae60;
+  }
+
+  &.convEval_acceptable {
+    background: #fff8e1;
+    color: #f39c12;
+  }
+
+  &.convEval_poor {
+    background: #ffebee;
+    color: #e74c3c;
+  }
+}
+
+// Transcript Panel
+.convTranscriptPanel {
+  background: var(--bg-secondary);
+  border-radius: $border-radius-lg;
+  box-shadow: 0 2px 4px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.convTranscriptHeader {
+  padding: $spacing-md;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.convTranscriptTitle {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xs;
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+  }
+}
+
+.convStatusBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  &.convStatus_goal_achieved {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  &.convStatus_goal_not_achieved {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  &.convStatus_max_turns_reached {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.convStatus_error {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  &.convStatus_running {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  &.convStatus_completed {
+    background: #d1fae5;
+    color: #065f46;
+  }
+}
+
+.convTranscriptMeta {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.convGoal {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-sm;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+// Goal status toggle
+.convGoalToggle {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.convGoalBtn {
+  padding: 0.2rem 0.5rem;
+  font-size: $font-size-xs;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all $transition-base;
+  color: var(--text-primary);
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &.active.goalAchievedBtn {
+    background: #27ae60;
+    color: white;
+    border-color: #27ae60;
+  }
+
+  &.active.goalNotAchievedBtn {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+  }
+}
+
+.convRerunBtn {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-xs;
+  transition: all $transition-base;
+
+  &:hover {
+    background: #e67e22;
+    color: white;
+    border-color: #e67e22;
+  }
+}
+
+// Chat transcript
+.convTranscript {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  max-height: 500px;
+  @include custom-scrollbar;
+}
+
+.convEmptyTranscript {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  color: var(--text-muted);
+  font-style: italic;
+  flex: 1;
+}
+
+.convTurn {
+  max-width: 80%;
+  padding: $spacing-sm 0.75rem;
+  border-radius: $border-radius-lg;
+  word-break: break-word;
+
+  &.convTurn_user {
+    align-self: flex-start;
+    background: var(--bg-tertiary);
+    border-bottom-left-radius: $border-radius-sm;
+  }
+
+  &.convTurn_agent {
+    align-self: flex-end;
+    background: #e3f2fd;
+    border-bottom-right-radius: $border-radius-sm;
+  }
+}
+
+.convTurnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  gap: $spacing-sm;
+}
+
+.convTurnRole {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+
+  .convTurn_user & {
+    color: #6c757d;
+  }
+
+  .convTurn_agent & {
+    color: #1565c0;
+  }
+}
+
+.convTurnTime {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.convTurnMessage {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+// End reason
+.convEndReason {
+  padding: $spacing-sm $spacing-md;
+  background: var(--bg-tertiary);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+// Summary Panel
+.convSummaryPanel {
+  border-top: 1px solid var(--border-color);
+}
+
+.convSummaryToggle {
+  display: block;
+  width: 100%;
+  padding: 0.75rem $spacing-md;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: $font-weight-medium;
+  color: var(--text-secondary);
+  transition: background $transition-base;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.convSummaryContent {
+  padding: 0 $spacing-md $spacing-md;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+// Evaluation controls
+.convEvalSection {
+  padding: $spacing-md;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.convEvalButtons {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+
+  > span {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: $font-weight-medium;
+  }
+}
+
+.convEvalBtn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all $transition-base;
+  color: var(--text-primary);
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    &.good {
+      background: #27ae60;
+      color: white;
+      border-color: #27ae60;
+    }
+
+    &.acceptable {
+      background: #f39c12;
+      color: white;
+      border-color: #f39c12;
+    }
+
+    &.poor {
+      background: #e74c3c;
+      color: white;
+      border-color: #e74c3c;
+    }
+  }
+}
+
+.convEvalNotes {
+  input {
+    width: 100%;
+    padding: $spacing-sm 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: $border-radius-sm;
+    font-size: 0.85rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+  }
+}
+
+// Dark mode adjustments
+:global([data-theme='dark']) {
+  .convTypeBadge {
+    background: rgba(21, 101, 192, 0.2);
+    color: #64b5f6;
+  }
+
+  .convStatItem {
+    &.goalAchieved {
+      background: rgba(39, 174, 96, 0.15);
+    }
+
+    &.goalNotAchieved {
+      background: rgba(231, 76, 60, 0.15);
+    }
+
+    &.maxTurns {
+      background: rgba(243, 156, 18, 0.15);
+    }
+
+    &.convErrors {
+      background: rgba(142, 68, 173, 0.15);
+    }
+
+    &.avgTurns {
+      background: rgba(21, 101, 192, 0.15);
+    }
+  }
+
+  .convTurn {
+    &.convTurn_agent {
+      background: rgba(21, 101, 192, 0.15);
+    }
+  }
+
+  .convStatusBadge {
+    &.convStatus_goal_achieved {
+      background: rgba(39, 174, 96, 0.2);
+      color: #6dde89;
+    }
+
+    &.convStatus_goal_not_achieved {
+      background: rgba(231, 76, 60, 0.2);
+      color: #f1948a;
+    }
+
+    &.convStatus_max_turns_reached {
+      background: rgba(243, 156, 18, 0.2);
+      color: #f5d06c;
+    }
+
+    &.convStatus_error {
+      background: rgba(231, 76, 60, 0.2);
+      color: #f1948a;
+    }
+
+    &.convStatus_running {
+      background: rgba(30, 64, 175, 0.2);
+      color: #93c5fd;
+    }
+  }
+
+  .convEvalBadge {
+    &.convEval_good {
+      background: rgba(39, 174, 96, 0.2);
+      color: #6dde89;
+    }
+
+    &.convEval_acceptable {
+      background: rgba(243, 156, 18, 0.2);
+      color: #f5d06c;
+    }
+
+    &.convEval_poor {
+      background: rgba(231, 76, 60, 0.2);
+      color: #f1948a;
+    }
+  }
+
+  .convProgress {
+    background: rgba(30, 64, 175, 0.15);
+    color: #93c5fd;
+  }
+}
+
+// Responsive
+@media (max-width: 900px) {
+  .convLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .convSidebar {
+    max-height: 200px;
+  }
+
+  .convStatsBar {
+    gap: $spacing-xs;
+  }
+
+  .convStatItem {
+    padding: $spacing-xs $spacing-sm;
+    min-width: 55px;
+  }
+
+  .convStatValue {
+    font-size: $font-size-lg;
   }
 }

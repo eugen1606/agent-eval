@@ -330,6 +330,9 @@ export function RunsPage() {
                 <div className={styles.runInfo}>
                   <h3>{run.test?.name || 'Unknown Test'}</h3>
                   <span className={`${styles.statusBadge} ${STATUS_BADGES[run.status]?.className}`}>{STATUS_BADGES[run.status]?.label}</span>
+                  {run.test?.type === 'conversation' && (
+                    <span className={styles.runTypeBadge}>Conversation</span>
+                  )}
                 </div>
                 <div className={styles.runActions}>
                   <button className={styles.viewBtn} onClick={() => handleViewRun(run.id)}>
@@ -366,13 +369,22 @@ export function RunsPage() {
                     <span className={styles.detailValue}>{formatDuration(run.startedAt, run.completedAt)}</span>
                   </div>
                 )}
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Questions:</span>
-                  <span className={styles.detailValue}>
-                    {run.completedQuestions}/{run.totalQuestions}
-                  </span>
-                </div>
-                {run.status === 'completed' && (
+                {run.test?.type === 'conversation' ? (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Scenarios:</span>
+                    <span className={styles.detailValue}>
+                      {run.completedScenarios ?? 0}/{run.totalScenarios ?? 0}
+                    </span>
+                  </div>
+                ) : (
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Questions:</span>
+                    <span className={styles.detailValue}>
+                      {run.completedQuestions}/{run.totalQuestions}
+                    </span>
+                  </div>
+                )}
+                {run.status === 'completed' && run.test?.type !== 'conversation' && (
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Evaluation:</span>
                     {getAccuracyDisplay(run)}

@@ -5,11 +5,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Test } from './test.entity';
+import { Conversation } from './conversation.entity';
 
 export type RunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'canceled';
 
@@ -83,6 +85,17 @@ export class Run {
 
   @Column({ type: 'int', nullable: true })
   evaluationTotal: number;
+
+  @Column({ type: 'int', nullable: true })
+  totalScenarios: number;
+
+  @Column({ type: 'int', nullable: true, default: 0 })
+  completedScenarios: number;
+
+  @OneToMany(() => Conversation, (conversation) => conversation.run, {
+    cascade: true,
+  })
+  conversations: Conversation[];
 
   @CreateDateColumn()
   createdAt: Date;

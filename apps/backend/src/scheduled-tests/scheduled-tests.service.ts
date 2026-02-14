@@ -11,6 +11,8 @@ import { TestsService } from '../tests/tests.service';
 import { RunsService } from '../runs/runs.service';
 import { FlowService } from '../flow/flow.service';
 import { QuestionsService } from '../questions/questions.service';
+import { ConversationRunService } from '../conversation/conversation-run.service';
+import { AccessTokensService } from '../access-tokens/access-tokens.service';
 import {
   FlowConfig as SharedFlowConfig,
   QuestionInput,
@@ -61,6 +63,8 @@ export class ScheduledTestsService {
     private runsService: RunsService,
     private flowService: FlowService,
     private questionsService: QuestionsService,
+    private conversationRunService: ConversationRunService,
+    private accessTokensService: AccessTokensService,
   ) {}
 
   async create(
@@ -366,7 +370,7 @@ export class ScheduledTestsService {
   async executeScheduledTest(id: string): Promise<void> {
     const scheduled = await this.scheduledTestRepository.findOne({
       where: { id },
-      relations: ['test', 'test.flowConfig'],
+      relations: ['test', 'test.flowConfig', 'test.scenarios', 'test.scenarios.persona'],
     });
 
     if (!scheduled) {
@@ -390,98 +394,12 @@ export class ScheduledTestsService {
     await this.scheduledTestRepository.save(scheduled);
 
     try {
-      // Get the question set
-      const questionSet = await this.questionsService.findOne(
-        test.questionSetId,
-        userId,
-      );
-
-      // Create a run for this test
-      const run = await this.runsService.create(
-        {
-          testId: test.id,
-          totalQuestions: questionSet.questions.length,
-          questionSetId: test.questionSetId,
-        },
-        userId,
-      );
-
-      // Build flow config for execution
-      const config: SharedFlowConfig = {
-        accessToken: '',
-        accessTokenId: test.accessTokenId,
-        basePath: test.flowConfig.basePath || '',
-        flowId: test.flowConfig.flowId,
-        multiStepEvaluation: test.multiStepEvaluation,
-      };
-
-      // Map questions
-      const questions: QuestionInput[] = questionSet.questions.map((q) => ({
-        id: uuidv4(),
-        question: q.question,
-        expectedAnswer: q.expectedAnswer,
-      }));
-
-      // Update run to running
-      await this.runsService.update(
-        run.id,
-        {
-          status: 'running',
-          startedAt: new Date(),
-        },
-        userId,
-      );
-
-      // Execute the flow and collect results
-      let completedCount = 0;
-      for await (const result of this.flowService.executeFlowStream(
-        config,
-        questions,
-        userId,
-      )) {
-        completedCount++;
-        await this.runsService.addResult(
-          run.id,
-          {
-            id: result.id || uuidv4(),
-            question: result.question,
-            answer: result.answer,
-            expectedAnswer: result.expectedAnswer,
-            isError: result.isError,
-            errorMessage: result.errorMessage,
-            timestamp: new Date().toISOString(),
-          },
-          userId,
-        );
-
-        await this.runsService.update(
-          run.id,
-          {
-            completedQuestions: completedCount,
-          },
-          userId,
-        );
+      // Branch based on test type
+      if (test.type === 'conversation') {
+        await this.executeConversationScheduledTest(test, scheduled, userId);
+      } else {
+        await this.executeQaScheduledTest(test, scheduled, userId);
       }
-
-      // Mark run as completed
-      await this.runsService.update(
-        run.id,
-        {
-          status: 'completed',
-          completedAt: new Date(),
-        },
-        userId,
-      );
-
-      // Update scheduled test with result
-      scheduled.status = 'completed';
-      scheduled.resultRunId = run.id;
-      scheduled.errorMessage = null;
-      await this.scheduledTestRepository.save(scheduled);
-
-      this.logger.log(
-        `Scheduled test ${id} completed successfully, run: ${run.id}`,
-      );
     } catch (error) {
       scheduled.status = 'failed';
       scheduled.errorMessage =
@@ -489,10 +407,172 @@ export class ScheduledTestsService {
       await this.scheduledTestRepository.save(scheduled);
 
       this.logger.error(
-        `Scheduled test ${id} failed: ${scheduled.errorMessage}`,
+        `Scheduled test ${scheduled.id} failed: ${scheduled.errorMessage}`,
         error,
       );
     }
+  }
+
+  private async executeQaScheduledTest(
+    test: Test,
+    scheduled: ScheduledTest,
+    userId: string,
+  ): Promise<void> {
+    // Get the question set
+    const questionSet = await this.questionsService.findOne(
+      test.questionSetId,
+      userId,
+    );
+
+    // Create a run for this test
+    const run = await this.runsService.create(
+      {
+        testId: test.id,
+        totalQuestions: questionSet.questions.length,
+        questionSetId: test.questionSetId,
+      },
+      userId,
+    );
+
+    // Build flow config for execution
+    const config: SharedFlowConfig = {
+      accessToken: '',
+      accessTokenId: test.accessTokenId,
+      basePath: test.flowConfig.basePath || '',
+      flowId: test.flowConfig.flowId,
+      multiStepEvaluation: test.multiStepEvaluation,
+    };
+
+    // Map questions
+    const questions: QuestionInput[] = questionSet.questions.map((q) => ({
+      id: uuidv4(),
+      question: q.question,
+      expectedAnswer: q.expectedAnswer,
+    }));
+
+    // Update run to running
+    await this.runsService.update(
+      run.id,
+      {
+        status: 'running',
+        startedAt: new Date(),
+      },
+      userId,
+    );
+
+    // Execute the flow and collect results
+    let completedCount = 0;
+    for await (const result of this.flowService.executeFlowStream(
+      config,
+      questions,
+      userId,
+    )) {
+      completedCount++;
+      await this.runsService.addResult(
+        run.id,
+        {
+          id: result.id || uuidv4(),
+          question: result.question,
+          answer: result.answer,
+          expectedAnswer: result.expectedAnswer,
+          isError: result.isError,
+          errorMessage: result.errorMessage,
+          timestamp: new Date().toISOString(),
+        },
+        userId,
+      );
+
+      await this.runsService.update(
+        run.id,
+        {
+          completedQuestions: completedCount,
+        },
+        userId,
+      );
+    }
+
+    // Mark run as completed
+    await this.runsService.update(
+      run.id,
+      {
+        status: 'completed',
+        completedAt: new Date(),
+      },
+      userId,
+    );
+
+    // Update scheduled test with result
+    scheduled.status = 'completed';
+    scheduled.resultRunId = run.id;
+    scheduled.errorMessage = null;
+    await this.scheduledTestRepository.save(scheduled);
+
+    this.logger.log(
+      `Scheduled QA test ${scheduled.id} completed successfully, run: ${run.id}`,
+    );
+  }
+
+  private async executeConversationScheduledTest(
+    test: Test,
+    scheduled: ScheduledTest,
+    userId: string,
+  ): Promise<void> {
+    // Validate conversation test requirements
+    if (!test.scenarios || test.scenarios.length === 0) {
+      throw new Error('Conversation test has no scenarios configured');
+    }
+
+    if (!test.simulatedUserModel) {
+      throw new Error('Conversation test has no simulated user model configured');
+    }
+
+    // Resolve API key from stored credential
+    if (!test.simulatedUserAccessTokenId) {
+      throw new Error(
+        'No credential configured for simulated user model. Assign a credential to the conversation test.',
+      );
+    }
+    const apiKey = await this.accessTokensService.getDecryptedToken(
+      test.simulatedUserAccessTokenId,
+      userId,
+    );
+
+    // Create a run
+    const run = await this.runsService.create(
+      { testId: test.id, totalQuestions: 0 },
+      userId,
+    );
+
+    // Start the run
+    await this.runsService.start(run.id, userId);
+
+    // Execute conversation run (non-streaming for scheduled tests)
+    await new Promise<void>((resolve, reject) => {
+      const observable = this.conversationRunService.executeConversationRun(
+        test,
+        run,
+        userId,
+        apiKey,
+      );
+
+      observable.subscribe({
+        next: () => {
+          // Events are emitted but not streamed in scheduled tests
+        },
+        error: (err) => reject(err),
+        complete: () => resolve(),
+      });
+    });
+
+    // Update scheduled test with result
+    scheduled.status = 'completed';
+    scheduled.resultRunId = run.id;
+    scheduled.errorMessage = null;
+    await this.scheduledTestRepository.save(scheduled);
+
+    this.logger.log(
+      `Scheduled conversation test ${scheduled.id} completed successfully, run: ${run.id}`,
+    );
   }
 
   async resetToPending(

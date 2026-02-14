@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Test, Tag } from '../database/entities';
+import { Test, Tag, Scenario } from '../database/entities';
 import { CreateTestDto, UpdateTestDto } from './dto';
 import { TagsService } from '../tags/tags.service';
+import { ScenariosService } from './scenarios.service';
 
 export type TestsSortField = 'name' | 'createdAt' | 'updatedAt';
 export type SortDirection = 'asc' | 'desc';
@@ -18,6 +19,7 @@ export interface TestsFilterDto {
   multiStep?: boolean;
   flowConfigId?: string;
   tagIds?: string[];
+  type?: 'qa' | 'conversation';
   sortBy?: TestsSortField;
   sortDirection?: SortDirection;
 }
@@ -37,7 +39,10 @@ export class TestsService {
   constructor(
     @InjectRepository(Test)
     private testRepository: Repository<Test>,
+    @InjectRepository(Scenario)
+    private scenarioRepository: Repository<Scenario>,
     private tagsService: TagsService,
+    private scenariosService: ScenariosService,
   ) {}
 
   async create(dto: CreateTestDto, userId: string): Promise<Test> {
@@ -59,10 +64,27 @@ export class TestsService {
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
       webhookId: dto.webhookId,
       evaluatorId: dto.evaluatorId,
+      type: dto.type ?? 'qa',
+      executionMode: dto.executionMode,
+      delayBetweenTurns: dto.delayBetweenTurns,
+      simulatedUserModel: dto.simulatedUserModel,
+      simulatedUserModelConfig: dto.simulatedUserModelConfig,
+      simulatedUserAccessTokenId: dto.simulatedUserAccessTokenId,
+      simulatedUserReasoningModel: dto.simulatedUserReasoningModel ?? false,
+      simulatedUserReasoningEffort: dto.simulatedUserReasoningEffort,
       userId,
       tags,
     });
-    return this.testRepository.save(test);
+    const saved = await this.testRepository.save(test);
+
+    // Create scenarios for conversation tests
+    if (dto.scenarios?.length) {
+      for (const scenarioDto of dto.scenarios) {
+        await this.scenariosService.create(saved.id, scenarioDto, userId);
+      }
+    }
+
+    return this.findOne(saved.id, userId);
   }
 
   async findAll(
@@ -78,6 +100,7 @@ export class TestsService {
       .leftJoinAndSelect('test.questionSet', 'questionSet')
       .leftJoinAndSelect('test.flowConfig', 'flowConfig')
       .leftJoinAndSelect('test.tags', 'tags')
+      .leftJoinAndSelect('test.scenarios', 'scenarios')
       .where('test.userId = :userId', { userId });
 
     // Apply search filter (including flowConfig.flowId)
@@ -123,6 +146,11 @@ export class TestsService {
       });
     }
 
+    // Apply type filter
+    if (filters.type) {
+      queryBuilder.andWhere('test.type = :type', { type: filters.type });
+    }
+
     // Apply tagIds filter (tests must have ALL specified tags)
     if (filters.tagIds && filters.tagIds.length > 0) {
       queryBuilder.andWhere(
@@ -163,17 +191,24 @@ export class TestsService {
   async findOne(id: string, userId: string): Promise<Test> {
     const test = await this.testRepository.findOne({
       where: { id, userId },
-      relations: ['questionSet', 'accessToken', 'webhook', 'flowConfig', 'tags'],
+      relations: ['questionSet', 'accessToken', 'webhook', 'flowConfig', 'tags', 'scenarios', 'scenarios.persona', 'simulatedUserAccessToken'],
     });
     if (!test) {
       throw new NotFoundException(`Test not found: ${id}`);
+    }
+    // Sort scenarios by orderIndex
+    if (test.scenarios) {
+      test.scenarios.sort((a, b) => a.orderIndex - b.orderIndex);
     }
     return test;
   }
 
   async update(id: string, dto: UpdateTestDto, userId: string): Promise<Test> {
     // Verify test exists and belongs to user
-    const test = await this.findOne(id, userId);
+    await this.findOne(id, userId);
+
+    // Note: Test type cannot be changed via UpdateTestDto (field is not exposed).
+    // Type is set at creation time only.
 
     // Use repository.update() instead of .save() because .save() ignores undefined values
     const updateData: Partial<Test> = {};
@@ -204,7 +239,41 @@ export class TestsService {
         dto.evaluatorId || (null as unknown as string);
     }
 
+    // Conversation-specific fields
+    if (dto.executionMode !== undefined)
+      updateData.executionMode = dto.executionMode;
+    if (dto.delayBetweenTurns !== undefined)
+      updateData.delayBetweenTurns = dto.delayBetweenTurns;
+    if (dto.simulatedUserModel !== undefined) {
+      updateData.simulatedUserModel =
+        dto.simulatedUserModel || (null as unknown as string);
+    }
+    if (dto.simulatedUserModelConfig !== undefined) {
+      updateData.simulatedUserModelConfig =
+        dto.simulatedUserModelConfig || (null as unknown as Test['simulatedUserModelConfig']);
+    }
+    if (dto.simulatedUserAccessTokenId !== undefined) {
+      updateData.simulatedUserAccessTokenId =
+        dto.simulatedUserAccessTokenId || (null as unknown as string);
+    }
+    if (dto.simulatedUserReasoningModel !== undefined) {
+      updateData.simulatedUserReasoningModel = dto.simulatedUserReasoningModel;
+    }
+    if (dto.simulatedUserReasoningEffort !== undefined) {
+      updateData.simulatedUserReasoningEffort = dto.simulatedUserReasoningEffort;
+    }
+
     await this.testRepository.update({ id, userId }, updateData);
+
+    // Handle scenarios update: replace all scenarios with the new list
+    if (dto.scenarios !== undefined) {
+      // Delete existing scenarios
+      await this.scenarioRepository.delete({ testId: id });
+      // Create new ones
+      for (const scenarioDto of dto.scenarios) {
+        await this.scenariosService.create(id, scenarioDto, userId);
+      }
+    }
 
     // Handle tags update separately (ManyToMany relation)
     if (dto.tagIds !== undefined) {

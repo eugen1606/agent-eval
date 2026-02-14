@@ -12,6 +12,9 @@ import {
   Run,
   Tag,
   Evaluator,
+  Persona,
+  Scenario,
+  Conversation,
 } from './entities';
 import * as migrations from './migrations';
 
@@ -46,6 +49,9 @@ import * as migrations from './migrations';
             Run,
             Tag,
             Evaluator,
+            Persona,
+            Scenario,
+            Conversation,
           ],
           migrations: Object.values(migrations),
           migrationsRun: true,

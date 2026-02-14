@@ -24,6 +24,7 @@ export { TestsPage } from '../features/tests/TestsPage';
 export { RunsPage } from '../features/runs/RunsPage';
 export { RunDetailPage } from '../features/runs/RunDetailPage';
 export { RunComparisonPage } from '../features/runs/RunComparisonPage';
+export { ConversationRunDetailPage } from '../features/runs/ConversationRunDetailPage';
 
 export { Dashboard } from '../features/dashboard/Dashboard';
 export { Homepage } from '../features/dashboard/Homepage';
@@ -34,6 +35,7 @@ export { FlowConfigsManager } from '../features/settings/FlowConfigsManager';
 export { WebhooksManager } from '../features/settings/WebhooksManager';
 export { TagManager } from '../features/settings/TagManager';
 export { EvaluatorsManager } from '../features/settings/EvaluatorsManager';
+export { PersonasManager } from '../features/settings/PersonasManager';
 
 export { ScheduledTestsPage } from '../features/scheduled-tests/ScheduledTestsPage';
 

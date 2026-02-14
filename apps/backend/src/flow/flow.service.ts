@@ -81,6 +81,36 @@ export class FlowService {
     }
   }
 
+  /**
+   * Send a single message to the agent and get a response.
+   * Used by conversation execution for turn-by-turn communication.
+   */
+  async sendMessage(
+    config: { accessTokenId?: string; basePath: string; flowId: string },
+    message: string,
+    sessionId: string,
+    userId: string,
+  ): Promise<{ answer: string; executionId?: string }> {
+    let resolvedToken = '';
+    if (config.accessTokenId) {
+      resolvedToken = await this.accessTokensService.getDecryptedToken(config.accessTokenId, userId);
+    }
+
+    const flowConfig: FlowConfig = {
+      accessToken: resolvedToken,
+      accessTokenId: config.accessTokenId,
+      basePath: config.basePath,
+      flowId: config.flowId,
+      multiStepEvaluation: true, // always persist messages in conversation mode
+    };
+
+    return this.callFlowEndpoint(
+      { ...flowConfig, accessToken: resolvedToken },
+      message,
+      sessionId,
+    );
+  }
+
   private async callFlowEndpoint(
     config: FlowConfig,
     question: string,

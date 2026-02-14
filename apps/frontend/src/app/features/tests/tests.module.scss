@@ -264,3 +264,205 @@
   margin-top: $spacing-sm !important;
   color: var(--text-muted) !important;
 }
+
+// Test header with type badge
+.testHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+  min-width: 0;
+
+  h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: $font-size-lg;
+  }
+}
+
+// Type badge
+.typeBadge {
+  display: inline-block;
+  padding: 0.15rem $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+}
+
+.typeBadgeQa {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.typeBadgeConversation {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+// Type picker in create form
+.typePicker {
+  display: flex;
+  gap: $spacing-md;
+}
+
+.typeCard {
+  flex: 1;
+  padding: $spacing-md;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color $transition-base, background $transition-base;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  &:hover {
+    border-color: var(--accent-primary);
+  }
+}
+
+.typeCardActive {
+  border-color: var(--accent-primary);
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.typeCardTitle {
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-base;
+  color: var(--text-primary);
+}
+
+.typeCardDesc {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}
+
+// Radio group
+.radioGroup {
+  display: flex;
+  gap: $spacing-lg;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  color: var(--text-primary);
+}
+
+// Toggle link for advanced settings
+.toggleLink {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: $font-size-sm;
+  padding: 0;
+  text-decoration: underline;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// Advanced settings container
+.advancedSettings {
+  margin-top: $spacing-sm;
+  padding: $spacing-md;
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-sm;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+// Scenario styles
+.scenarioHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.addScenarioBtn {
+  padding: $spacing-xs $spacing-sm;
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  font-size: $font-size-sm;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.scenarioList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.scenarioItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: var(--bg-tertiary);
+  border-radius: $border-radius-sm;
+  border-left: 3px solid var(--accent-primary);
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+    opacity: 0.7;
+  }
+}
+
+.dragHandle {
+  color: var(--text-muted);
+  cursor: grab;
+  font-size: $font-size-lg;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.scenarioInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-size: $font-size-sm;
+    color: var(--text-primary);
+  }
+}
+
+.scenarioMeta {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}
+
+.scenarioGoal {
+  font-size: $font-size-xs;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scenarioActions {
+  display: flex;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}

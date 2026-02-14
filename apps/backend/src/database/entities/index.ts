@@ -4,7 +4,15 @@ export { FlowConfig } from './flow-config.entity';
 export { User } from './user.entity';
 export { ScheduledTest } from './scheduled-test.entity';
 export { Webhook, WebhookEvent, WebhookMethod } from './webhook.entity';
-export { Test } from './test.entity';
+export { Test, TestType, ConversationExecutionMode } from './test.entity';
 export { Run, RunStatus } from './run.entity';
 export { Tag } from './tag.entity';
 export { Evaluator } from './evaluator.entity';
+export { Persona } from './persona.entity';
+export { Scenario } from './scenario.entity';
+export {
+  Conversation,
+  ConversationStatus,
+  ConversationHumanEvaluation,
+  ConversationTurn,
+} from './conversation.entity';

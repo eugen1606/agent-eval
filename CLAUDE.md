@@ -228,8 +228,6 @@ THROTTLE_TTL=60000        # Time window in ms (default: 60000 = 1 minute)
 THROTTLE_DISABLED=false   # Set to 'true' to disable rate limiting (auto-disabled in test env)
 
 # Optional
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
 LOG_LEVEL=info  # error, warn, info, debug, verbose
 ```
 

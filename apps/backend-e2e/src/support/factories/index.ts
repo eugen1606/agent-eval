@@ -6,3 +6,5 @@ export { createAccessToken } from './access-token.factory';
 export { createTag } from './tag.factory';
 export { createWebhook } from './webhook.factory';
 export { createEvaluator } from './evaluator.factory';
+export { createPersona } from './persona.factory';
+export { createScenario } from './scenario.factory';

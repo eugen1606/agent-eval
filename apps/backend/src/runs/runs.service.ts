@@ -657,6 +657,7 @@ export class RunsService {
         questionSetId: run.test.questionSetId,
         multiStepEvaluation: run.test.multiStepEvaluation,
         webhookId: run.test.webhookId,
+        type: run.test.type,
         createdAt: run.test.createdAt?.toISOString(),
         updatedAt: run.test.updatedAt?.toISOString(),
       } : undefined,

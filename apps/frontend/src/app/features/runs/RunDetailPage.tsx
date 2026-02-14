@@ -16,6 +16,7 @@ import { apiClient } from '../../apiClient';
 import { downloadExportBundle, downloadAuthenticatedFile, generateExportFilename } from '../../shared/exportImportUtils';
 import { calculateSimilarity, getSimilarityLevel } from './similarity';
 import { DiffView } from './DiffView';
+import { ConversationRunDetailPage } from './ConversationRunDetailPage';
 import styles from './runs.module.scss';
 
 interface CompareableRun {
@@ -640,6 +641,11 @@ export function RunDetailPage() {
         <div className={styles.errorState}>Run not found</div>
       </div>
     );
+  }
+
+  // Delegate to ConversationRunDetailPage for conversation-type runs
+  if (run.test?.type === 'conversation') {
+    return <ConversationRunDetailPage run={run} onReload={loadRun} />;
   }
 
   return (

@@ -75,9 +75,6 @@ export const envSchema = z.object({
     .default('')
     .describe('Comma-separated list of allowed domains for outbound requests (e.g., api.example.com,flows.mycompany.internal)'),
 
-  // Optional API keys
-  OPENAI_API_KEY: z.string().optional(),
-  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

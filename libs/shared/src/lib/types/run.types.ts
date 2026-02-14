@@ -1,6 +1,7 @@
 // Run Types
 
 import { PaginationParams, SortDirection } from './common.types';
+import { StoredConversation } from './conversation.types';
 import { HumanEvaluationStatus, IncorrectSeverity } from './evaluation.types';
 import { StoredTest } from './test.types';
 
@@ -49,6 +50,9 @@ export interface StoredRun {
   errorMessage?: string;
   totalQuestions: number;
   completedQuestions: number;
+  totalScenarios?: number;
+  completedScenarios?: number;
+  conversations?: StoredConversation[];
   startedAt?: string;
   completedAt?: string;
   isFullyEvaluated: boolean;

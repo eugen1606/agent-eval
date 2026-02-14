@@ -16,7 +16,9 @@
       "Bash(yarn migration:run:*)",
       "Bash(yarn nx reset:*)",
       "Bash(npx nx:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(docker exec:*)",
+      "mcp__ide__getDiagnostics"
     ]
   },
   "hooks": {

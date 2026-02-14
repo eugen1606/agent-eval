@@ -50,6 +50,17 @@ import {
   EvaluatorsFilterParams,
   LLMJudgeStatusResponse,
   LLMEvaluationResult,
+  StoredPersona,
+  CreatePersonaRequest,
+  UpdatePersonaRequest,
+  PersonasFilterParams,
+  StoredScenario,
+  CreateScenarioRequest,
+  UpdateScenarioRequest,
+  ReorderScenariosRequest,
+  StoredConversation,
+  EvaluateConversationRequest,
+  ConversationRunStats,
 } from '@agent-eval/shared';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api';
@@ -697,6 +708,7 @@ export class AgentEvalClient {
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.type) params.append('type', filters.type);
     if (filters?.questionSetId)
       params.append('questionSetId', filters.questionSetId);
     if (filters?.accessTokenId)
@@ -917,6 +929,155 @@ export class AgentEvalClient {
         method: 'POST',
         body: JSON.stringify({ evaluatorId }),
       },
+    );
+  }
+
+  // Personas
+  async createPersona(
+    data: CreatePersonaRequest,
+  ): Promise<ApiResponse<StoredPersona>> {
+    return this.request<StoredPersona>('/personas', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPersonas(
+    filters?: PersonasFilterParams,
+  ): Promise<ApiResponse<PaginatedResponse<StoredPersona>>> {
+    const params = new URLSearchParams();
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortDirection)
+      params.append('sortDirection', filters.sortDirection);
+    const query = params.toString();
+    return this.request<PaginatedResponse<StoredPersona>>(
+      `/personas${query ? `?${query}` : ''}`,
+    );
+  }
+
+  async getPersona(id: string): Promise<ApiResponse<StoredPersona>> {
+    return this.request<StoredPersona>(`/personas/${id}`);
+  }
+
+  async updatePersona(
+    id: string,
+    data: UpdatePersonaRequest,
+  ): Promise<ApiResponse<StoredPersona>> {
+    return this.request<StoredPersona>(`/personas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePersona(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/personas/${id}`, { method: 'DELETE' });
+  }
+
+  async clonePersona(id: string): Promise<ApiResponse<StoredPersona>> {
+    return this.request<StoredPersona>(`/personas/${id}/clone`, {
+      method: 'POST',
+    });
+  }
+
+  // Scenarios (nested under tests)
+  async getScenarios(testId: string): Promise<ApiResponse<StoredScenario[]>> {
+    return this.request<StoredScenario[]>(`/tests/${testId}/scenarios`);
+  }
+
+  async createScenario(
+    testId: string,
+    data: CreateScenarioRequest,
+  ): Promise<ApiResponse<StoredScenario>> {
+    return this.request<StoredScenario>(`/tests/${testId}/scenarios`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateScenario(
+    testId: string,
+    scenarioId: string,
+    data: UpdateScenarioRequest,
+  ): Promise<ApiResponse<StoredScenario>> {
+    return this.request<StoredScenario>(
+      `/tests/${testId}/scenarios/${scenarioId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async deleteScenario(
+    testId: string,
+    scenarioId: string,
+  ): Promise<ApiResponse<void>> {
+    return this.request<void>(`/tests/${testId}/scenarios/${scenarioId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderScenarios(
+    testId: string,
+    data: ReorderScenariosRequest,
+  ): Promise<ApiResponse<void>> {
+    return this.request<void>(`/tests/${testId}/scenarios/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Conversations (nested under runs)
+  async getConversations(
+    runId: string,
+  ): Promise<ApiResponse<StoredConversation[]>> {
+    return this.request<StoredConversation[]>(`/runs/${runId}/conversations`);
+  }
+
+  async getConversation(
+    runId: string,
+    conversationId: string,
+  ): Promise<ApiResponse<StoredConversation>> {
+    return this.request<StoredConversation>(
+      `/runs/${runId}/conversations/${conversationId}`,
+    );
+  }
+
+  async evaluateConversation(
+    runId: string,
+    conversationId: string,
+    data: EvaluateConversationRequest,
+  ): Promise<ApiResponse<StoredConversation>> {
+    return this.request<StoredConversation>(
+      `/runs/${runId}/conversations/${conversationId}/evaluate`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
+  async rerunConversation(
+    runId: string,
+    conversationId: string,
+  ): Promise<ApiResponse<StoredConversation>> {
+    return this.request<StoredConversation>(
+      `/runs/${runId}/conversations/${conversationId}/rerun`,
+      {
+        method: 'POST',
+      },
+    );
+  }
+
+  // Conversation run stats
+  async getConversationRunStats(
+    runId: string,
+  ): Promise<ApiResponse<ConversationRunStats>> {
+    return this.request<ConversationRunStats>(
+      `/runs/${runId}/conversations/stats`,
     );
   }
 
