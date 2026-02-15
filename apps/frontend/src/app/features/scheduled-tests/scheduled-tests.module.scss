@@ -55,7 +55,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: $spacing-md;
+  margin-bottom: 0.75rem;
 }
 
 .scheduledInfo {
@@ -63,6 +63,9 @@
     margin: 0 0 $spacing-xs 0;
     font-size: 1.1rem;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 }
 
@@ -77,11 +80,6 @@
 .scheduledTestLabel {
   color: var(--text-muted);
   font-weight: $font-weight-normal;
-}
-
-.scheduledBadges {
-  display: flex;
-  gap: $spacing-sm;
 }
 
 .statusBadge {
@@ -122,7 +120,7 @@
 }
 
 .scheduledDetails {
-  margin-bottom: $spacing-md;
+  margin-bottom: 0;
 }
 
 .detailRow {
@@ -149,7 +147,6 @@
 .scheduledActions {
   display: flex;
   gap: $spacing-sm;
-  flex-wrap: wrap;
 }
 
 .runNowBtn {
@@ -159,7 +156,8 @@
   border: none;
   border-radius: $border-radius-sm;
   cursor: pointer;
-  font-size: $font-size-sm;
+  font-size: 0.9rem;
+  font-weight: $font-weight-medium;
 
   &:hover {
     background: var(--accent-hover);
@@ -178,7 +176,7 @@
   border: none;
   border-radius: $border-radius-sm;
   cursor: pointer;
-  font-size: $font-size-sm;
+  font-size: 0.9rem;
   font-weight: $font-weight-medium;
 
   &:hover {

@@ -520,17 +520,45 @@ export function ScheduledTestsPage() {
             <div key={scheduled.id} className={styles.scheduledCard}>
               <div className={styles.scheduledHeader}>
                 <div className={styles.scheduledInfo}>
-                  <h3>{scheduled.name || 'Unnamed'}</h3>
+                  <h3>
+                    {scheduled.name || 'Unnamed'}
+                    {getStatusBadge(scheduled.status)}
+                    {scheduled.scheduleType === 'cron' && (
+                      <span className={styles.cronBadge}>Recurring</span>
+                    )}
+                  </h3>
                   <span className={styles.scheduledTestName}>
                     <span className={styles.scheduledTestLabel}>Test:</span>{' '}
                     {getTestName(scheduled.testId)}
                   </span>
                 </div>
-                <div className={styles.scheduledBadges}>
-                  {getStatusBadge(scheduled.status)}
-                  {scheduled.scheduleType === 'cron' && (
-                    <span className={styles.cronBadge}>Recurring</span>
+                <div className={styles.scheduledActions}>
+                  {(scheduled.status === 'pending' || scheduled.scheduleType === 'cron') && (
+                    <button
+                      onClick={() => handleExecuteNow(scheduled.id)}
+                      className={styles.runNowBtn}
+                      disabled={loading || scheduled.status === 'running'}
+                    >
+                      Run Now
+                    </button>
                   )}
+                  {scheduled.status === 'completed' && scheduled.resultRunId && (
+                    <button
+                      onClick={() => handleViewResult(scheduled.resultRunId!)}
+                      className={styles.viewBtn}
+                    >
+                      View Result
+                    </button>
+                  )}
+                  <button onClick={() => handleEdit(scheduled)} className={styles.editBtn}>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm({ open: true, id: scheduled.id })}
+                    className={styles.deleteBtn}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
               <div className={styles.scheduledDetails}>
@@ -552,34 +580,6 @@ export function ScheduledTestsPage() {
                     <span className={styles.detailValue}>{scheduled.errorMessage}</span>
                   </div>
                 )}
-              </div>
-              <div className={styles.scheduledActions}>
-                {(scheduled.status === 'pending' || scheduled.scheduleType === 'cron') && (
-                  <button
-                    onClick={() => handleExecuteNow(scheduled.id)}
-                    className={styles.runNowBtn}
-                    disabled={loading || scheduled.status === 'running'}
-                  >
-                    Run Now
-                  </button>
-                )}
-                {scheduled.status === 'completed' && scheduled.resultRunId && (
-                  <button
-                    onClick={() => handleViewResult(scheduled.resultRunId!)}
-                    className={styles.viewBtn}
-                  >
-                    View Result
-                  </button>
-                )}
-                <button onClick={() => handleEdit(scheduled)} className={styles.editBtn}>
-                  Edit
-                </button>
-                <button
-                  onClick={() => setDeleteConfirm({ open: true, id: scheduled.id })}
-                  className={styles.deleteBtn}
-                >
-                  Delete
-                </button>
               </div>
             </div>
           ))
