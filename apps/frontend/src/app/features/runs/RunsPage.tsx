@@ -6,7 +6,7 @@ import { Pagination } from '../../components/Pagination';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
-import { downloadExportBundle, generateExportFilename } from '../../shared/exportImportUtils';
+import { downloadExportBundle, downloadAuthenticatedFile, generateExportFilename } from '../../shared/exportImportUtils';
 import styles from './runs.module.scss';
 
 type RunStatusBadge = {
@@ -30,6 +30,7 @@ export function RunsPage() {
     open: boolean;
     id: string | null;
   }>({ open: false, id: null });
+  const [exportMenuOpen, setExportMenuOpen] = useState<string | null>(null);
 
   // Filter and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,6 +101,14 @@ export function RunsPage() {
 
     return () => clearInterval(interval);
   }, [loadRuns]);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = () => setExportMenuOpen(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [exportMenuOpen]);
 
   // Filter definitions for FilterBar
   const filterDefinitions: FilterDefinition[] = useMemo(
@@ -264,7 +273,8 @@ export function RunsPage() {
 
   const hasActiveFilters = searchTerm || Object.keys(filters).length > 0;
 
-  const handleExport = async (run: StoredRun) => {
+  const handleExportJson = async (run: StoredRun) => {
+    setExportMenuOpen(null);
     const response = await apiClient.exportConfig({
       types: ['runs'],
       runIds: [run.id],
@@ -276,6 +286,28 @@ export function RunsPage() {
     } else {
       showNotification('error', response.error || 'Failed to export run');
     }
+  };
+
+  const handleExportCsv = async (run: StoredRun) => {
+    setExportMenuOpen(null);
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+    const ok = await downloadAuthenticatedFile(
+      apiClient.getRunExportCsvUrl(run.id),
+      `run-${shortId}-${date}.csv`,
+    );
+    showNotification(ok ? 'success' : 'error', ok ? 'CSV exported' : 'Failed to export CSV');
+  };
+
+  const handleExportPdf = async (run: StoredRun) => {
+    setExportMenuOpen(null);
+    const shortId = run.id.slice(0, 8);
+    const date = new Date().toISOString().split('T')[0];
+    const ok = await downloadAuthenticatedFile(
+      apiClient.getRunExportPdfUrl(run.id),
+      `run-report-${shortId}-${date}.pdf`,
+    );
+    showNotification(ok ? 'success' : 'error', ok ? 'PDF exported' : 'Failed to export PDF');
   };
 
   return (
@@ -333,14 +365,29 @@ export function RunsPage() {
                   {run.test?.type === 'conversation' && (
                     <span className={styles.runTypeBadge}>Conversation</span>
                   )}
+                  {run.test?.type === 'qa' && (
+                    <span className={styles.runTypeBadge}>Q&A</span>
+                  )}
                 </div>
                 <div className={styles.runActions}>
                   <button className={styles.viewBtn} onClick={() => handleViewRun(run.id)}>
                     {run.status === 'completed' ? 'Evaluate' : 'View'}
                   </button>
-                  <button className={styles.exportBtn} onClick={() => handleExport(run)}>
-                    Export
-                  </button>
+                  <div className={styles.exportDropdown} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className={styles.exportBtn}
+                      onClick={() => setExportMenuOpen((prev) => prev === run.id ? null : run.id)}
+                    >
+                      Export &#9662;
+                    </button>
+                    {exportMenuOpen === run.id && (
+                      <div className={styles.exportMenu}>
+                        <button onClick={() => handleExportJson(run)}>Export JSON</button>
+                        <button onClick={() => handleExportCsv(run)}>Export CSV</button>
+                        <button onClick={() => handleExportPdf(run)}>Export PDF</button>
+                      </div>
+                    )}
+                  </div>
                   {(run.status === 'running' || run.status === 'pending') && (
                     <button className={styles.cancelBtn} onClick={() => setCancelConfirm({ open: true, id: run.id })}>
                       Cancel
