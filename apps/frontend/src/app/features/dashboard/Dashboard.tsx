@@ -137,7 +137,7 @@ function LineChart({ data }: { data: TestRunData[] }) {
   );
 }
 
-function BarChart({ data }: { data: TestRunData[] }) {
+function EvaluationBreakdownChart({ data }: { data: TestRunData[] }) {
   if (data.length === 0) return null;
 
   const padding = 40;
@@ -151,75 +151,137 @@ function BarChart({ data }: { data: TestRunData[] }) {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(-10);
 
+  const maxTotal = Math.max(...sortedData.map((d) => d.correct + d.partial + d.incorrect + d.errors));
+  const yMax = maxTotal || 1;
+
   const barWidth = (chartWidth / sortedData.length) * 0.7;
   const gap = (chartWidth / sortedData.length) * 0.3;
+
+  // Generate Y-axis labels (5 ticks)
+  const yLabels = [0, 0.25, 0.5, 0.75, 1].map((pct) => Math.round(yMax * pct));
+
+  const categories: { key: keyof Pick<TestRunData, 'correct' | 'partial' | 'incorrect' | 'errors'>; color: string; label: string }[] = [
+    { key: 'correct', color: '#27ae60', label: 'Correct' },
+    { key: 'partial', color: '#f39c12', label: 'Partial' },
+    { key: 'incorrect', color: '#e74c3c', label: 'Incorrect' },
+    { key: 'errors', color: '#8e44ad', label: 'Errors' },
+  ];
 
   return (
     <div className={styles.barChartContainer}>
       <svg viewBox={`0 0 ${width} ${height}`} className={styles.barChart}>
         {/* Grid lines */}
-        {[0, 25, 50, 75, 100].map((val) => {
-          const y = padding + chartHeight - (val / 100) * chartHeight;
+        {yLabels.map((val) => {
+          const y = padding + chartHeight - (val / yMax) * chartHeight;
           return (
             <g key={val}>
-              <line
-                x1={padding}
-                y1={y}
-                x2={width - padding}
-                y2={y}
-                stroke="#eee"
-                strokeWidth="1"
-              />
-              <text
-                x={padding - 5}
-                y={y + 4}
-                textAnchor="end"
-                fontSize="10"
-                fill="#888"
-              >
-                {val}%
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}</text>
+            </g>
+          );
+        })}
+
+        {/* Stacked bars */}
+        {sortedData.map((d, i) => {
+          const x = padding + i * (barWidth + gap) + gap / 2;
+          let currentY = padding + chartHeight;
+
+          return (
+            <g key={i}>
+              {categories.map((cat) => {
+                const value = d[cat.key];
+                if (value === 0) return null;
+                const segmentHeight = (value / yMax) * chartHeight;
+                currentY -= segmentHeight;
+                return (
+                  <rect
+                    key={cat.key}
+                    x={x}
+                    y={currentY}
+                    width={barWidth}
+                    height={segmentHeight}
+                    fill={cat.color}
+                    rx="1"
+                  >
+                    <title>{cat.label}: {value}</title>
+                  </rect>
+                );
+              })}
+              <text x={x + barWidth / 2} y={height - 10} textAnchor="middle" fontSize="9" fill="#888">
+                {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </text>
+              <title>
+                {new Date(d.date).toLocaleDateString()} - Correct: {d.correct}, Partial: {d.partial}, Incorrect: {d.incorrect}, Errors: {d.errors}
+              </title>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function AccuracyDistributionChart({ data }: { data: TestRunData[] }) {
+  if (data.length === 0) return null;
+
+  const padding = 40;
+  const width = 600;
+  const height = 250;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
+
+  const buckets = [
+    { label: '0-20%', min: 0, max: 20, color: '#e74c3c' },
+    { label: '20-40%', min: 20, max: 40, color: '#f39c12' },
+    { label: '40-60%', min: 40, max: 60, color: '#f1c40f' },
+    { label: '60-80%', min: 60, max: 80, color: '#7dcea0' },
+    { label: '80-100%', min: 80, max: 100.01, color: '#27ae60' },
+  ];
+
+  const counts = buckets.map((bucket) =>
+    data.filter((d) => d.accuracy >= bucket.min && d.accuracy < bucket.max).length,
+  );
+
+  const maxCount = Math.max(...counts, 1);
+  const yMax = maxCount;
+
+  const barWidth = (chartWidth / buckets.length) * 0.7;
+  const gap = (chartWidth / buckets.length) * 0.3;
+
+  // Generate Y-axis labels (integer ticks)
+  const ySteps = Math.min(yMax, 5);
+  const yLabels = Array.from({ length: ySteps + 1 }, (_, i) =>
+    Math.round((yMax / ySteps) * i),
+  );
+
+  return (
+    <div className={styles.barChartContainer}>
+      <svg viewBox={`0 0 ${width} ${height}`} className={styles.barChart}>
+        {/* Grid lines */}
+        {yLabels.map((val) => {
+          const y = padding + chartHeight - (val / yMax) * chartHeight;
+          return (
+            <g key={val}>
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#eee" strokeWidth="1" />
+              <text x={padding - 5} y={y + 4} textAnchor="end" fontSize="10" fill="#888">{val}</text>
             </g>
           );
         })}
 
         {/* Bars */}
-        {sortedData.map((d, i) => {
+        {buckets.map((bucket, i) => {
           const x = padding + i * (barWidth + gap) + gap / 2;
-          const barHeight = (d.accuracy / 100) * chartHeight;
+          const barHeight = (counts[i] / yMax) * chartHeight;
           const y = padding + chartHeight - barHeight;
-          const color =
-            d.accuracy >= 80
-              ? '#27ae60'
-              : d.accuracy >= 50
-                ? '#f39c12'
-                : '#e74c3c';
+          const pct = data.length > 0 ? ((counts[i] / data.length) * 100).toFixed(0) : '0';
 
           return (
             <g key={i}>
-              <rect
-                x={x}
-                y={y}
-                width={barWidth}
-                height={barHeight}
-                fill={color}
-                rx="2"
-              />
-              <text
-                x={x + barWidth / 2}
-                y={height - 10}
-                textAnchor="middle"
-                fontSize="9"
-                fill="#888"
-              >
-                {new Date(d.date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
+              <rect x={x} y={y} width={barWidth} height={barHeight} fill={bucket.color} rx="2" />
+              <text x={x + barWidth / 2} y={height - 10} textAnchor="middle" fontSize="9" fill="#888">
+                {bucket.label}
               </text>
-              <title>
-                {d.name}: {d.accuracy.toFixed(1)}%
-              </title>
+              <title>{bucket.label}: {counts[i]} runs ({pct}% of total)</title>
             </g>
           );
         })}
@@ -1083,8 +1145,12 @@ export function Dashboard() {
               <LineChart data={testRuns} />
             </div>
             <div className={styles.chartCard}>
-              <h3>Accuracy by Run</h3>
-              <BarChart data={testRuns} />
+              <h3>Evaluation Breakdown</h3>
+              <EvaluationBreakdownChart data={testRuns} />
+            </div>
+            <div className={styles.chartCard}>
+              <h3>Accuracy Distribution</h3>
+              <AccuracyDistributionChart data={testRuns} />
             </div>
             {testRuns.some((r) => r.avgLatencyMs !== null) && (
               <div className={styles.chartCard}>
