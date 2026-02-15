@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { CorrelationIdMiddleware } from '../common/middleware';
 import { CommonModule } from '../common/common.module';
 import { AppController } from './app.controller';
@@ -28,6 +29,7 @@ import { ConversationModule } from '../conversation/conversation.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     AppConfigModule,
     CommonModule,
     DatabaseModule,

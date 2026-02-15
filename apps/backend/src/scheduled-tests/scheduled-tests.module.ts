@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
 import { ScheduledTest } from '../database/entities/scheduled-test.entity';
 import { Test } from '../database/entities/test.entity';
 import { ScheduledTestsController } from './scheduled-tests.controller';
@@ -16,7 +15,6 @@ import { AccessTokensModule } from '../access-tokens/access-tokens.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([ScheduledTest, Test]),
-    ScheduleModule.forRoot(),
     FlowModule,
     QuestionsModule,
     forwardRef(() => TestsModule),
