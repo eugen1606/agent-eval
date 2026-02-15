@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun, StoredQuestionSet } from '@agent-eval/shared';
 import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../../components/Pagination';
+import { SearchableSelect } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { downloadAuthenticatedFile } from '../../shared/exportImportUtils';
 import { apiClient } from '../../apiClient';
@@ -900,32 +901,31 @@ export function Dashboard() {
       <div className={styles.dashboardControls}>
         <div className={styles.controlGroup}>
           <label>Select Test:</label>
-          <select
+          <SearchableSelect
+            options={tests.map((test) => ({
+              value: test.id,
+              label: test.name,
+              sublabel: test.id,
+            }))}
             value={selectedTestId}
-            onChange={(e) => handleTestSelect(e.target.value)}
-          >
-            <option value="">Choose a test...</option>
-            {tests.map((test) => (
-              <option key={test.id} value={test.id}>
-                {test.name} ({test.id})
-              </option>
-            ))}
-          </select>
+            onChange={handleTestSelect}
+            placeholder="Search tests..."
+            allOptionLabel="Choose a test..."
+          />
         </div>
         {selectedTestId && !isConversationTest && availableQuestionSets.length > 0 && (
           <div className={styles.controlGroup}>
             <label>Filter by Question Set:</label>
-            <select
+            <SearchableSelect
+              options={availableQuestionSets.map((qs) => ({
+                value: qs.id,
+                label: qs.name,
+              }))}
               value={selectedQuestionSetId}
-              onChange={(e) => handleQuestionSetSelect(e.target.value)}
-            >
-              <option value="">All Question Sets</option>
-              {availableQuestionSets.map((qs) => (
-                <option key={qs.id} value={qs.id}>
-                  {qs.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleQuestionSetSelect}
+              placeholder="Search question sets..."
+              allOptionLabel="All Question Sets"
+            />
           </div>
         )}
       </div>
