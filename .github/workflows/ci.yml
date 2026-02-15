@@ -211,9 +211,9 @@ jobs:
         uses: nrwl/nx-set-shas@v4
 
       # Run unit tests on affected projects
-      # --configuration=ci can be used if you add a "ci" config to jest
+      # backend-e2e is excluded because it requires a running backend + database
       - name: Test affected projects
-        run: yarn nx affected -t test
+        run: yarn nx affected -t test --exclude=backend-e2e
 
   # ╔═══════════════════════════════════════════════════════════════════════════╗
   # ║  STAGE 4: Build                                                          ║

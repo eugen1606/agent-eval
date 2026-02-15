@@ -90,7 +90,7 @@ describe('FilterBar', () => {
     render(<FilterBar {...defaultProps} />);
     fireEvent.click(screen.getByText('+ Filter'));
     expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Name' })).toBeInTheDocument();
   });
 
   it('shows filter value options when filter is selected', () => {
@@ -164,7 +164,7 @@ describe('FilterBar', () => {
   it('handles text filter input', () => {
     render(<FilterBar {...defaultProps} />);
     fireEvent.click(screen.getByText('+ Filter'));
-    fireEvent.click(screen.getByText('Name'));
+    fireEvent.click(screen.getByRole('button', { name: 'Name' }));
     const input = screen.getByPlaceholderText('Enter name');
     fireEvent.change(input, { target: { value: 'John' } });
     fireEvent.click(screen.getByText('Apply'));
@@ -174,7 +174,7 @@ describe('FilterBar', () => {
   it('handles text filter submit on Enter', () => {
     render(<FilterBar {...defaultProps} />);
     fireEvent.click(screen.getByText('+ Filter'));
-    fireEvent.click(screen.getByText('Name'));
+    fireEvent.click(screen.getByRole('button', { name: 'Name' }));
     const input = screen.getByPlaceholderText('Enter name');
     fireEvent.change(input, { target: { value: 'John' } });
     fireEvent.keyDown(input, { key: 'Enter' });
