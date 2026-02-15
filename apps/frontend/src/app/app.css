@@ -420,6 +420,15 @@ body {
   display: none;
 }
 
+.tag-chip {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: white;
+}
+
 .tag-option .tag-chip {
   opacity: 0.5;
   transition: opacity 0.15s;
