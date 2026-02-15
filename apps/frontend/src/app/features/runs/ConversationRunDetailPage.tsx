@@ -14,7 +14,7 @@ import styles from './runs.module.scss';
 
 interface ConversationRunDetailPageProps {
   run: StoredRun;
-  onReload: () => void;
+  onReload: (showLoading?: boolean) => void;
 }
 
 const STATUS_ICONS: Record<ConversationStatus, string> = {
@@ -61,6 +61,9 @@ export function ConversationRunDetailPage({ run, onReload }: ConversationRunDeta
 
   const isRunning = run.status === 'running' || run.status === 'pending';
 
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selectedId;
+
   const loadConversations = useCallback(async () => {
     const [convRes, statsRes] = await Promise.all([
       apiClient.getConversations(run.id),
@@ -68,7 +71,7 @@ export function ConversationRunDetailPage({ run, onReload }: ConversationRunDeta
     ]);
     if (convRes.success && convRes.data) {
       setConversations(convRes.data);
-      if (!selectedId && convRes.data.length > 0) {
+      if (!selectedIdRef.current && convRes.data.length > 0) {
         setSelectedId(convRes.data[0].id);
       }
     }
@@ -76,7 +79,7 @@ export function ConversationRunDetailPage({ run, onReload }: ConversationRunDeta
       setStats(statsRes.data);
     }
     setLoading(false);
-  }, [run.id, selectedId]);
+  }, [run.id]);
 
   useEffect(() => {
     loadConversations();
@@ -87,14 +90,14 @@ export function ConversationRunDetailPage({ run, onReload }: ConversationRunDeta
     if (!isRunning) return;
 
     const interval = setInterval(async () => {
-      onReload();
+      onReload(false);
       const [convRes, statsRes] = await Promise.all([
         apiClient.getConversations(run.id),
         apiClient.getConversationRunStats(run.id),
       ]);
       if (convRes.success && convRes.data) {
         setConversations(convRes.data);
-        if (!selectedId && convRes.data.length > 0) {
+        if (!selectedIdRef.current && convRes.data.length > 0) {
           setSelectedId(convRes.data[0].id);
         }
       }
@@ -104,7 +107,7 @@ export function ConversationRunDetailPage({ run, onReload }: ConversationRunDeta
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isRunning, run.id, selectedId, onReload]);
+  }, [isRunning, run.id, onReload]);
 
   // Scroll to bottom of transcript when turns update for running conversations
   useEffect(() => {

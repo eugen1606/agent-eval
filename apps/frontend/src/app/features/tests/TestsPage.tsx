@@ -82,6 +82,7 @@ export function TestsPage() {
   const [scenarioSubmitAttempted, setScenarioSubmitAttempted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [runningTests, setRunningTests] = useState<Map<string, string>>(new Map());
+  const [runProgress, setRunProgress] = useState<Map<string, { completed: number; total: number }>>(new Map());
   const [deleteConfirm, setDeleteConfirm] = useState<{
     open: boolean;
     id: string | null;
@@ -544,9 +545,22 @@ export function TestsPage() {
               const data = JSON.parse(line.slice(6));
               if (data.type === 'run_start' && data.runId) {
                 setRunningTests((prev) => new Map(prev).set(testId, data.runId));
+                setRunProgress((prev) => new Map(prev).set(testId, { completed: 0, total: data.totalQuestions || data.totalScenarios || 0 }));
               }
-              if (data.type === 'complete' || data.type === 'error' || data.type === 'canceled') {
+              if (data.type === 'result' || data.type === 'scenario:end') {
+                setRunProgress((prev) => {
+                  const current = prev.get(testId);
+                  if (!current) return prev;
+                  return new Map(prev).set(testId, { ...current, completed: current.completed + 1 });
+                });
+              }
+              if (data.type === 'complete' || data.type === 'error' || data.type === 'run:error' || data.type === 'canceled') {
                 setRunningTests((prev) => {
+                  const next = new Map(prev);
+                  next.delete(testId);
+                  return next;
+                });
+                setRunProgress((prev) => {
                   const next = new Map(prev);
                   next.delete(testId);
                   return next;
@@ -564,6 +578,11 @@ export function TestsPage() {
       }
     } catch (error) {
       setRunningTests((prev) => {
+        const next = new Map(prev);
+        next.delete(testId);
+        return next;
+      });
+      setRunProgress((prev) => {
         const next = new Map(prev);
         next.delete(testId);
         return next;
@@ -1350,14 +1369,21 @@ export function TestsPage() {
                 </div>
                 <div className={styles.testActions}>
                   {runningTests.has(test.id) ? (
-                    <button
-                      className={styles.cancelBtn}
-                      onClick={() => setCancelConfirm({ open: true, testId: test.id })}
-                      disabled={!runningTests.get(test.id)}
-                      title={runningTests.get(test.id) ? 'Cancel run' : 'Starting...'}
-                    >
-                      {runningTests.get(test.id) ? 'Cancel' : 'Starting...'}
-                    </button>
+                    <>
+                      {runProgress.has(test.id) && (
+                        <span className={styles.runProgressText}>
+                          {runProgress.get(test.id)!.completed}/{runProgress.get(test.id)!.total}
+                        </span>
+                      )}
+                      <button
+                        className={styles.cancelBtn}
+                        onClick={() => setCancelConfirm({ open: true, testId: test.id })}
+                        disabled={!runningTests.get(test.id)}
+                        title={runningTests.get(test.id) ? 'Cancel run' : 'Starting...'}
+                      >
+                        {runningTests.get(test.id) ? 'Cancel' : 'Starting...'}
+                      </button>
+                    </>
                   ) : (
                     <button
                       className={styles.runBtn}

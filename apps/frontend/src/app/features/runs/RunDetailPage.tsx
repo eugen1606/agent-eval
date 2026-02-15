@@ -73,9 +73,9 @@ export function RunDetailPage() {
   const [expandedReasoning, setExpandedReasoning] = useState<Set<string>>(new Set());
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
-  const loadRun = useCallback(async () => {
+  const loadRun = useCallback(async (showLoading = true) => {
     if (!id) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     const [runRes, statsRes, perfRes] = await Promise.all([
       apiClient.getRun(id),
       apiClient.getRunStats(id),
@@ -110,12 +110,32 @@ export function RunDetailPage() {
     if (perfRes.success && perfRes.data) {
       setPerfStats(perfRes.data);
     }
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }, [id]);
 
   useEffect(() => {
     loadRun();
   }, [loadRun]);
+
+  // Poll for new results while run is still executing
+  useEffect(() => {
+    if (!id || !run || (run.status !== 'running' && run.status !== 'pending')) return;
+
+    const interval = setInterval(async () => {
+      const [runRes, statsRes] = await Promise.all([
+        apiClient.getRun(id),
+        apiClient.getRunStats(id),
+      ]);
+      if (runRes.success && runRes.data) {
+        setRun(runRes.data);
+      }
+      if (statsRes.success && statsRes.data) {
+        setStats(statsRes.data);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [id, run?.status]);
 
   // Detect in-progress evaluation on load and start polling
   useEffect(() => {

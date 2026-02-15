@@ -109,6 +109,13 @@
   }
 }
 
+.runProgressText {
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+}
+
 .cancelBtn {
   padding: $spacing-sm $spacing-md;
   background: var(--warning);
