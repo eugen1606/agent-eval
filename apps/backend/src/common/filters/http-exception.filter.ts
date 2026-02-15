@@ -99,7 +99,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : undefined,
       );
     }
-    // 4xx client errors are logged as warnings (no stack trace needed)
+    // 401 errors are expected during token refresh flow, log as debug
+    else if (statusCode === 401) {
+      this.logger.debug(`${method} ${path} ${statusCode} - ${message}`);
+    }
+    // Other 4xx client errors are logged as warnings (no stack trace needed)
     else if (statusCode >= 400) {
       this.logger.warn(`${method} ${path} ${statusCode} - ${message}`);
     }

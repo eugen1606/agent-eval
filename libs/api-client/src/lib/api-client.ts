@@ -76,6 +76,8 @@ export class AgentEvalClient {
   private csrfToken: string | null = null;
   // Mutex to prevent concurrent token refresh
   private refreshPromise: Promise<boolean> | null = null;
+  // Timer for proactive token refresh
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(apiUrl: string = DEFAULT_API_URL) {
     this.apiUrl = apiUrl;
@@ -100,6 +102,40 @@ export class AgentEvalClient {
    */
   private setCsrfToken(token: string | null): void {
     this.csrfToken = token;
+  }
+
+  /**
+   * Schedule a proactive token refresh before the access token expires.
+   * Refreshes at 80% of the TTL to avoid 401 errors during normal use.
+   */
+  private scheduleProactiveRefresh(ttlMs: number = 15 * 60 * 1000): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+
+    // Refresh at 80% of the TTL (e.g., 12 minutes for a 15-minute token)
+    const refreshIn = Math.floor(ttlMs * 0.8);
+
+    this.refreshTimer = setTimeout(async () => {
+      this.refreshTimer = null;
+      if (!this.isAuthenticated()) return;
+
+      const refreshed = await this.refreshTokens();
+      if (refreshed) {
+        this.scheduleProactiveRefresh(ttlMs);
+      }
+    }, refreshIn);
+  }
+
+  /**
+   * Cancel the proactive refresh timer
+   */
+  private cancelProactiveRefresh(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   public setOnAuthChange(callback: (isAuthenticated: boolean) => void): void {
@@ -227,6 +263,7 @@ export class AgentEvalClient {
         this.setCsrfToken(result.data.csrfToken);
       }
       this.onAuthChange?.(true);
+      this.scheduleProactiveRefresh();
     }
 
     return result;
@@ -247,6 +284,7 @@ export class AgentEvalClient {
         this.setCsrfToken(result.data.csrfToken);
       }
       this.onAuthChange?.(true);
+      this.scheduleProactiveRefresh();
     }
 
     return result;
@@ -283,6 +321,7 @@ export class AgentEvalClient {
       if (data.csrfToken) {
         this.setCsrfToken(data.csrfToken);
       }
+      this.scheduleProactiveRefresh();
       return true;
     } catch {
       return false;
@@ -290,10 +329,17 @@ export class AgentEvalClient {
   }
 
   async getMe(): Promise<ApiResponse<User>> {
-    return this.request<User>('/auth/me');
+    const result = await this.request<User>('/auth/me');
+    if (result.success) {
+      // We have a valid session but don't know exact token age,
+      // so schedule a refresh soon to ensure a fresh token
+      this.scheduleProactiveRefresh();
+    }
+    return result;
   }
 
   async logout(): Promise<void> {
+    this.cancelProactiveRefresh();
     try {
       // Call logout endpoint to clear cookies
       await fetch(`${this.apiUrl}/auth/logout`, {
