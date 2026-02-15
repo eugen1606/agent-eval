@@ -11,6 +11,7 @@ import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../com
 import { Pagination } from '../../components/Pagination';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, generateExportFilename, ImportModal } from '../../shared/exportImportUtils';
+import { JsonEditor } from '../../components/JsonEditor';
 import styles from './settings.module.scss';
 
 interface Props {
@@ -295,18 +296,18 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
           </div>
           <div className="form-group">
             <label>Questions (JSON) *</label>
-            <textarea
+            <JsonEditor
+              value={formData.questionsJson}
+              onChange={(val) => {
+                setFormData({ ...formData, questionsJson: val });
+                setJsonError(null);
+              }}
+              minHeight="150px"
               placeholder={`[
   { "question": "What is 2+2?", "expectedAnswer": "4" },
   { "question": "Capital of France?" },
   { "question": "Explain gravity" }
 ]`}
-              value={formData.questionsJson}
-              onChange={(e) => {
-                setFormData({ ...formData, questionsJson: e.target.value });
-                setJsonError(null);
-              }}
-              rows={6}
               className={
                 formSubmitAttempted && !formData.questionsJson
                   ? 'input-error'

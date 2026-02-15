@@ -2287,3 +2287,53 @@ body {
 .result-section.result-errors ul {
   color: var(--error);
 }
+
+/* JSON Editor (CodeMirror) */
+.json-editor-wrapper {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.json-editor-wrapper .cm-editor {
+  font-size: 0.85rem;
+  background: var(--bg-secondary);
+}
+
+.json-editor-wrapper .cm-editor.cm-focused {
+  outline: none;
+}
+
+.json-editor-wrapper .cm-gutters {
+  background: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.json-editor-wrapper .cm-activeLineGutter {
+  background: var(--bg-hover);
+}
+
+.json-editor-wrapper .cm-activeLine {
+  background: var(--bg-hover);
+}
+
+.json-editor-wrapper .cm-content {
+  color: var(--text-primary);
+}
+
+.json-editor-wrapper .cm-cursor {
+  border-left-color: var(--text-primary);
+}
+
+.json-editor-wrapper .cm-selectionBackground {
+  background: rgba(102, 126, 234, 0.2) !important;
+}
+
+.json-editor-wrapper .cm-placeholder {
+  color: var(--text-muted);
+}
+
+.json-editor-wrapper.input-error {
+  border-color: var(--error);
+}
