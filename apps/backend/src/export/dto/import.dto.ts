@@ -6,6 +6,7 @@ import {
   IsString,
   ValidateNested,
   IsBoolean,
+  IsInt,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -66,6 +67,10 @@ class ExportedTestDto {
 
   @IsBoolean()
   multiStepEvaluation: boolean;
+
+  @IsOptional()
+  @IsInt()
+  repeatCount?: number;
 }
 
 class ExportedQuestionSetDto {

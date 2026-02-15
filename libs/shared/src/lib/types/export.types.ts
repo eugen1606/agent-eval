@@ -45,6 +45,7 @@ export interface ExportedTest {
   webhookExportId?: string;
   tagExportIds?: string[];
   multiStepEvaluation: boolean;
+  repeatCount?: number;
   // Conversation test fields
   type?: 'qa' | 'conversation';
   executionMode?: string;

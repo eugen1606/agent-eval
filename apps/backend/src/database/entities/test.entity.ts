@@ -64,6 +64,9 @@ export class Test {
   @Column({ default: false })
   multiStepEvaluation: boolean;
 
+  @Column({ type: 'int', default: 1 })
+  repeatCount: number;
+
   @Column({ nullable: true })
   webhookId: string;
 

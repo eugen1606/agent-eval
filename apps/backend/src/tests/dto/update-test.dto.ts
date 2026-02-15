@@ -8,6 +8,7 @@ import {
   IsInt,
   IsObject,
   Min,
+  Max,
   MaxLength,
   MinLength,
   ValidateIf,
@@ -55,6 +56,13 @@ export class UpdateTestDto {
   @IsOptional()
   @IsBoolean()
   multiStepEvaluation?: boolean;
+
+  @ApiPropertyOptional({ description: 'Number of times to repeat each question (1-50)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  repeatCount?: number;
 
   @ApiPropertyOptional({ description: 'Webhook ID (set null to clear)' })
   @IsOptional()

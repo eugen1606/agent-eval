@@ -234,8 +234,9 @@ export class TestsController {
           const questionSet = await this.questionsService.findOne(test.questionSetId, user.userId);
 
           // Create a new run
+          const repeatCount = test.repeatCount || 1;
           const run = await this.runsService.create(
-            { testId: test.id, totalQuestions: questionSet.questions.length, questionSetId: test.questionSetId },
+            { testId: test.id, totalQuestions: questionSet.questions.length * repeatCount, questionSetId: test.questionSetId },
             user.userId
           );
           runId = run.id;
@@ -255,15 +256,20 @@ export class TestsController {
 
           // Send run start event
           subscriber.next({
-            data: JSON.stringify({ type: 'run_start', runId: run.id }),
+            data: JSON.stringify({ type: 'run_start', runId: run.id, totalQuestions: run.totalQuestions }),
           });
 
-          // Prepare questions with IDs
-          const questions = questionSet.questions.map((q) => ({
-            id: uuidv4(),
+          // Prepare questions with IDs, repeating each question repeatCount times
+          const baseQuestions = questionSet.questions.map((q) => ({
             question: q.question,
             expectedAnswer: q.expectedAnswer,
           }));
+          const questions: { id: string; question: string; expectedAnswer?: string }[] = [];
+          for (const q of baseQuestions) {
+            for (let i = 0; i < repeatCount; i++) {
+              questions.push({ id: uuidv4(), ...q });
+            }
+          }
 
           // Build flow config from test.flowConfig
           const flowConfig = {

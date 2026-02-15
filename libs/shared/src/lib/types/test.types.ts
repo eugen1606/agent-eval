@@ -26,6 +26,7 @@ export interface StoredTest {
   questionSetId?: string;
   questionSet?: StoredQuestionSet;
   multiStepEvaluation: boolean;
+  repeatCount: number;
   webhookId?: string;
   webhook?: StoredWebhook;
   evaluatorId?: string;
@@ -50,6 +51,7 @@ export interface CreateTestRequest {
   accessTokenId?: string | null;
   questionSetId?: string | null;
   multiStepEvaluation?: boolean;
+  repeatCount?: number;
   webhookId?: string | null;
   evaluatorId?: string | null;
   tagIds?: string[];

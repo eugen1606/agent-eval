@@ -310,6 +310,7 @@ export class ExportService {
         name: test.name,
         description: test.description ?? undefined,
         multiStepEvaluation: test.multiStepEvaluation,
+        repeatCount: test.repeatCount > 1 ? test.repeatCount : undefined,
       };
 
       // Include conversation test fields
@@ -1093,6 +1094,7 @@ export class ExportService {
               questionSetId: questionSetId || (null as unknown as string),
               webhookId: webhookId || (null as unknown as string),
               multiStepEvaluation: test.multiStepEvaluation,
+              repeatCount: test.repeatCount ?? 1,
             });
             // Update tags
             existing.tags = tags;
@@ -1112,6 +1114,7 @@ export class ExportService {
               questionSetId,
               webhookId,
               multiStepEvaluation: test.multiStepEvaluation,
+              repeatCount: test.repeatCount ?? 1,
               userId,
               tags,
             });
@@ -1126,6 +1129,7 @@ export class ExportService {
             questionSetId,
             webhookId,
             multiStepEvaluation: test.multiStepEvaluation,
+            repeatCount: test.repeatCount ?? 1,
             userId,
             tags,
           });

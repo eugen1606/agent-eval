@@ -9,6 +9,7 @@ import {
   IsObject,
   IsNumber,
   Min,
+  Max,
   MaxLength,
   MinLength,
   ValidateIf,
@@ -62,6 +63,13 @@ export class CreateTestDto {
   @IsOptional()
   @IsBoolean()
   multiStepEvaluation?: boolean;
+
+  @ApiPropertyOptional({ description: 'Number of times to repeat each question (1-50)', default: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  repeatCount?: number;
 
   @ApiPropertyOptional({ description: 'Webhook ID to trigger on run events' })
   @IsOptional()

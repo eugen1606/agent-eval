@@ -158,6 +158,69 @@ describe('Tests CRUD', () => {
     });
   });
 
+  describe('repeatCount', () => {
+    it('should create a test with repeatCount', async () => {
+      const data = await createTest(accessToken, {
+        name: 'Test with Repeat',
+        flowConfigId,
+        repeatCount: 5,
+      });
+
+      expect(data.repeatCount).toBe(5);
+    });
+
+    it('should default repeatCount to 1', async () => {
+      const data = await createTest(accessToken, {
+        name: 'Test Default Repeat',
+        flowConfigId,
+      });
+
+      expect(data.repeatCount).toBe(1);
+    });
+
+    it('should reject repeatCount less than 1', async () => {
+      const response = await authenticatedRequest('/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Test Invalid Repeat',
+          flowConfigId,
+          repeatCount: 0,
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should reject repeatCount greater than 50', async () => {
+      const response = await authenticatedRequest('/tests', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Test Invalid Repeat High',
+          flowConfigId,
+          repeatCount: 51,
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should update repeatCount', async () => {
+      const created = await createTest(accessToken, {
+        name: 'Test Update Repeat',
+        flowConfigId,
+      });
+
+      const response = await authenticatedRequest(`/tests/${created.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ repeatCount: 10 }),
+      }, accessToken);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.repeatCount).toBe(10);
+    });
+  });
+
   describe('FlowConfig SET NULL behavior', () => {
     it('should set flowConfigId to null when FlowConfig is deleted', async () => {
       const fc = await createFlowConfig(accessToken, {

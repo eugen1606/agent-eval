@@ -656,6 +656,7 @@ export class RunsService {
         accessTokenId: run.test.accessTokenId,
         questionSetId: run.test.questionSetId,
         multiStepEvaluation: run.test.multiStepEvaluation,
+        repeatCount: run.test.repeatCount,
         webhookId: run.test.webhookId,
         type: run.test.type,
         createdAt: run.test.createdAt?.toISOString(),

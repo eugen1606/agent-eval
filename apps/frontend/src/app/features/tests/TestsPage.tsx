@@ -58,6 +58,7 @@ export function TestsPage() {
     accessTokenId: '',
     questionSetId: '',
     multiStepEvaluation: false,
+    repeatCount: 1,
     webhookId: '',
     evaluatorId: '',
     tagIds: [] as string[],
@@ -354,6 +355,7 @@ export function TestsPage() {
     if (formData.type === 'qa') {
       data.questionSetId = formData.questionSetId || null;
       data.multiStepEvaluation = formData.multiStepEvaluation;
+      data.repeatCount = formData.repeatCount;
     } else {
       data.executionMode = formData.executionMode;
       data.delayBetweenTurns = formData.delayBetweenTurns;
@@ -397,6 +399,7 @@ export function TestsPage() {
       accessTokenId: test.accessTokenId || '',
       questionSetId: test.questionSetId || '',
       multiStepEvaluation: test.multiStepEvaluation,
+      repeatCount: test.repeatCount || 1,
       webhookId: test.webhookId || '',
       evaluatorId: test.evaluatorId || '',
       tagIds: test.tags?.map((t) => t.id) || [],
@@ -438,6 +441,7 @@ export function TestsPage() {
       accessTokenId: '',
       questionSetId: '',
       multiStepEvaluation: false,
+      repeatCount: 1,
       webhookId: '',
       evaluatorId: '',
       tagIds: [],
@@ -923,6 +927,21 @@ export function TestsPage() {
                   />
                   Multi-step evaluation (shared session)
                 </label>
+              </div>
+              <div className="form-group">
+                <label>Repeat Count</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={formData.repeatCount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, repeatCount: Math.max(1, parseInt(e.target.value) || 1) })
+                  }
+                />
+                <span className="form-hint">
+                  Number of times each question is asked (for consistency testing)
+                </span>
               </div>
             </>
           )}
@@ -1435,6 +1454,12 @@ export function TestsPage() {
                         {test.questionSet && ` (${test.questionSet.questions.length})`}
                       </span>
                     </div>
+                    {test.repeatCount > 1 && (
+                      <div className={styles.detailRow}>
+                        <span className={styles.detailLabel}>Repeat:</span>
+                        <span className={styles.detailValue}>{test.repeatCount}x per question</span>
+                      </div>
+                    )}
                   </>
                 )}
 
