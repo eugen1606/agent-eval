@@ -111,6 +111,12 @@ export function EvaluatorsManager() {
   }, [loadEvaluators]);
 
   useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
     loadCredentials();
   }, [loadCredentials]);
 

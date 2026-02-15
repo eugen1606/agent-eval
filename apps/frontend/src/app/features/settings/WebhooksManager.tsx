@@ -250,6 +250,12 @@ export function WebhooksManager() {
   }, [loadWebhooks]);
 
   useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
     loadVariables();
   }, []);
 

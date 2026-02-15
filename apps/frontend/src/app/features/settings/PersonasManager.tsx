@@ -70,6 +70,12 @@ export function PersonasManager() {
     loadPersonas();
   }, [loadPersonas]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
   const sortOptions: SortOption[] = [
     { value: 'createdAt', label: 'Date Created' },

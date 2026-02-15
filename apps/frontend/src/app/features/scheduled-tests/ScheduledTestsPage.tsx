@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StoredScheduledTest, StoredTest, ScheduleType, ScheduledTestStatus, ScheduledTestsSortField, SortDirection } from '@agent-eval/shared';
+import {
+  StoredScheduledTest,
+  StoredTest,
+  ScheduleType,
+  ScheduledTestStatus,
+  ScheduledTestsSortField,
+  SortDirection,
+} from '@agent-eval/shared';
 import { Modal, ConfirmDialog } from '../../components/Modal';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
 import { Pagination } from '../../components/Pagination';
@@ -22,7 +29,6 @@ const CRON_PRESETS = [
   { label: 'Weekly (Sunday)', value: '0 0 * * 0' },
   { label: 'Custom', value: 'custom' },
 ];
-
 
 export function ScheduledTestsPage() {
   const navigate = useNavigate();
@@ -91,6 +97,12 @@ export function ScheduledTestsPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -114,9 +126,12 @@ export function ScheduledTestsPage() {
 
     setLoading(true);
 
-    const cronExpression = formData.scheduleType === 'cron'
-      ? (formData.cronPreset === 'custom' ? formData.cronExpression : formData.cronPreset)
-      : undefined;
+    const cronExpression =
+      formData.scheduleType === 'cron'
+        ? formData.cronPreset === 'custom'
+          ? formData.cronExpression
+          : formData.cronPreset
+        : undefined;
 
     const payload = {
       name: formData.name.trim(),
@@ -136,7 +151,10 @@ export function ScheduledTestsPage() {
     if (response.success) {
       resetForm();
       loadData();
-      showNotification('success', editingId ? 'Scheduled test updated successfully' : 'Scheduled test created successfully');
+      showNotification(
+        'success',
+        editingId ? 'Scheduled test updated successfully' : 'Scheduled test created successfully'
+      );
     } else {
       showNotification('error', response.error || 'Failed to save scheduled test');
     }
@@ -148,7 +166,7 @@ export function ScheduledTestsPage() {
 
     let cronPreset = '0 0 * * *';
     if (scheduled.cronExpression) {
-      const found = CRON_PRESETS.find(p => p.value === scheduled.cronExpression);
+      const found = CRON_PRESETS.find((p) => p.value === scheduled.cronExpression);
       cronPreset = found ? scheduled.cronExpression : 'custom';
     }
 
@@ -158,7 +176,7 @@ export function ScheduledTestsPage() {
       scheduleType: scheduled.scheduleType || 'once',
       scheduledAt: scheduled.scheduledAt ? scheduled.scheduledAt.slice(0, 16) : '',
       cronPreset,
-      cronExpression: cronPreset === 'custom' ? (scheduled.cronExpression || '') : '',
+      cronExpression: cronPreset === 'custom' ? scheduled.cronExpression || '' : '',
     });
     setShowForm(true);
   };
@@ -216,7 +234,7 @@ export function ScheduledTestsPage() {
   };
 
   const getTestName = (testId: string) => {
-    const test = tests.find(t => t.id === testId);
+    const test = tests.find((t) => t.id === testId);
     return test ? test.name : 'Unknown';
   };
 
@@ -236,7 +254,7 @@ export function ScheduledTestsPage() {
 
   const getScheduleDisplay = (scheduled: StoredScheduledTest) => {
     if (scheduled.scheduleType === 'cron' && scheduled.cronExpression) {
-      const preset = CRON_PRESETS.find(p => p.value === scheduled.cronExpression);
+      const preset = CRON_PRESETS.find((p) => p.value === scheduled.cronExpression);
       return `Recurring: ${preset ? preset.label : scheduled.cronExpression}`;
     }
     if (scheduled.scheduledAt) {
@@ -246,29 +264,32 @@ export function ScheduledTestsPage() {
   };
 
   // Filter definitions for FilterBar
-  const filterDefinitions: FilterDefinition[] = useMemo(() => [
-    {
-      key: 'test',
-      label: 'Test',
-      type: 'select',
-      options: tests.map((test) => ({
-        value: test.id,
-        label: test.name,
-        sublabel: test.flowId,
-      })),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      type: 'select',
-      options: [
-        { value: 'pending', label: 'Pending' },
-        { value: 'running', label: 'Running' },
-        { value: 'completed', label: 'Completed' },
-        { value: 'failed', label: 'Failed' },
-      ],
-    },
-  ], [tests]);
+  const filterDefinitions: FilterDefinition[] = useMemo(
+    () => [
+      {
+        key: 'test',
+        label: 'Test',
+        type: 'select',
+        options: tests.map((test) => ({
+          value: test.id,
+          label: test.name,
+          sublabel: test.flowConfig?.flowId,
+        })),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { value: 'pending', label: 'Pending' },
+          { value: 'running', label: 'Running' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'failed', label: 'Failed' },
+        ],
+      },
+    ],
+    [tests]
+  );
 
   const sortOptions: SortOption[] = [
     { value: 'createdAt', label: 'Date Created' },
@@ -369,11 +390,7 @@ export function ScheduledTestsPage() {
             <button className="modal-btn cancel" onClick={resetForm}>
               Cancel
             </button>
-            <button
-              className="modal-btn confirm"
-              onClick={() => handleSubmit()}
-              disabled={loading}
-            >
+            <button className="modal-btn confirm" onClick={() => handleSubmit()} disabled={loading}>
               {loading ? 'Saving...' : editingId ? 'Update' : 'Schedule'}
             </button>
           </>
@@ -402,7 +419,7 @@ export function ScheduledTestsPage() {
               options={tests.map((test) => ({
                 value: test.id,
                 label: test.name,
-                sublabel: test.flowId,
+                sublabel: test.flowConfig?.flowId,
               }))}
               placeholder="Search tests..."
               allOptionLabel="Select a test..."
@@ -505,7 +522,8 @@ export function ScheduledTestsPage() {
                 <div className={styles.scheduledInfo}>
                   <h3>{scheduled.name || 'Unnamed'}</h3>
                   <span className={styles.scheduledTestName}>
-                    <span className={styles.scheduledTestLabel}>Test:</span> {getTestName(scheduled.testId)}
+                    <span className={styles.scheduledTestLabel}>Test:</span>{' '}
+                    {getTestName(scheduled.testId)}
                   </span>
                 </div>
                 <div className={styles.scheduledBadges}>
@@ -523,7 +541,9 @@ export function ScheduledTestsPage() {
                 {scheduled.lastRunAt && (
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Last run:</span>
-                    <span className={styles.detailValue}>{new Date(scheduled.lastRunAt).toLocaleString()}</span>
+                    <span className={styles.detailValue}>
+                      {new Date(scheduled.lastRunAt).toLocaleString()}
+                    </span>
                   </div>
                 )}
                 {scheduled.errorMessage && (

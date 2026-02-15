@@ -72,6 +72,12 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
     loadFlowConfigs();
   }, [loadFlowConfigs]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Filter definitions (empty for flow configs - only search and sort)
   const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
 

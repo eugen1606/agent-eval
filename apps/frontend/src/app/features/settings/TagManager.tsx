@@ -73,6 +73,12 @@ export function TagManager({ onSelect, selectable }: Props) {
     loadTags();
   }, [loadTags]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Filter definitions (empty for tags - only search and sort)
   const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
 

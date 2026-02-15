@@ -181,6 +181,12 @@ export function TestsPage() {
     loadTests();
   }, [loadTests]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Filter definitions for FilterBar
   const filterDefinitions: FilterDefinition[] = useMemo(
     () => [

@@ -69,6 +69,12 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
     loadQuestionSets();
   }, [loadQuestionSets]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Filter definitions (empty for question sets - only search and sort)
   const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
 

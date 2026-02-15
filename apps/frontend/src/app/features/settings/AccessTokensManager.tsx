@@ -75,6 +75,12 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
     loadTokens();
   }, [loadTokens]);
 
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   // Filter definitions (empty for access tokens - only search and sort)
   const filterDefinitions: FilterDefinition[] = useMemo(() => [], []);
 
