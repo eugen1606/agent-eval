@@ -7,10 +7,7 @@ import {
   ScheduledTestsSortField,
   SortDirection,
 } from '@agent-eval/shared';
-import { Modal, ConfirmDialog } from '../../components/Modal';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
-import { Pagination } from '../../components/Pagination';
-import { SearchableSelect } from '../../components/SearchableSelect';
+import { Modal, ConfirmDialog, FilterBar, FilterDefinition, SortOption, ActiveFilter, Pagination, SearchableSelect } from '@agent-eval/ui';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';

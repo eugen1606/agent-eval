@@ -7,7 +7,7 @@ import {
   ConversationHumanEvaluation,
   ConversationStatus,
 } from '@agent-eval/shared';
-import { ConfirmDialog } from '../../components/Modal';
+import { ConfirmDialog } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import styles from './runs.module.scss';

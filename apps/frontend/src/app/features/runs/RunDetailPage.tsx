@@ -9,8 +9,7 @@ import {
   PerformanceStats,
   LLMJudgeStatusResponse,
 } from '@agent-eval/shared';
-import { Pagination } from '../../components/Pagination';
-import { ConfirmDialog, Modal } from '../../components/Modal';
+import { Pagination, ConfirmDialog, Modal } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, downloadAuthenticatedFile, generateExportFilename } from '../../shared/exportImportUtils';

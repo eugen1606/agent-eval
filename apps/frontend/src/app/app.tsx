@@ -10,27 +10,25 @@ import {
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
-import {
-  AccessTokensManager,
-  QuestionSetsManager,
-  FlowConfigsManager,
-  WebhooksManager,
-  TagManager,
-  EvaluatorsManager,
-  PersonasManager,
-  Dashboard,
-  Homepage,
-  LoginPage,
-  RegisterPage,
-  ProtectedRoute,
-  AccountPage,
-  ConfirmDialog,
-  TestsPage,
-  RunsPage,
-  RunDetailPage,
-  RunComparisonPage,
-  ScheduledTestsPage,
-} from './components';
+import { ConfirmDialog } from '@agent-eval/ui';
+import { LoginPage } from './features/auth/LoginPage';
+import { RegisterPage } from './features/auth/RegisterPage';
+import { AccountPage } from './features/auth/AccountPage';
+import { TestsPage } from './features/tests/TestsPage';
+import { RunsPage } from './features/runs/RunsPage';
+import { RunDetailPage } from './features/runs/RunDetailPage';
+import { RunComparisonPage } from './features/runs/RunComparisonPage';
+import { Dashboard } from './features/dashboard/Dashboard';
+import { Homepage } from './features/dashboard/Homepage';
+import { AccessTokensManager } from './features/settings/AccessTokensManager';
+import { QuestionSetsManager } from './features/settings/QuestionSetsManager';
+import { FlowConfigsManager } from './features/settings/FlowConfigsManager';
+import { WebhooksManager } from './features/settings/WebhooksManager';
+import { TagManager } from './features/settings/TagManager';
+import { EvaluatorsManager } from './features/settings/EvaluatorsManager';
+import { PersonasManager } from './features/settings/PersonasManager';
+import { ScheduledTestsPage } from './features/scheduled-tests/ScheduledTestsPage';
+import { ProtectedRoute } from './shared/ProtectedRoute';
 import './app.css';
 
 function SettingsPage() {

@@ -4,7 +4,7 @@ import {
   ConflictStrategy,
   ImportPreviewResult,
 } from '@agent-eval/shared';
-import { Modal } from '../components/Modal';
+import { Modal } from '@agent-eval/ui';
 import { apiClient } from '../apiClient';
 
 // Helper function to download an export bundle as JSON

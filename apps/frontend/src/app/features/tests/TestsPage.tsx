@@ -15,11 +15,7 @@ import {
   CreateScenarioRequest,
   CreateTestRequest,
 } from '@agent-eval/shared';
-import { Modal, ConfirmDialog } from '../../components/Modal';
-import { Pagination } from '../../components/Pagination';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
-import { SearchableSelect } from '../../components/SearchableSelect';
-import { NumericInput } from '@agent-eval/ui';
+import { Modal, ConfirmDialog, Pagination, FilterBar, FilterDefinition, SortOption, ActiveFilter, SearchableSelect, NumericInput } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import {

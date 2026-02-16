@@ -5,10 +5,8 @@ import {
   SortDirection,
   QuestionSetsSortField,
 } from '@agent-eval/shared';
-import { Modal, ConfirmDialog } from '../../components/Modal';
+import { Modal, ConfirmDialog, FilterBar, FilterDefinition, SortOption, ActiveFilter, Pagination } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
-import { Pagination } from '../../components/Pagination';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, generateExportFilename, ImportModal } from '../../shared/exportImportUtils';
 import { JsonEditor } from '../../components/JsonEditor';

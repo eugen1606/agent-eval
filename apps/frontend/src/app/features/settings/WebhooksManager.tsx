@@ -8,10 +8,8 @@ import {
   SortDirection,
   WebhooksSortField,
 } from '@agent-eval/shared';
-import { Modal, ConfirmDialog, AlertDialog } from '../../components/Modal';
+import { Modal, ConfirmDialog, AlertDialog, FilterBar, FilterDefinition, SortOption, ActiveFilter, Pagination } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
-import { Pagination } from '../../components/Pagination';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, generateExportFilename, ImportModal } from '../../shared/exportImportUtils';
 import styles from './settings.module.scss';

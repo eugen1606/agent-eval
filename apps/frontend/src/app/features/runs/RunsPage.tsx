@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StoredRun, RunStatus, StoredTest, RunsSortField, SortDirection } from '@agent-eval/shared';
-import { ConfirmDialog } from '../../components/Modal';
-import { Pagination } from '../../components/Pagination';
-import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
+import { ConfirmDialog, Pagination, FilterBar, FilterDefinition, SortOption, ActiveFilter } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import { downloadExportBundle, downloadAuthenticatedFile, generateExportFilename } from '../../shared/exportImportUtils';

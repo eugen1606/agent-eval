@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AccountStats } from '@agent-eval/shared';
 import { useAuth } from '../../context/AuthContext';
-import { ConfirmDialog } from '../../components/Modal';
+import { ConfirmDialog } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import styles from './account.module.scss';

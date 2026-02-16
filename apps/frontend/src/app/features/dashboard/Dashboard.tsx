@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StoredTest, StoredRun, StoredQuestionSet } from '@agent-eval/shared';
 import { useNavigate } from 'react-router-dom';
-import { Pagination } from '../../components/Pagination';
-import { SearchableSelect } from '@agent-eval/ui';
+import { Pagination, SearchableSelect } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { downloadAuthenticatedFile } from '../../shared/exportImportUtils';
 import { apiClient } from '../../apiClient';
