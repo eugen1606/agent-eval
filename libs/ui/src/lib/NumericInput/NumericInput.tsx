@@ -51,6 +51,10 @@ export function NumericInput({
         const v = e.target.value;
         if (v === '' || v === '-' || /^-?\d*$/.test(v)) {
           setDraft(v);
+          const num = parseFloat(v);
+          if (!isNaN(num)) {
+            onChange(num);
+          }
         }
       }}
       onBlur={(e) => {

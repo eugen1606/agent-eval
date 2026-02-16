@@ -62,6 +62,7 @@ export class TestsService {
       accessTokenId: dto.accessTokenId,
       questionSetId: dto.questionSetId,
       multiStepEvaluation: dto.multiStepEvaluation ?? false,
+      repeatCount: dto.repeatCount ?? 1,
       webhookId: dto.webhookId,
       evaluatorId: dto.evaluatorId,
       type: dto.type ?? 'qa',
@@ -217,6 +218,8 @@ export class TestsService {
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.multiStepEvaluation !== undefined)
       updateData.multiStepEvaluation = dto.multiStepEvaluation;
+    if (dto.repeatCount !== undefined)
+      updateData.repeatCount = dto.repeatCount;
 
     // For nullable FK fields: null from DTO means clear, valid UUID means set
     if (dto.flowConfigId !== undefined) {
