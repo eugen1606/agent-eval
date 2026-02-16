@@ -159,10 +159,15 @@ export function Pagination({
         <div className="go-to-page">
           <span>Go to page:</span>
           <input
-            type="number"
-            min={1}
+            type="text"
+            inputMode="numeric"
             value={goToPageInput}
-            onChange={(e) => setGoToPageInput(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '' || /^\d+$/.test(v)) {
+                setGoToPageInput(v);
+              }
+            }}
             onKeyDown={handleGoToPageKeyDown}
             placeholder={`1-${totalPages}`}
           />

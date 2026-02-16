@@ -19,3 +19,7 @@ export type {
 // SearchableSelect
 export { SearchableSelect } from './lib/SearchableSelect';
 export type { SearchableSelectProps, SearchableSelectOption } from './lib/SearchableSelect';
+
+// NumericInput
+export { NumericInput } from './lib/NumericInput';
+export type { NumericInputProps } from './lib/NumericInput';

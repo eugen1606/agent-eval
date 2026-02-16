@@ -19,6 +19,7 @@ import { Modal, ConfirmDialog } from '../../components/Modal';
 import { Pagination } from '../../components/Pagination';
 import { FilterBar, FilterDefinition, SortOption, ActiveFilter } from '../../components/FilterBar';
 import { SearchableSelect } from '../../components/SearchableSelect';
+import { NumericInput } from '@agent-eval/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { apiClient } from '../../apiClient';
 import {
@@ -930,14 +931,11 @@ export function TestsPage() {
               </div>
               <div className="form-group">
                 <label>Repeat Count</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
+                <NumericInput
+                  min={1}
+                  max={50}
                   value={formData.repeatCount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, repeatCount: Math.max(1, parseInt(e.target.value) || 1) })
-                  }
+                  onChange={(v) => setFormData({ ...formData, repeatCount: v })}
                 />
                 <span className="form-hint">
                   Number of times each question is asked (for consistency testing)
@@ -1057,14 +1055,11 @@ export function TestsPage() {
               )}
               <div className="form-group">
                 <label>Delay Between Turns (ms)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
+                <NumericInput
+                  min={0}
+                  step={100}
                   value={formData.delayBetweenTurns}
-                  onChange={(e) =>
-                    setFormData({ ...formData, delayBetweenTurns: parseInt(e.target.value) || 0 })
-                  }
+                  onChange={(v) => setFormData({ ...formData, delayBetweenTurns: v })}
                 />
               </div>
               <div className="form-group">
@@ -1098,17 +1093,16 @@ export function TestsPage() {
                     </div>
                     <div className="form-group">
                       <label>Max Tokens</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="16384"
+                      <NumericInput
+                        min={1}
+                        max={16384}
                         value={formData.simulatedUserModelConfig.maxTokens}
-                        onChange={(e) =>
+                        onChange={(v) =>
                           setFormData({
                             ...formData,
                             simulatedUserModelConfig: {
                               ...formData.simulatedUserModelConfig,
-                              maxTokens: parseInt(e.target.value) || 1024,
+                              maxTokens: v,
                             },
                           })
                         }
@@ -1318,14 +1312,11 @@ export function TestsPage() {
           </div>
           <div className="form-group">
             <label>Max Turns</label>
-            <input
-              type="number"
-              min="1"
-              max="100"
+            <NumericInput
+              min={1}
+              max={100}
               value={scenarioForm.maxTurns}
-              onChange={(e) =>
-                setScenarioForm({ ...scenarioForm, maxTurns: parseInt(e.target.value) || 30 })
-              }
+              onChange={(v) => setScenarioForm({ ...scenarioForm, maxTurns: v })}
             />
             <span className="form-hint">
               Maximum number of turns before stopping the conversation

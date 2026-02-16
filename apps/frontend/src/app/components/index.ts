@@ -7,6 +7,7 @@ export {
   usePagination,
   SearchableSelect,
   FilterBar,
+  NumericInput,
 } from '@agent-eval/ui';
 export type {
   FilterDefinition,
