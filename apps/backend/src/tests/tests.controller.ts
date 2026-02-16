@@ -535,6 +535,20 @@ export class TestsController {
           this.logger.error(`Auto-evaluation failed for result ${result.id}`, error);
         }
       }
+
+      // Auto-accept: convert AI scores to human evaluations
+      const evaluatedRun = await this.runsService.findOne(runId, userId);
+      const bulkUpdates = evaluatedRun.results
+        .filter((r) => !r.isError && r.llmJudgeScore !== undefined && r.llmJudgeScore !== null)
+        .map((r) => ({
+          resultId: r.id,
+          humanEvaluation: EvaluationService.scoreToEvaluation(r.llmJudgeScore) as 'correct' | 'partial' | 'incorrect',
+        }));
+
+      if (bulkUpdates.length > 0) {
+        await this.runsService.bulkUpdateResultEvaluations(runId, bulkUpdates, userId);
+        this.logger.log(`Auto-accepted ${bulkUpdates.length} AI evaluations for run ${runId}`);
+      }
     } finally {
       await this.runsService.completeEvaluation(runId, userId).catch((err) => {
         this.logger.error(`Failed to complete auto-evaluation for run ${runId}`, err);
