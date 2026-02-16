@@ -29,6 +29,7 @@ import { EvaluatorsManager } from './features/settings/EvaluatorsManager';
 import { PersonasManager } from './features/settings/PersonasManager';
 import { ScheduledTestsPage } from './features/scheduled-tests/ScheduledTestsPage';
 import { ProtectedRoute } from './shared/ProtectedRoute';
+import './styles/global.scss';
 import './app.css';
 
 function SettingsPage() {

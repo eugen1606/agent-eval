@@ -31,7 +31,7 @@
   --text-primary: #e4e4e7;
   --text-secondary: #d1d1d6;
   --text-tertiary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-muted: #d1d1d6;
   --border-color: #3f3f46;
   --border-light: #2d2d36;
   --accent-primary: #818cf8;
@@ -58,7 +58,9 @@ body {
   line-height: $line-height-base;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color $transition-slow, color $transition-slow;
+  transition:
+    background-color $transition-slow,
+    color $transition-slow;
 }
 
 // Links
