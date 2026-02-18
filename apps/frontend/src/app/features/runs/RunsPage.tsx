@@ -45,6 +45,7 @@ export function RunsPage() {
 
   // Track if there are running runs for auto-refresh
   const hasRunningRunsRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   // Load tests for the filter dropdown
   useEffect(() => {
@@ -59,6 +60,7 @@ export function RunsPage() {
 
   // Load runs with filters and pagination
   const loadRuns = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getRuns({
       page: currentPage,
@@ -67,9 +69,12 @@ export function RunsPage() {
       testId: filters.test || undefined,
       runId: filters.runId || undefined,
       status: (filters.status as RunStatus) || undefined,
+      maxAccuracy: filters.maxAccuracy ? parseInt(filters.maxAccuracy, 10) : undefined,
       sortBy,
       sortDirection,
     });
+
+    if (requestId !== requestIdRef.current) return; // Ignore stale responses
 
     if (response.success && response.data) {
       setRuns(response.data.data);
@@ -139,6 +144,17 @@ export function RunsPage() {
           { value: 'canceled', label: 'Canceled' },
         ],
       },
+      {
+        key: 'maxAccuracy',
+        label: 'Accuracy below',
+        type: 'select',
+        options: [
+          { value: '100', label: '< 100%' },
+          { value: '90', label: '< 90%' },
+          { value: '80', label: '< 80%' },
+          { value: '50', label: '< 50%' },
+        ],
+      },
     ],
     [tests]
   );
@@ -176,6 +192,14 @@ export function RunsPage() {
         value: filters.status,
         label: 'Status',
         displayValue: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
+      });
+    }
+    if (filters.maxAccuracy) {
+      result.push({
+        key: 'maxAccuracy',
+        value: filters.maxAccuracy,
+        label: 'Accuracy below',
+        displayValue: `< ${filters.maxAccuracy}%`,
       });
     }
     return result;

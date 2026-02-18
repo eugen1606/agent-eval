@@ -73,6 +73,7 @@ export class RunsController {
     @Query('testId') testId?: string,
     @Query('runId') runId?: string,
     @Query('questionSetId') questionSetId?: string,
+    @Query('maxAccuracy') maxAccuracy?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortDirection') sortDirection?: string,
     @CurrentUser() user?: { userId: string; email: string },
@@ -85,6 +86,7 @@ export class RunsController {
       testId,
       runId,
       questionSetId,
+      maxAccuracy: maxAccuracy ? parseInt(maxAccuracy, 10) : undefined,
       sortBy: sortBy as 'createdAt' | 'startedAt' | 'completedAt' | 'status' | undefined,
       sortDirection: sortDirection as 'asc' | 'desc' | undefined,
     });

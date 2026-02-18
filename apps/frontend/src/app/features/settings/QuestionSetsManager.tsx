@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredQuestionSet,
   StoredTest,
@@ -47,7 +47,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
   const [sortBy, setSortBy] = useState<QuestionSetsSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const qsRequestIdRef = useRef(0);
   const loadQuestionSets = useCallback(async () => {
+    const requestId = ++qsRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getQuestionSets({
       page: currentPage,
@@ -56,6 +58,7 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
       sortBy,
       sortDirection,
     });
+    if (requestId !== qsRequestIdRef.current) return;
     if (response.success && response.data) {
       setQuestionSets(response.data.data);
       setTotalItems(response.data.pagination.total);

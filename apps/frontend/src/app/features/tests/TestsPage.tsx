@@ -153,7 +153,9 @@ export function TestsPage() {
   }, []);
 
   // Load tests with filters and pagination
+  const testsRequestIdRef = useRef(0);
   const loadTests = useCallback(async () => {
+    const requestId = ++testsRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getTests({
       page: currentPage,
@@ -167,6 +169,8 @@ export function TestsPage() {
       sortBy,
       sortDirection,
     });
+
+    if (requestId !== testsRequestIdRef.current) return;
 
     if (response.success && response.data) {
       setTests(response.data.data);

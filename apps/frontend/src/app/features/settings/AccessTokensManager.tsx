@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredAccessToken,
   StoredTest,
@@ -52,7 +52,9 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
 
   const tokenLabel = formData.type === 'ai_studio' ? 'Bearer Token' : 'API Key';
 
+  const tokensRequestIdRef = useRef(0);
   const loadTokens = useCallback(async () => {
+    const requestId = ++tokensRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getAccessTokens({
       page: currentPage,
@@ -61,6 +63,7 @@ export function AccessTokensManager({ onSelect, selectable }: Props) {
       sortBy,
       sortDirection,
     });
+    if (requestId !== tokensRequestIdRef.current) return;
     if (response.success && response.data) {
       setTokens(response.data.data);
       setTotalItems(response.data.pagination.total);

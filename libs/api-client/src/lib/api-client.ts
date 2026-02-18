@@ -819,6 +819,8 @@ export class AgentEvalClient {
     if (filters?.runId) params.append('runId', filters.runId);
     if (filters?.questionSetId)
       params.append('questionSetId', filters.questionSetId);
+    if (filters?.maxAccuracy !== undefined)
+      params.append('maxAccuracy', filters.maxAccuracy.toString());
     if (filters?.sortBy) params.append('sortBy', filters.sortBy);
     if (filters?.sortDirection)
       params.append('sortDirection', filters.sortDirection);

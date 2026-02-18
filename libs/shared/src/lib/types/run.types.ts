@@ -106,6 +106,7 @@ export interface RunsFilterParams extends PaginationParams {
   testId?: string;
   runId?: string;
   questionSetId?: string;
+  maxAccuracy?: number;
   sortBy?: RunsSortField;
   sortDirection?: SortDirection;
 }

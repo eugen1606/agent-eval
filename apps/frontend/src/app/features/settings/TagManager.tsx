@@ -50,7 +50,9 @@ export function TagManager({ onSelect, selectable }: Props) {
     setFormSubmitAttempted(false);
   };
 
+  const tagsRequestIdRef = useRef(0);
   const loadTags = useCallback(async () => {
+    const requestId = ++tagsRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getTags({
       page: currentPage,
@@ -59,6 +61,7 @@ export function TagManager({ onSelect, selectable }: Props) {
       sortBy,
       sortDirection,
     });
+    if (requestId !== tagsRequestIdRef.current) return;
     if (response.success && response.data) {
       setTags(response.data.data);
       setTotalItems(response.data.pagination.total);

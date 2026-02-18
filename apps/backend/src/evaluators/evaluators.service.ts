@@ -92,14 +92,13 @@ export class EvaluatorsService {
       );
     }
 
-    const total = await queryBuilder.getCount();
-
     const sortField = filters.sortBy || 'createdAt';
     const sortDirection =
       (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
     queryBuilder.orderBy(`evaluator.${sortField}`, sortDirection);
 
-    const evaluators = await queryBuilder.skip(skip).take(limit).getMany();
+    // Get total count and paginated data in one call
+    const [evaluators, total] = await queryBuilder.skip(skip).take(limit).getManyAndCount();
 
     return {
       data: evaluators.map((e) => this.toResponse(e, e.accessToken?.name)),

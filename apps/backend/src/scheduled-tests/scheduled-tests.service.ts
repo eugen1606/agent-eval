@@ -121,19 +121,16 @@ export class ScheduledTestsService {
       );
     }
 
-    // Get total count before pagination
-    const total = await queryBuilder.getCount();
-
     // Apply sorting
     const sortField = filters.sortBy || 'createdAt';
     const sortDirection = (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
     queryBuilder.orderBy(`scheduled.${sortField}`, sortDirection);
 
-    // Apply pagination
-    const data = await queryBuilder
+    // Get total count and paginated data in one call
+    const [data, total] = await queryBuilder
       .skip(skip)
       .take(limit)
-      .getMany();
+      .getManyAndCount();
 
     return {
       data,

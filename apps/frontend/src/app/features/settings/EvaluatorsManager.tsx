@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredEvaluator,
   StoredAccessToken,
@@ -75,7 +75,9 @@ export function EvaluatorsManager() {
     setFormSubmitAttempted(false);
   };
 
+  const evalRequestIdRef = useRef(0);
   const loadEvaluators = useCallback(async () => {
+    const requestId = ++evalRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getEvaluators({
       page: currentPage,
@@ -84,6 +86,7 @@ export function EvaluatorsManager() {
       sortBy,
       sortDirection,
     });
+    if (requestId !== evalRequestIdRef.current) return;
     if (response.success && response.data) {
       setEvaluators(response.data.data);
       setTotalItems(response.data.pagination.total);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredFlowConfig,
   SortDirection,
@@ -44,7 +44,9 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
   const [sortBy, setSortBy] = useState<FlowConfigsSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const fcRequestIdRef = useRef(0);
   const loadFlowConfigs = useCallback(async () => {
+    const requestId = ++fcRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getFlowConfigs({
       page: currentPage,
@@ -53,6 +55,7 @@ export function FlowConfigsManager({ onSelect, selectable }: Props) {
       sortBy,
       sortDirection,
     });
+    if (requestId !== fcRequestIdRef.current) return;
     if (response.success && response.data) {
       setFlowConfigs(response.data.data);
       setTotalItems(response.data.pagination.total);

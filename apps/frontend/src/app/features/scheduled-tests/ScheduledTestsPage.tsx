@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredScheduledTest,
   StoredTest,
@@ -64,7 +64,9 @@ export function ScheduledTestsPage() {
   const [sortBy, setSortBy] = useState<ScheduledTestsSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const dataRequestIdRef = useRef(0);
   const loadData = useCallback(async () => {
+    const requestId = ++dataRequestIdRef.current;
     setIsLoading(true);
     const [scheduledRes, testsRes] = await Promise.all([
       apiClient.getScheduledTests({
@@ -78,6 +80,8 @@ export function ScheduledTestsPage() {
       }),
       apiClient.getTests({ limit: 100 }),
     ]);
+
+    if (requestId !== dataRequestIdRef.current) return;
 
     if (scheduledRes.success && scheduledRes.data) {
       setScheduledTests(scheduledRes.data.data);

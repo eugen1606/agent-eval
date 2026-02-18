@@ -68,17 +68,14 @@ export class QuestionsService {
       );
     }
 
-    // Get total count before pagination
-    const total = await queryBuilder.getCount();
-
     // Apply sorting
     const sortField = filters.sortBy || 'createdAt';
     const sortDirection =
       (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
     queryBuilder.orderBy(`questionSet.${sortField}`, sortDirection);
 
-    // Apply pagination
-    const data = await queryBuilder.skip(skip).take(limit).getMany();
+    // Get total count and paginated data in one call
+    const [data, total] = await queryBuilder.skip(skip).take(limit).getManyAndCount();
 
     return {
       data,

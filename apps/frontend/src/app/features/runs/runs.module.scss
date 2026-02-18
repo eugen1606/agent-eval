@@ -632,6 +632,8 @@
 .resultAnswer,
 .resultExpected {
   margin-bottom: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 
   strong {
     color: var(--text-secondary);

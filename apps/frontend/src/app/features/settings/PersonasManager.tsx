@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredPersona,
   SortDirection,
@@ -47,7 +47,9 @@ export function PersonasManager() {
     setFormSubmitAttempted(false);
   };
 
+  const personasRequestIdRef = useRef(0);
   const loadPersonas = useCallback(async () => {
+    const requestId = ++personasRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getPersonas({
       page: currentPage,
@@ -56,6 +58,7 @@ export function PersonasManager() {
       sortBy,
       sortDirection,
     });
+    if (requestId !== personasRequestIdRef.current) return;
     if (response.success && response.data) {
       setPersonas(response.data.data);
       setTotalItems(response.data.pagination.total);

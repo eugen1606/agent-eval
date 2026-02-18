@@ -74,8 +74,6 @@ export class PersonasService {
       );
     }
 
-    const total = await queryBuilder.getCount();
-
     const sortField = filters.sortBy || 'createdAt';
     const sortDirection =
       (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
@@ -85,7 +83,8 @@ export class PersonasService {
       .orderBy('persona.isTemplate', 'DESC')
       .addOrderBy(`persona.${sortField}`, sortDirection);
 
-    const data = await queryBuilder.skip(skip).take(limit).getMany();
+    // Get total count and paginated data in one call
+    const [data, total] = await queryBuilder.skip(skip).take(limit).getManyAndCount();
 
     return {
       data,

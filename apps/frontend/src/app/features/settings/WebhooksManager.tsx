@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   StoredWebhook,
   StoredTest,
@@ -224,7 +224,9 @@ export function WebhooksManager() {
   const [sortBy, setSortBy] = useState<WebhooksSortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const webhooksRequestIdRef = useRef(0);
   const loadWebhooks = useCallback(async () => {
+    const requestId = ++webhooksRequestIdRef.current;
     setIsLoading(true);
     const response = await apiClient.getWebhooks({
       page: currentPage,
@@ -235,6 +237,7 @@ export function WebhooksManager() {
       sortBy,
       sortDirection,
     });
+    if (requestId !== webhooksRequestIdRef.current) return;
     if (response.success && response.data) {
       setWebhooks(response.data.data);
       setTotalItems(response.data.pagination.total);

@@ -45,6 +45,7 @@ export interface RunsFilterDto {
   testId?: string;
   runId?: string;
   questionSetId?: string;
+  maxAccuracy?: number;
   sortBy?: RunsSortField;
   sortDirection?: SortDirection;
 }
@@ -125,19 +126,33 @@ export class RunsService {
       });
     }
 
-    // Get total count before pagination
-    const total = await queryBuilder.getCount();
+    // Apply maxAccuracy filter (show runs with accuracy < maxAccuracy)
+    if (filters.maxAccuracy !== undefined) {
+      queryBuilder.andWhere('run.status = :completedStatus', { completedStatus: 'completed' });
+      queryBuilder.andWhere(`(
+        SELECT ROUND(
+          (
+            COUNT(*) FILTER (WHERE elem->>'humanEvaluation' = 'correct')
+            + COUNT(*) FILTER (WHERE elem->>'humanEvaluation' = 'partial') * 0.5
+          ) * 100.0
+          / NULLIF(COUNT(*) FILTER (WHERE (elem->>'isError')::boolean IS NOT TRUE AND elem->>'humanEvaluation' IS NOT NULL), 0)
+        )
+        FROM jsonb_array_elements(run.results) AS elem
+        WHERE (elem->>'isError')::boolean IS NOT TRUE
+          AND elem->>'humanEvaluation' IS NOT NULL
+      ) < :maxAccuracy`, { maxAccuracy: filters.maxAccuracy });
+    }
 
     // Apply sorting
     const sortField = filters.sortBy || 'createdAt';
     const sortDirection = (filters.sortDirection?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
     queryBuilder.orderBy(`run.${sortField}`, sortDirection);
 
-    // Apply pagination
-    const data = await queryBuilder
+    // Get total count and paginated data in one call
+    const [data, total] = await queryBuilder
       .skip(skip)
       .take(limit)
-      .getMany();
+      .getManyAndCount();
 
     return {
       data,
