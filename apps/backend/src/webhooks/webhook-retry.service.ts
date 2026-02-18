@@ -34,8 +34,7 @@ export class WebhookRetryService implements OnModuleDestroy {
   private readonly DELIVERY_PREFIX = 'webhook:delivery:';
 
   constructor(private readonly configService: ConfigService) {
-    const redisUrl =
-      this.configService.get<string>('REDIS_URL') || 'redis://localhost:6380';
+    const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
     this.maxRetries = this.configService.get<number>('WEBHOOK_MAX_RETRIES', 3);
 
     this.redis = new Redis(redisUrl, {
@@ -43,9 +42,7 @@ export class WebhookRetryService implements OnModuleDestroy {
       enableReadyCheck: true,
       retryStrategy: (times) => {
         if (times > 3) {
-          this.logger.warn(
-            'Redis connection failed after 3 retries, webhook retries disabled',
-          );
+          this.logger.warn('Redis connection failed after 3 retries, webhook retries disabled');
           return null;
         }
         return Math.min(times * 100, 1000);
@@ -93,7 +90,7 @@ export class WebhookRetryService implements OnModuleDestroy {
     resolvedUrl: string,
     resolvedHeaders: Record<string, string>,
     resolvedBody: Record<string, unknown>,
-    error: string,
+    error: string
   ): Promise<void> {
     if (!this.isConnected) {
       this.logger.warn('Redis not connected, cannot queue webhook for retry');
@@ -127,18 +124,14 @@ export class WebhookRetryService implements OnModuleDestroy {
         `${this.DELIVERY_PREFIX}${deliveryId}`,
         JSON.stringify(delivery),
         'EX',
-        86400 * 7, // 7 days TTL
+        86400 * 7 // 7 days TTL
       );
 
       // Add to sorted set (score = nextRetryAt)
-      await this.redis.zadd(
-        this.RETRY_QUEUE_KEY,
-        delivery.nextRetryAt,
-        deliveryId,
-      );
+      await this.redis.zadd(this.RETRY_QUEUE_KEY, delivery.nextRetryAt, deliveryId);
 
       this.logger.log(
-        `Queued webhook ${webhook.id} for retry (delivery ${deliveryId}), next attempt in ${Math.round(backoff / 1000)}s`,
+        `Queued webhook ${webhook.id} for retry (delivery ${deliveryId}), next attempt in ${Math.round(backoff / 1000)}s`
       );
     } catch (err) {
       this.logger.error(`Failed to queue webhook for retry: ${err}`);
@@ -164,7 +157,7 @@ export class WebhookRetryService implements OnModuleDestroy {
         now,
         'LIMIT',
         0,
-        10, // Process up to 10 at a time
+        10 // Process up to 10 at a time
       );
 
       for (const deliveryId of deliveryIds) {
@@ -188,7 +181,7 @@ export class WebhookRetryService implements OnModuleDestroy {
       const delivery: WebhookDelivery = JSON.parse(data);
 
       this.logger.log(
-        `Retrying webhook delivery ${deliveryId} (attempt ${delivery.attempt}/${delivery.maxRetries})`,
+        `Retrying webhook delivery ${deliveryId} (attempt ${delivery.attempt}/${delivery.maxRetries})`
       );
 
       // Attempt delivery
@@ -202,7 +195,7 @@ export class WebhookRetryService implements OnModuleDestroy {
         // Max retries reached - give up
         await this.removeDelivery(deliveryId);
         this.logger.error(
-          `Webhook delivery ${deliveryId} failed after ${delivery.maxRetries} attempts, giving up`,
+          `Webhook delivery ${deliveryId} failed after ${delivery.maxRetries} attempts, giving up`
         );
       } else {
         // Schedule next retry
@@ -218,14 +211,14 @@ export class WebhookRetryService implements OnModuleDestroy {
           `${this.DELIVERY_PREFIX}${deliveryId}`,
           JSON.stringify(delivery),
           'EX',
-          86400 * 7,
+          86400 * 7
         );
 
         // Update score in queue
         await this.redis.zadd(this.RETRY_QUEUE_KEY, nextRetryAt, deliveryId);
 
         this.logger.log(
-          `Webhook delivery ${deliveryId} scheduled for retry ${nextAttempt}/${delivery.maxRetries} in ${Math.round(backoff / 1000)}s`,
+          `Webhook delivery ${deliveryId} scheduled for retry ${nextAttempt}/${delivery.maxRetries} in ${Math.round(backoff / 1000)}s`
         );
       }
     } catch (err) {
@@ -292,11 +285,7 @@ export class WebhookRetryService implements OnModuleDestroy {
       return [];
     }
 
-    const deliveryIds = await this.redis.zrange(
-      this.RETRY_QUEUE_KEY,
-      0,
-      -1,
-    );
+    const deliveryIds = await this.redis.zrange(this.RETRY_QUEUE_KEY, 0, -1);
 
     const deliveries: WebhookDelivery[] = [];
     for (const id of deliveryIds) {

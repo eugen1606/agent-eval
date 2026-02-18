@@ -17,7 +17,7 @@ export class ThrottlerStorageRedisService implements ThrottlerStorage, OnModuleD
   private isConnected = false;
 
   constructor(private readonly configService: ConfigService) {
-    const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6380';
+    const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
     this.logger.log(`Connecting to Redis at ${redisUrl}`);
 
     this.redis = new Redis(redisUrl, {
@@ -110,7 +110,7 @@ export class ThrottlerStorageRedisService implements ThrottlerStorage, OnModuleD
     ttl: number,
     limit: number,
     blockDuration: number,
-    throttlerName: string,
+    throttlerName: string
   ): Promise<ThrottlerStorageRecord> {
     // If Redis is not connected, allow the request (fail open)
     if (!this.isConnected) {

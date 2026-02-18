@@ -28,17 +28,23 @@ RUN addgroup -g 1001 -S nginx-user && \
 # Copy built application
 COPY --from=builder /app/dist/apps/frontend /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration as template (envsubst runs at startup)
+COPY apps/frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
 # Create necessary directories and set permissions
-RUN mkdir -p /var/cache/nginx /var/run/nginx /var/log/nginx && \
-    chown -R nginx-user:nginx-user /var/cache/nginx /var/run/nginx /var/log/nginx /usr/share/nginx/html && \
+RUN mkdir -p /var/cache/nginx /var/run/nginx /var/log/nginx /etc/nginx/conf.d && \
+    chown -R nginx-user:nginx-user /var/cache/nginx /var/run/nginx /var/log/nginx /usr/share/nginx/html /etc/nginx/conf.d && \
     chmod -R 755 /var/cache/nginx /var/run/nginx
 
-# Update nginx.conf to run as non-root (change port 80 to 8080)
-RUN sed -i 's/listen\s*80;/listen 8080;/g' /etc/nginx/conf.d/default.conf && \
-    sed -i 's/listen\s*\[::\]:80;/listen [::]:8080;/g' /etc/nginx/conf.d/default.conf
+# Update template to run as non-root (change port 80 to 8080)
+RUN sed -i 's/listen\s*80;/listen 8080;/g' /etc/nginx/templates/default.conf.template && \
+    sed -i 's/listen\s*\[::\]:80;/listen [::]:8080;/g' /etc/nginx/templates/default.conf.template
+
+# Default backend port
+ENV BACKEND_PORT=3000
+# Only substitute BACKEND_PORT (don't touch other nginx variables like $uri)
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
+ENV NGINX_ENVSUBST_FILTER=BACKEND_PORT
 
 # Switch to non-root user
 USER nginx-user
