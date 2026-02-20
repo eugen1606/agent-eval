@@ -3,6 +3,9 @@
 # compiled output
 dist
 tmp
+
+# Docker image exports
+docker-images
 out-tsc
 
 # dependencies

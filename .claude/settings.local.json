@@ -20,18 +20,5 @@
       "Bash(docker exec:*)",
       "mcp__ide__getDiagnostics"
     ]
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell -NoProfile -Command \"\n  cd (git rev-parse --show-toplevel)\n  npx --no-install prettier --config .prettierrc --write \\\"**/*.{ts,tsx,js,json,md,css,scss,html,yml,yaml}\\\"\n\""
-          }
-        ]
-      }
-    ]
   }
 }
