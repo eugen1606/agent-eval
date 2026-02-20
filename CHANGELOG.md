@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0](https://github.com/eugen1606/agent-eval/compare/v2.0.0...v2.1.0) (2026-02-20)
+
+
+### Features
+
+* add HTTPS proxy support for outbound API calls ([c09edfa](https://github.com/eugen1606/agent-eval/commit/c09edfa86afdc0140e74325d8cffbed7a10cabb0))
+* add option to send inputVariables to flow and read response from output variables ([42cf4b6](https://github.com/eugen1606/agent-eval/commit/42cf4b62d54747db542d10eb1d4f9fe38a2c7903))
+* auto-accept ai evaluations after auto evaluations ([bff073b](https://github.com/eugen1606/agent-eval/commit/bff073bdaa5b68bfc94e2f1d8d73521c0db92563))
+
+
+### Bug Fixes
+
+* enhance ProxyFetchService logging ([1e12a25](https://github.com/eugen1606/agent-eval/commit/1e12a25f054517c628e453d476d49eca8a859701))
+* filterbar always showing total number of items ([5432aa9](https://github.com/eugen1606/agent-eval/commit/5432aa94fbf1cabd5b39c629257fb53744a2fa51))
+* lighten muted text in dark mode, deduplicate theme variables ([504e239](https://github.com/eugen1606/agent-eval/commit/504e2399f89f2ce9d6822106c33e0d83d5ad2e26))
+* remove static port from nginx.conf ([cf4d776](https://github.com/eugen1606/agent-eval/commit/cf4d776df08770a228024fb0c9dc85009ee2f702))
+* repeatCount not propagating to backend ([67667ea](https://github.com/eugen1606/agent-eval/commit/67667ea36e4385708bd3dfada7b981d8fb4ba343))
+* update backend connection configuration in Docker and nginx setup ([3dc1bed](https://github.com/eugen1606/agent-eval/commit/3dc1bede841961c9f61ff4b5837a4186f900015e))
+
+
+### Miscellaneous
+
+* add local image build script ([0f8862a](https://github.com/eugen1606/agent-eval/commit/0f8862a0f01e68886be05f76c61ca6a983ae0455))
+
 ## [2.0.0](https://github.com/eugen1606/agent-eval/compare/v1.1.0...v2.0.0) (2026-02-16)
 
 
