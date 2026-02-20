@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 **BenchMark** (Agent Eval) is an AI flow evaluation application for testing and benchmarking AI agent flows. It allows users to:
+
 - Create reusable test configurations (flow + questions + settings)
 - Execute tests to generate runs with streaming results
 - Evaluate run results manually or via LLM-as-judge
@@ -118,35 +119,35 @@ libs/
 
 ### Backend Modules
 
-| Module | Endpoint | Description |
-|--------|----------|-------------|
-| `health` | `/api/health/*` | Health checks (live, ready) |
-| `auth` | `/api/auth/*` | JWT authentication (login, register, refresh, account) |
-| `tests` | `/api/tests` | Test configuration CRUD + run execution (SSE) |
-| `runs` | `/api/runs` | Run management, result evaluations, stats |
-| `flow` | `/api/flow/*` | Execute AI flows (supports SSE streaming) |
-| `evaluation` | `/api/evaluate/*` | LLM-as-judge evaluation (on hold) |
-| `access-tokens` | `/api/access-tokens` | Encrypted token storage |
-| `questions` | `/api/questions` | Question set management |
-| `flow-configs` | `/api/flow-configs` | Saved flow configurations |
-| `webhooks` | `/api/webhooks` | Webhook management with dynamic variables |
-| `tags` | `/api/tags` | Tag management for tests |
-| `scheduled-tests` | `/api/scheduled-tests` | Scheduled test execution (one-time and cron) |
-| `export` | `/api/export` | Export/import of tests and configurations |
+| Module            | Endpoint               | Description                                            |
+| ----------------- | ---------------------- | ------------------------------------------------------ |
+| `health`          | `/api/health/*`        | Health checks (live, ready)                            |
+| `auth`            | `/api/auth/*`          | JWT authentication (login, register, refresh, account) |
+| `tests`           | `/api/tests`           | Test configuration CRUD + run execution (SSE)          |
+| `runs`            | `/api/runs`            | Run management, result evaluations, stats              |
+| `flow`            | `/api/flow/*`          | Execute AI flows (supports SSE streaming)              |
+| `evaluation`      | `/api/evaluate/*`      | LLM-as-judge evaluation (on hold)                      |
+| `access-tokens`   | `/api/access-tokens`   | Encrypted token storage                                |
+| `questions`       | `/api/questions`       | Question set management                                |
+| `flow-configs`    | `/api/flow-configs`    | Saved flow configurations                              |
+| `webhooks`        | `/api/webhooks`        | Webhook management with dynamic variables              |
+| `tags`            | `/api/tags`            | Tag management for tests                               |
+| `scheduled-tests` | `/api/scheduled-tests` | Scheduled test execution (one-time and cron)           |
+| `export`          | `/api/export`          | Export/import of tests and configurations              |
 
 ### Database Entities
 
-| Entity | Description |
-|--------|-------------|
-| `User` | Multi-user authentication |
-| `Test` | Reusable test configuration (flowId, basePath, questionSetId, accessTokenId) |
-| `Run` | Execution instance with results, status, timestamps |
-| `AccessToken` | Encrypted tokens (AES-256-GCM) |
-| `QuestionSet` | Reusable question collections |
-| `FlowConfig` | Saved flow configurations |
-| `Webhook` | Webhook configurations with HTTP method, headers, query params, body template |
-| `Tag` | Tag labels for organizing tests |
-| `ScheduledTest` | Scheduled test execution configurations |
+| Entity          | Description                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| `User`          | Multi-user authentication                                                     |
+| `Test`          | Reusable test configuration (flowId, basePath, questionSetId, accessTokenId)  |
+| `Run`           | Execution instance with results, status, timestamps                           |
+| `AccessToken`   | Encrypted tokens (AES-256-GCM)                                                |
+| `QuestionSet`   | Reusable question collections                                                 |
+| `FlowConfig`    | Saved flow configurations                                                     |
+| `Webhook`       | Webhook configurations with HTTP method, headers, query params, body template |
+| `Tag`           | Tag labels for organizing tests                                               |
+| `ScheduledTest` | Scheduled test execution configurations                                       |
 
 ### Key Types (libs/shared)
 
@@ -183,16 +184,16 @@ StoredWebhook {
 
 ### Frontend Pages
 
-| Route | Component | Description |
-|-------|-----------|-------------|
-| `/` | Homepage | Welcome + quick actions |
-| `/tests` | TestsPage | Create and manage test configurations |
-| `/runs` | RunsPage | View runs, execute tests with live progress |
-| `/runs/:id` | RunDetailPage | Evaluate run results with bulk actions |
-| `/dashboard` | Dashboard | Test Analytics |
-| `/settings` | SettingsPage | Manage tokens, questions, configs |
-| `/account` | AccountPage | User profile, stats, password change |
-| `/login` | LoginPage | Authentication |
+| Route        | Component     | Description                                 |
+| ------------ | ------------- | ------------------------------------------- |
+| `/`          | Homepage      | Welcome + quick actions                     |
+| `/tests`     | TestsPage     | Create and manage test configurations       |
+| `/runs`      | RunsPage      | View runs, execute tests with live progress |
+| `/runs/:id`  | RunDetailPage | Evaluate run results with bulk actions      |
+| `/dashboard` | Dashboard     | Test Analytics                              |
+| `/settings`  | SettingsPage  | Manage tokens, questions, configs           |
+| `/account`   | AccountPage   | User profile, stats, password change        |
+| `/login`     | LoginPage     | Authentication                              |
 
 ### Key Features
 
@@ -222,7 +223,7 @@ ADMIN_EMAIL=admin@benchmark.local
 ADMIN_PASSWORD=admin123
 
 # Redis (for rate limiting)
-REDIS_URL=redis://localhost:6380
+REDIS_URL=redis://localhost:6379
 THROTTLE_LIMIT=100        # Max requests per time window (default: 100)
 THROTTLE_TTL=60000        # Time window in ms (default: 60000 = 1 minute)
 THROTTLE_DISABLED=false   # Set to 'true' to disable rate limiting (auto-disabled in test env)
@@ -234,10 +235,12 @@ LOG_LEVEL=info  # error, warn, info, debug, verbose
 ## Common Issues
 
 ### "Unsupported state or unable to authenticate data"
+
 - ENCRYPTION_KEY must be exactly 64 characters
 - Delete old tokens: `docker exec agent-eval-db psql -U agent_eval -d agent_eval -c "DELETE FROM access_tokens;"`
 
 ### Data not assigned to user
+
 - Run migration on backend startup (automatic)
 - Check `ADMIN_EMAIL` in .env matches expected user
 
@@ -267,18 +270,18 @@ describe('Feature Name', () => {
 
 ### Existing Test Files
 
-| File | Coverage |
-|------|----------|
-| `health.spec.ts` | Health check endpoints |
-| `auth.spec.ts` | Authentication, password change, account deletion |
-| `tests.spec.ts` | Tests CRUD operations |
-| `runs.spec.ts` | Runs CRUD, result evaluations, bulk updates, stats |
-| `questions.spec.ts` | Question sets CRUD |
-| `flow-configs.spec.ts` | Flow configurations CRUD |
-| `access-tokens.spec.ts` | Access tokens CRUD |
-| `data-isolation.spec.ts` | Multi-user data isolation |
-| `throttling.spec.ts` | Rate limiting |
-| `webhooks.spec.ts` | Webhooks CRUD, validation, variables endpoint |
+| File                     | Coverage                                           |
+| ------------------------ | -------------------------------------------------- |
+| `health.spec.ts`         | Health check endpoints                             |
+| `auth.spec.ts`           | Authentication, password change, account deletion  |
+| `tests.spec.ts`          | Tests CRUD operations                              |
+| `runs.spec.ts`           | Runs CRUD, result evaluations, bulk updates, stats |
+| `questions.spec.ts`      | Question sets CRUD                                 |
+| `flow-configs.spec.ts`   | Flow configurations CRUD                           |
+| `access-tokens.spec.ts`  | Access tokens CRUD                                 |
+| `data-isolation.spec.ts` | Multi-user data isolation                          |
+| `throttling.spec.ts`     | Rate limiting                                      |
+| `webhooks.spec.ts`       | Webhooks CRUD, validation, variables endpoint      |
 
 ## Git Conventions
 
@@ -288,6 +291,7 @@ describe('Feature Name', () => {
 ## File Locations
 
 ### Backend
+
 - Tests module: `apps/backend/src/tests/`
 - Runs module: `apps/backend/src/runs/`
 - Test entity: `apps/backend/src/database/entities/test.entity.ts`
@@ -302,6 +306,7 @@ describe('Feature Name', () => {
 - Migration CLI config: `apps/backend/src/database/data-source.ts`
 
 ### Frontend
+
 - Tests page: `apps/frontend/src/app/features/tests/TestsPage.tsx`
 - Runs page: `apps/frontend/src/app/features/runs/RunsPage.tsx`
 - Run detail page: `apps/frontend/src/app/features/runs/RunDetailPage.tsx`
@@ -313,6 +318,7 @@ describe('Feature Name', () => {
 - App context: `apps/frontend/src/app/context/AppContext.tsx`
 
 ### Shared
+
 - API client: `libs/api-client/src/lib/api-client.ts`
 - Shared types: `libs/shared/src/lib/types.ts`
 - E2E tests: `apps/backend-e2e/src/`

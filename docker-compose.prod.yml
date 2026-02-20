@@ -109,6 +109,9 @@ services:
     container_name: agent-eval-frontend
     ports:
       - "80:8080"  # Map host port 80 to container port 8080 (non-root nginx)
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-backend}
+      BACKEND_PORT: ${BACKEND_PORT:-3000}
     depends_on:
       - backend
     networks:
@@ -126,9 +129,10 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp
-      - /var/cache/nginx
-      - /var/run/nginx
+      - /tmp:uid=1001,gid=1001
+      - /run:uid=1001,gid=1001
+      - /var/cache/nginx:uid=1001,gid=1001
+      - /var/run/nginx:uid=1001,gid=1001
     cap_drop:
       - ALL
 

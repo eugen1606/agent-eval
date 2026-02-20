@@ -40,11 +40,12 @@ RUN mkdir -p /var/cache/nginx /var/run/nginx /var/log/nginx /etc/nginx/conf.d &&
 RUN sed -i 's/listen\s*80;/listen 8080;/g' /etc/nginx/templates/default.conf.template && \
     sed -i 's/listen\s*\[::\]:80;/listen [::]:8080;/g' /etc/nginx/templates/default.conf.template
 
-# Default backend port
+# Default backend connection
+ENV BACKEND_HOST=backend
 ENV BACKEND_PORT=3000
-# Only substitute BACKEND_PORT (don't touch other nginx variables like $uri)
+# Only substitute these vars (don't touch other nginx variables like $uri)
 ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
-ENV NGINX_ENVSUBST_FILTER=BACKEND_PORT
+ENV NGINX_ENVSUBST_FILTER=BACKEND
 
 # Switch to non-root user
 USER nginx-user
