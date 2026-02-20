@@ -38,6 +38,7 @@ export interface StoredTest {
   simulatedUserAccessTokenId?: string;
   simulatedUserReasoningModel?: boolean;
   simulatedUserReasoningEffort?: string;
+  responseVariableKey?: string;
   scenarios?: StoredScenario[];
   createdAt: string;
   updatedAt: string;
@@ -62,6 +63,7 @@ export interface CreateTestRequest {
   simulatedUserAccessTokenId?: string | null;
   simulatedUserReasoningModel?: boolean;
   simulatedUserReasoningEffort?: string;
+  responseVariableKey?: string;
   scenarios?: CreateScenarioRequest[];
 }
 

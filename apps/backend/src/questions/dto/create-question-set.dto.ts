@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsArray,
+  IsObject,
   ValidateNested,
   MaxLength,
   MinLength,
@@ -20,6 +21,10 @@ export class QuestionItemDto {
   @IsString()
   @MaxLength(MAX_LENGTHS.ANSWER)
   expectedAnswer?: string;
+
+  @IsOptional()
+  @IsObject()
+  inputVariables?: Record<string, unknown>;
 }
 
 export class CreateQuestionSetDto {

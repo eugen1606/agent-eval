@@ -73,6 +73,7 @@ export class TestsService {
       simulatedUserAccessTokenId: dto.simulatedUserAccessTokenId,
       simulatedUserReasoningModel: dto.simulatedUserReasoningModel ?? false,
       simulatedUserReasoningEffort: dto.simulatedUserReasoningEffort,
+      responseVariableKey: dto.responseVariableKey,
       userId,
       tags,
     });
@@ -261,6 +262,10 @@ export class TestsService {
     }
     if (dto.simulatedUserReasoningEffort !== undefined) {
       updateData.simulatedUserReasoningEffort = dto.simulatedUserReasoningEffort;
+    }
+    if (dto.responseVariableKey !== undefined) {
+      updateData.responseVariableKey =
+        dto.responseVariableKey || (null as unknown as string);
     }
 
     await this.testRepository.update({ id, userId }, updateData);

@@ -100,6 +100,42 @@ describe('Question Sets CRUD', () => {
     });
   });
 
+  describe('inputVariables support', () => {
+    it('should create a question set with inputVariables', async () => {
+      const data = await createQuestionSet(accessToken, {
+        name: 'With Input Variables',
+        questions: [
+          { question: 'Greet the user', inputVariables: { lang: 'en', user: { name: 'Alice' } } },
+          { question: 'What is 2+2?', expectedAnswer: '4' },
+        ],
+      });
+
+      expect(data.name).toBe('With Input Variables');
+      expect(data.questions).toHaveLength(2);
+      expect(data.questions[0].inputVariables).toEqual({ lang: 'en', user: { name: 'Alice' } });
+      expect(data.questions[1].inputVariables).toBeUndefined();
+    });
+
+    it('should update a question set with inputVariables', async () => {
+      const created = await createQuestionSet(accessToken, {
+        name: 'Update Input Vars',
+        questions: [{ question: 'Test?' }],
+      });
+
+      const response = await authenticatedRequest(`/questions/${created.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Updated Input Vars',
+          questions: [{ question: 'Test?', inputVariables: { key: 'value' } }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.questions[0].inputVariables).toEqual({ key: 'value' });
+    });
+  });
+
   describe('POST /api/questions/import', () => {
     it('should import valid questions array', async () => {
       const response = await authenticatedRequest('/questions/import', {
@@ -190,6 +226,52 @@ describe('Question Sets CRUD', () => {
       const data = await response.json();
       expect(data.message).toContain('expectedAnswer');
       expect(data.message).toContain('string');
+    });
+
+    it('should import questions with inputVariables', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Imported With Vars',
+          questions: [
+            { question: 'Hello?', inputVariables: { lang: 'fr' } },
+            { question: 'Bye?' },
+          ],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(201);
+      const data = await response.json();
+      expect(data.questions[0].inputVariables).toEqual({ lang: 'fr' });
+      expect(data.questions[1].inputVariables).toBeUndefined();
+    });
+
+    it('should reject non-object inputVariables on import', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Invalid Vars',
+          questions: [{ question: 'Test?', inputVariables: 'not-an-object' }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('inputVariables');
+    });
+
+    it('should reject array inputVariables on import', async () => {
+      const response = await authenticatedRequest('/questions/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Array Vars',
+          questions: [{ question: 'Test?', inputVariables: [1, 2, 3] }],
+        }),
+      }, accessToken);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.message).toContain('inputVariables');
     });
 
     it('should trim whitespace from name', async () => {

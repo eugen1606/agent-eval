@@ -989,7 +989,8 @@ export function RunDetailPage() {
               <div className={styles.resultContent}>
                 {result.isError && <div className={styles.resultErrorBadge}>ERROR</div>}
                 <div className={styles.resultQuestion}>
-                  <strong>Question:</strong> {result.question}
+                  <strong>Question:</strong>{' '}
+                  {result.question?.trim() ? result.question : <span className={styles.naValue}>N/A</span>}
                 </div>
 
                 <div className={`${styles.resultAnswer} ${result.isError ? styles.errorText : ''}`}>
@@ -998,7 +999,7 @@ export function RunDetailPage() {
 
                 <div className={styles.resultExpected}>
                   <strong>Expected:</strong>{' '}
-                  {result.expectedAnswer || <span className={styles.naValue}>N/A</span>}
+                  {result.expectedAnswer?.trim() || <span className={styles.naValue}>N/A</span>}
                   {!result.isError && result.expectedAnswer && result.answer && (
                     <button
                       className={`${styles.diffToggleBtn} ${diffToggles.has(result.id) ? styles.active : ''}`}
@@ -1007,6 +1008,13 @@ export function RunDetailPage() {
                       Diff
                     </button>
                   )}
+                </div>
+
+                <div className={styles.resultExpected}>
+                  <strong>Input Variables:</strong>{' '}
+                  {result.inputVariables && Object.keys(result.inputVariables).length > 0
+                    ? <code>{JSON.stringify(result.inputVariables)}</code>
+                    : <span className={styles.naValue}>N/A</span>}
                 </div>
 
                 {diffToggles.has(result.id) && result.expectedAnswer && result.answer && (

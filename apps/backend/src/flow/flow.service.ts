@@ -48,6 +48,7 @@ export class FlowService {
           resolvedConfig,
           question.question,
           sessionId,
+          question.inputVariables,
         );
         const executionTimeMs = Date.now() - startTime;
 
@@ -59,6 +60,7 @@ export class FlowService {
           sessionId,
           executionTimeMs,
           expectedAnswer: question.expectedAnswer,
+          inputVariables: question.inputVariables,
           timestamp: new Date().toISOString(),
         };
       } catch (error) {
@@ -73,6 +75,7 @@ export class FlowService {
           question: question.question,
           answer: `Error: ${errorMessage}`,
           expectedAnswer: question.expectedAnswer,
+          inputVariables: question.inputVariables,
           sessionId,
           executionTimeMs,
           isError: true,
@@ -117,6 +120,7 @@ export class FlowService {
     config: FlowConfig,
     question: string,
     sessionId: string,
+    inputVariables?: Record<string, unknown>,
   ): Promise<{ answer: string; executionId?: string }> {
     const url = `${config.basePath}/api/lflow-engine/${config.flowId}/run`;
 
@@ -128,6 +132,17 @@ export class FlowService {
 
     const persistAllMessages = config.multiStepEvaluation ?? false;
 
+    const hasMessage = question.trim().length > 0;
+    const messages = hasMessage
+      ? [
+          {
+            name: 'User',
+            role: 'human',
+            content: [{ type: 'text', text: question }],
+          },
+        ]
+      : [];
+
     const response = await this.proxyFetchService.fetch(url, {
       method: 'POST',
       headers: {
@@ -136,19 +151,8 @@ export class FlowService {
       },
       body: JSON.stringify({
         sessionId,
-        messages: [
-          {
-            name: 'User',
-            role: 'human',
-            content: [
-              {
-                type: 'text',
-                text: question,
-              },
-            ],
-          },
-        ],
-        inputVariables: {},
+        messages,
+        inputVariables: inputVariables ?? {},
         persistAllMessages,
       }),
     });
@@ -161,6 +165,17 @@ export class FlowService {
 
     const data = await response.json();
     const executionId = data.executionId;
+
+    // If responseVariableKey is set, try to read from result.variables[key]
+    if (config.responseVariableKey) {
+      const variableValue = data.result?.variables?.[config.responseVariableKey];
+      if (variableValue !== undefined && variableValue !== null) {
+        const answer = (typeof variableValue === 'string' ? variableValue : JSON.stringify(variableValue)).trim();
+        if (answer.length > 0) {
+          return { answer, executionId };
+        }
+      }
+    }
 
     // Extract answer from result.messages[0].content[0].text
     if (data.result?.messages?.[0]?.content?.[0]?.text) {

@@ -263,8 +263,9 @@ export class TestsController {
           const baseQuestions = questionSet.questions.map((q) => ({
             question: q.question,
             expectedAnswer: q.expectedAnswer,
+            inputVariables: q.inputVariables,
           }));
-          const questions: { id: string; question: string; expectedAnswer?: string }[] = [];
+          const questions: { id: string; question: string; expectedAnswer?: string; inputVariables?: Record<string, unknown> }[] = [];
           for (const q of baseQuestions) {
             for (let i = 0; i < repeatCount; i++) {
               questions.push({ id: uuidv4(), ...q });
@@ -278,6 +279,7 @@ export class TestsController {
             basePath: test.flowConfig.basePath || '',
             flowId: test.flowConfig.flowId,
             multiStepEvaluation: test.multiStepEvaluation,
+            responseVariableKey: test.responseVariableKey,
           };
 
           // Stream results one by one

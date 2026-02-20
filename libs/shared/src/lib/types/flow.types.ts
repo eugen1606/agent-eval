@@ -10,6 +10,7 @@ export interface FlowConfig {
   basePath: string;
   flowId: string;
   multiStepEvaluation?: boolean; // If true, all questions use the same sessionId
+  responseVariableKey?: string; // If set, read answer from result.variables[key] instead of messages
 }
 
 // Flow Execution Types

@@ -129,9 +129,14 @@ export class QuestionsController {
         throw new BadRequestException(`Question at index ${i}: "expectedAnswer" must be a string if provided`);
       }
 
+      if (item.inputVariables !== undefined && (typeof item.inputVariables !== 'object' || item.inputVariables === null || Array.isArray(item.inputVariables))) {
+        throw new BadRequestException(`Question at index ${i}: "inputVariables" must be an object if provided`);
+      }
+
       validatedQuestions.push({
         question: item.question,
         expectedAnswer: item.expectedAnswer as string | undefined,
+        inputVariables: item.inputVariables as Record<string, unknown> | undefined,
       });
     }
 

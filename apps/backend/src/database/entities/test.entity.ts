@@ -117,6 +117,9 @@ export class Test {
   @Column({ nullable: true })
   simulatedUserReasoningEffort: string;
 
+  @Column({ nullable: true })
+  responseVariableKey: string;
+
   @OneToMany(() => Scenario, (scenario) => scenario.test, { cascade: true })
   scenarios: Scenario[];
 

@@ -28,6 +28,7 @@ export class QuestionSet {
   questions: Array<{
     question: string;
     expectedAnswer?: string;
+    inputVariables?: Record<string, unknown>;
   }>;
 
   @Column({ nullable: true })

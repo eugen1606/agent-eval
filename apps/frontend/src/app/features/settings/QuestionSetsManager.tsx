@@ -305,9 +305,9 @@ export function QuestionSetsManager({ onSelect, selectable }: Props) {
               }}
               minHeight="150px"
               placeholder={`[
-  { "question": "What is 2+2?", "expectedAnswer": "4" },
-  { "question": "Capital of France?" },
-  { "question": "Explain gravity" }
+  { "question": "What is 2+2?", "expectedAnswer": "4", "inputVariables": { "lang": "en" } },
+  { "question": "Greet the user", "inputVariables": { "user": { "name": "Alice", "role": "admin" } } },
+  { "question": "Capital of France?" }
 ]`}
               className={
                 formSubmitAttempted && !formData.questionsJson

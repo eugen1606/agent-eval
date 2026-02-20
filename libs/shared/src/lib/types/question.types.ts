@@ -6,12 +6,13 @@ export interface QuestionInput {
   id: string;
   question: string;
   expectedAnswer?: string;
+  inputVariables?: Record<string, unknown>;
 }
 
 export interface StoredQuestionSet {
   id: string;
   name: string;
-  questions: Array<{ question: string; expectedAnswer?: string }>;
+  questions: Array<{ question: string; expectedAnswer?: string; inputVariables?: Record<string, unknown> }>;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -19,7 +20,7 @@ export interface StoredQuestionSet {
 
 export interface CreateQuestionSetRequest {
   name: string;
-  questions: Array<{ question: string; expectedAnswer?: string }>;
+  questions: Array<{ question: string; expectedAnswer?: string; inputVariables?: Record<string, unknown> }>;
   description?: string;
 }
 

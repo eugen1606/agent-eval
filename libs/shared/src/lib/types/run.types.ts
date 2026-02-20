@@ -27,6 +27,7 @@ export interface RunResult {
   severity?: IncorrectSeverity;
   llmJudgeScore?: number;
   llmJudgeReasoning?: string;
+  inputVariables?: Record<string, unknown>;
   timestamp?: string;
 }
 

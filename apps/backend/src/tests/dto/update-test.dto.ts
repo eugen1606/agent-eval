@@ -124,6 +124,12 @@ export class UpdateTestDto {
   @IsIn(['none', 'minimal', 'low', 'medium', 'high'])
   simulatedUserReasoningEffort?: string;
 
+  @ApiPropertyOptional({ description: 'Variable key to read response from result.variables (e.g. responseDraft)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  responseVariableKey?: string;
+
   @ApiPropertyOptional({ description: 'Scenarios for conversation tests', type: [CreateScenarioDto] })
   @IsOptional()
   @IsArray()

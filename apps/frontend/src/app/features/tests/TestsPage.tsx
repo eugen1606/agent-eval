@@ -67,6 +67,7 @@ export function TestsPage() {
     simulatedUserAccessTokenId: '',
     simulatedUserReasoningModel: false,
     simulatedUserReasoningEffort: 'medium',
+    responseVariableKey: '',
   });
   const [scenarios, setScenarios] = useState<ScenarioFormItem[]>([]);
   const [showScenarioModal, setShowScenarioModal] = useState(false);
@@ -353,6 +354,10 @@ export function TestsPage() {
       tagIds: formData.tagIds,
     };
 
+    if (formData.responseVariableKey) {
+      data.responseVariableKey = formData.responseVariableKey;
+    }
+
     if (formData.type === 'qa') {
       data.questionSetId = formData.questionSetId || null;
       data.multiStepEvaluation = formData.multiStepEvaluation;
@@ -414,6 +419,7 @@ export function TestsPage() {
       simulatedUserAccessTokenId: test.simulatedUserAccessTokenId || '',
       simulatedUserReasoningModel: test.simulatedUserReasoningModel || false,
       simulatedUserReasoningEffort: test.simulatedUserReasoningEffort || 'medium',
+      responseVariableKey: test.responseVariableKey || '',
     });
 
     if (test.type === 'conversation' && test.scenarios) {
@@ -453,6 +459,7 @@ export function TestsPage() {
       simulatedUserAccessTokenId: '',
       simulatedUserReasoningModel: false,
       simulatedUserReasoningEffort: 'medium',
+      responseVariableKey: '',
     });
     setScenarios([]);
     setShowForm(false);
@@ -895,6 +902,19 @@ export function TestsPage() {
               placeholder="Search tokens..."
               allOptionLabel="Select access token..."
             />
+          </div>
+
+          <div className="form-group">
+            <label>Response Variable Key</label>
+            <input
+              type="text"
+              placeholder="e.g., responseDraft"
+              value={formData.responseVariableKey}
+              onChange={(e) => setFormData({ ...formData, responseVariableKey: e.target.value })}
+            />
+            <span className="form-hint">
+              If set, reads the answer from result.variables[key] instead of result.messages
+            </span>
           </div>
 
           {/* Q&A-specific fields */}
