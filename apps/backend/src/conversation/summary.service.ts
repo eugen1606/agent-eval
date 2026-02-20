@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConversationTurn } from '../database/entities';
+import { ProxyFetchService } from '../common/proxy-fetch';
 
 @Injectable()
 export class SummaryService {
   private readonly logger = new Logger(SummaryService.name);
+
+  constructor(private readonly proxyFetchService: ProxyFetchService) {}
 
   async generateSummary(
     turns: ConversationTurn[],
@@ -49,7 +52,7 @@ Keep the summary concise and actionable.`;
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await this.proxyFetchService.fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +86,7 @@ Keep the summary concise and actionable.`;
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await this.proxyFetchService.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

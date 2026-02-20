@@ -76,6 +76,10 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:80}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
+      # Proxy settings (optional)
+      # HTTPS_PROXY: ${HTTPS_PROXY:-}
+      # NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,postgres,redis}
+      # NODE_EXTRA_CA_CERTS: ${NODE_EXTRA_CA_CERTS:-}
     depends_on:
       postgres:
         condition: service_healthy

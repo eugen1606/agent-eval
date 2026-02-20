@@ -8,6 +8,7 @@ import {
 } from './variable-resolver.service';
 import { WebhookRetryService } from './webhook-retry.service';
 import { UrlValidationService } from '../common/validators/url-validation.service';
+import { ProxyFetchService } from '../common/proxy-fetch';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto';
 
 export interface EntityUsage {
@@ -49,6 +50,7 @@ export class WebhooksService {
     private variableResolver: VariableResolverService,
     private webhookRetryService: WebhookRetryService,
     private urlValidationService: UrlValidationService,
+    private proxyFetchService: ProxyFetchService,
   ) {}
 
   async create(dto: CreateWebhookDto, userId: string): Promise<Webhook> {
@@ -264,7 +266,7 @@ export class WebhooksService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const response = await fetch(finalUrl, {
+      const response = await this.proxyFetchService.fetch(finalUrl, {
         method: webhook.method || 'POST',
         headers,
         body: JSON.stringify(resolvedBody),

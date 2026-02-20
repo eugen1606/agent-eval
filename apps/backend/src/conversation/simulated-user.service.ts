@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConversationTurn } from '../database/entities';
+import { ProxyFetchService } from '../common/proxy-fetch';
 
 export interface SimulatedUserConfig {
   model: string;
@@ -110,6 +111,8 @@ const TOOLS_ANTHROPIC = [
 export class SimulatedUserService {
   private readonly logger = new Logger(SimulatedUserService.name);
 
+  constructor(private readonly proxyFetchService: ProxyFetchService) {}
+
   async getNextAction(
     config: SimulatedUserConfig,
     conversationHistory: ConversationTurn[],
@@ -216,7 +219,7 @@ export class SimulatedUserService {
         requestBody['max_tokens'] = config.modelConfig.maxTokens;
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await this.proxyFetchService.fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -289,7 +292,7 @@ export class SimulatedUserService {
         requestBody['temperature'] = config.modelConfig.temperature;
       }
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await this.proxyFetchService.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

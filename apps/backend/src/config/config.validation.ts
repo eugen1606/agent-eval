@@ -19,9 +19,7 @@ export const envSchema = z.object({
 
   // JWT
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
 
   // Redis (optional with default)
   REDIS_URL: z.string().default('redis://localhost:6379'),
@@ -46,9 +44,7 @@ export const envSchema = z.object({
     .transform((val) => val === 'true'),
 
   // Logging
-  LOG_LEVEL: z
-    .enum(['error', 'warn', 'info', 'debug', 'verbose'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug', 'verbose']).default('info'),
   LOG_FORMAT: z.enum(['json', 'text']).default('text'),
   REQUEST_LOGGING: z
     .string()
@@ -59,10 +55,19 @@ export const envSchema = z.object({
   WEBHOOK_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(3),
 
   // CORS configuration
-  CORS_ORIGINS: z
+  CORS_ORIGINS: z.string().optional().default('http://localhost:4201,http://localhost:5173'),
+
+  // Proxy (optional - for environments requiring HTTPS proxy)
+  HTTPS_PROXY: z
     .string()
-    .optional()
-    .default('http://localhost:4201,http://localhost:5173'),
+    .regex(/^https?:\/\/.+/, 'HTTPS_PROXY must be a valid URL')
+    .optional(),
+  HTTP_PROXY: z
+    .string()
+    .regex(/^https?:\/\/.+/, 'HTTP_PROXY must be a valid URL')
+    .optional(),
+  NO_PROXY: z.string().optional(),
+  NODE_EXTRA_CA_CERTS: z.string().optional(),
 
   // SSRF Protection
   ALLOW_PRIVATE_URLS: z
@@ -73,8 +78,9 @@ export const envSchema = z.object({
     .string()
     .optional()
     .default('')
-    .describe('Comma-separated list of allowed domains for outbound requests (e.g., api.example.com,flows.mycompany.internal)'),
-
+    .describe(
+      'Comma-separated list of allowed domains for outbound requests (e.g., api.example.com,flows.mycompany.internal)'
+    ),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

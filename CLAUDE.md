@@ -228,6 +228,11 @@ THROTTLE_LIMIT=100        # Max requests per time window (default: 100)
 THROTTLE_TTL=60000        # Time window in ms (default: 60000 = 1 minute)
 THROTTLE_DISABLED=false   # Set to 'true' to disable rate limiting (auto-disabled in test env)
 
+# Proxy (optional - for environments requiring HTTPS proxy)
+HTTPS_PROXY=http://proxy-host:port   # Routes external API calls through proxy
+NO_PROXY=localhost,127.0.0.1,::1,postgres,redis  # Bypass proxy for local services
+NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca.pem  # Custom CA certificate (handled by Node.js)
+
 # Optional
 LOG_LEVEL=info  # error, warn, info, debug, verbose
 ```

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LLMJudgeResponse, HumanEvaluationStatus } from '@agent-eval/shared';
+import { ProxyFetchService } from '../common/proxy-fetch';
 
 export interface EvaluationConfig {
   apiKey: string;
@@ -13,6 +14,8 @@ export interface EvaluationConfig {
 @Injectable()
 export class EvaluationService {
   private readonly logger = new Logger(EvaluationService.name);
+
+  constructor(private readonly proxyFetchService: ProxyFetchService) {}
 
   async evaluateWithLLM(
     question: string,
@@ -95,7 +98,7 @@ export class EvaluationService {
         requestBody['temperature'] = 0;
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await this.proxyFetchService.fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +130,7 @@ export class EvaluationService {
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await this.proxyFetchService.fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

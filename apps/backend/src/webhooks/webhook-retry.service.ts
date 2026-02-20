@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import Redis from 'ioredis';
 import { Webhook, WebhookMethod } from '../database/entities';
+import { ProxyFetchService } from '../common/proxy-fetch';
 
 export interface WebhookDelivery {
   id: string;
@@ -33,7 +34,10 @@ export class WebhookRetryService implements OnModuleDestroy {
   private readonly RETRY_QUEUE_KEY = 'webhook:retry:queue';
   private readonly DELIVERY_PREFIX = 'webhook:delivery:';
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly proxyFetchService: ProxyFetchService,
+  ) {
     const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
     this.maxRetries = this.configService.get<number>('WEBHOOK_MAX_RETRIES', 3);
 
@@ -231,7 +235,7 @@ export class WebhookRetryService implements OnModuleDestroy {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch(delivery.url, {
+      const response = await this.proxyFetchService.fetch(delivery.url, {
         method: delivery.method,
         headers: delivery.headers,
         body: delivery.body,

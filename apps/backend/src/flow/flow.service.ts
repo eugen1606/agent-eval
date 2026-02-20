@@ -7,6 +7,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { AccessTokensService } from '../access-tokens/access-tokens.service';
 import { UrlValidationService } from '../common/validators/url-validation.service';
+import { ProxyFetchService } from '../common/proxy-fetch';
 
 @Injectable()
 export class FlowService {
@@ -15,6 +16,7 @@ export class FlowService {
   constructor(
     private readonly accessTokensService: AccessTokensService,
     private readonly urlValidationService: UrlValidationService,
+    private readonly proxyFetchService: ProxyFetchService,
   ) {}
 
   async *executeFlowStream(
@@ -126,7 +128,7 @@ export class FlowService {
 
     const persistAllMessages = config.multiStepEvaluation ?? false;
 
-    const response = await fetch(url, {
+    const response = await this.proxyFetchService.fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
