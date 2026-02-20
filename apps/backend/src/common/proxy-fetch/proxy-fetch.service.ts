@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ProxyAgent } from 'undici';
+import { readFileSync } from 'fs';
+import { rootCertificates } from 'tls';
 
 @Injectable()
 export class ProxyFetchService implements OnModuleInit {
@@ -22,9 +24,24 @@ export class ProxyFetchService implements OnModuleInit {
     const noProxy = this.configService.get<string>('NO_PROXY') || '';
 
     if (proxyUrl) {
-      // Validate the proxy URL before passing to ProxyAgent
+      const caCertPath = this.configService.get<string>('NODE_EXTRA_CA_CERTS');
+      const requestTls: Record<string, unknown> = {};
 
-      this.proxyAgent = new ProxyAgent(proxyUrl);
+      if (caCertPath) {
+        try {
+          const customCa = readFileSync(caCertPath, 'utf8');
+          // Append custom CA to default root certificates (don't replace them)
+          requestTls.ca = [...rootCertificates, customCa];
+          this.logger.log(`Loaded custom CA certificate from ${caCertPath}`);
+        } catch (err) {
+          this.logger.error(`Failed to load CA certificate from ${caCertPath}: ${err}`);
+        }
+      }
+
+      this.proxyAgent = new ProxyAgent({
+        uri: proxyUrl,
+        requestTls: Object.keys(requestTls).length > 0 ? requestTls : undefined,
+      });
       this.noProxyList = noProxy
         .split(',')
         .map((entry) => entry.trim().toLowerCase())
@@ -38,20 +55,49 @@ export class ProxyFetchService implements OnModuleInit {
   }
 
   async fetch(url: string | URL | Request, init?: RequestInit): Promise<Response> {
-    if (!this.proxyAgent) {
-      return fetch(url, init);
-    }
-
     const targetUrl = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+    console.log(`[ProxyFetchService] fetch called: ${targetUrl}, proxyAgent=${!!this.proxyAgent}`);
+
+    if (!this.proxyAgent) {
+      this.logger.warn(`[fetch] No proxy agent, direct fetch to: ${targetUrl}`);
+      try {
+        return await fetch(url, init);
+      } catch (error) {
+        this.logger.error(
+          `[fetch] Direct fetch failed for ${targetUrl}: ${(error as Error).message}`
+        );
+        throw error;
+      }
+    }
 
     if (this.shouldBypassProxy(targetUrl)) {
-      return fetch(url, init);
+      this.logger.debug(`[fetch] Bypassing proxy for: ${targetUrl}`);
+      try {
+        return await fetch(url, init);
+      } catch (error) {
+        this.logger.error(
+          `[fetch] Bypass fetch failed for ${targetUrl}: ${(error as Error).message}`
+        );
+        throw error;
+      }
     }
 
-    return fetch(url, {
-      ...init,
-      dispatcher: this.proxyAgent,
-    } as RequestInit);
+    this.logger.debug(`[fetch] Using proxy for: ${targetUrl}`);
+    try {
+      return await fetch(url, {
+        ...init,
+        dispatcher: this.proxyAgent,
+      } as RequestInit);
+    } catch (error) {
+      const cause = (error as Error & { cause?: Error }).cause;
+      const causeCode = (cause as Error & { code?: string })?.code;
+      this.logger.error(
+        `[fetch] Proxy fetch failed for ${targetUrl}: ${(error as Error).message}` +
+          (cause ? ` | Cause: ${cause.message}` : '') +
+          (causeCode ? ` (${causeCode})` : '')
+      );
+      throw error;
+    }
   }
 
   private shouldBypassProxy(url: string): boolean {
